@@ -6,45 +6,17 @@
 <link rel="stylesheet" href="{{ asset('assets/css/common/main.css') }}">
 
 <style>
-/* =========================
- * Feedback Results (Manage) – same UI DNA
- * ONLY CHANGES (as requested):
- * 1) Subject shows subject code also (if available)
- * 2) Remove Group Title from view + export
- * 3) Remove UUID from details + table "Feedback Post" column
- * 4) Remove Expiry everywhere (UI + export)
- * 5) Keep everything else unchanged
- * ========================= */
 
 .fq-wrap{padding:14px 4px}
 
 /* Toolbar panel */
-.fq-toolbar.panel{
-  background:var(--surface);
-  border:1px solid var(--line-strong);
-  border-radius:16px;
-  box-shadow:var(--shadow-2);
-  padding:12px;
-}
+.fq-toolbar.panel{background:var(--surface);border:1px solid var(--line-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:12px;}
 
 /* Table Card */
-.table-wrap.card{
-  position:relative;
-  border:1px solid var(--line-strong);
-  border-radius:16px;
-  background:var(--surface);
-  box-shadow:var(--shadow-2);
-  overflow:visible;
-}
+.table-wrap.card{position:relative;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-2);overflow:visible;}
 .table-wrap .card-body{overflow:visible}
 .table{--bs-table-bg:transparent}
-.table thead th{
-  font-weight:600;
-  color:var(--muted-color);
-  font-size:13px;
-  border-bottom:1px solid var(--line-strong);
-  background:var(--surface)
-}
+.table thead th{font-weight:600;color:var(--muted-color);font-size:13px;border-bottom:1px solid var(--line-strong);background:var(--surface)}
 .table thead.sticky-top{z-index:3}
 .table tbody tr{border-top:1px solid var(--line-soft)}
 .table tbody tr:hover{background:var(--page-hover)}
@@ -57,21 +29,11 @@ td .fw-semibold{color:var(--ink)}
 /* Tabs */
 .nav.nav-tabs{border-color:var(--line-strong)}
 .nav-tabs .nav-link{color:var(--ink)}
-.nav-tabs .nav-link.active{
-  background:var(--surface);
-  border-color:var(--line-strong) var(--line-strong) var(--surface)
-}
+.nav-tabs .nav-link.active{background:var(--surface);border-color:var(--line-strong) var(--line-strong) var(--surface)}
 
 /* Empty */
 .empty{color:var(--muted-color)}
-.pill{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:6px 10px;border-radius:999px;
-  background:color-mix(in oklab, var(--primary-color) 10%, transparent);
-  color:var(--primary-color);
-  border:1px solid color-mix(in oklab, var(--primary-color) 18%, var(--line-soft));
-  font-size:12px;font-weight:700;
-}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:color-mix(in oklab, var(--primary-color) 10%, transparent);color:var(--primary-color);border:1px solid color-mix(in oklab, var(--primary-color) 18%, var(--line-soft));font-size:12px;font-weight:700;}
 .pill i{opacity:.85}
 
 /* Clickable row */
@@ -83,123 +45,36 @@ td .fw-semibold{color:var(--ink)}
 #globalLoading.loading-overlay.is-show{ display:flex !important; }
 
 /* Detail modal head */
-.detail-head{
-  display:flex; align-items:flex-start; justify-content:space-between;
-  gap:14px;
-}
+.detail-head{display:flex; align-items:flex-start; justify-content:space-between;gap:14px;}
 .detail-meta{display:flex; flex-wrap:wrap; gap:8px;}
-.detail-meta .chip{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px; border-radius:999px;
-  border:1px solid var(--line-strong);
-  background:color-mix(in oklab, var(--surface) 92%, transparent);
-  font-size:12px;
-  color:var(--ink);
-}
+.detail-meta .chip{display:inline-flex; align-items:center; gap:8px;padding:6px 10px; border-radius:999px;border:1px solid var(--line-strong);background:color-mix(in oklab, var(--surface) 92%, transparent);font-size:12px;color:var(--ink);}
 .detail-meta .chip i{opacity:.75}
 
 /* Key-value info */
-.kv{
-  display:grid;
-  grid-template-columns: 160px 1fr;
-  gap:6px 12px;
-  font-size:13px;
-}
+.kv{display:grid;grid-template-columns: 160px 1fr;gap:6px 12px;font-size:13px;}
 .kv .k{color:var(--muted-color)}
 .kv .v{color:var(--ink); font-weight:700}
 
 /* Faculty tabs (inside detail modal) */
-.fac-tabsbar{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  padding:10px;
-  border:1px solid var(--line-strong);
-  background:var(--surface);
-  border-radius:14px;
-  box-shadow:var(--shadow-2);
-}
-.fac-tabbtn{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:8px 10px;
-  border-radius:999px;
-  border:1px solid var(--line-strong);
-  background:color-mix(in oklab, var(--surface) 92%, transparent);
-  color:var(--ink);
-  font-weight:800;
-  font-size:12.5px;
-  cursor:pointer;
-  transition:transform .08s ease, background .12s ease, border-color .12s ease;
-  user-select:none;
-  max-width: 100%;
-}
+.fac-tabsbar{display:flex;gap:8px;flex-wrap:wrap;padding:10px;border:1px solid var(--line-strong);background:var(--surface);border-radius:14px;box-shadow:var(--shadow-2);}
+.fac-tabbtn{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;border:1px solid var(--line-strong);background:color-mix(in oklab, var(--surface) 92%, transparent);color:var(--ink);font-weight:800;font-size:12.5px;cursor:pointer;transition:transform .08s ease, background .12s ease, border-color .12s ease;user-select:none;max-width: 100%;}
 .fac-tabbtn:active{transform:translateY(.5px)}
 .fac-tabbtn i{opacity:.85}
-.fac-tabbtn .nm{
-  display:inline-block;
-  max-width: 240px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.fac-tabbtn.active{
-  background:color-mix(in oklab, var(--primary-color) 12%, transparent);
-  border-color:color-mix(in oklab, var(--primary-color) 30%, var(--line-strong));
-  color:var(--primary-color);
-}
+.fac-tabbtn .nm{display:inline-block;max-width: 240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fac-tabbtn.active{background:color-mix(in oklab, var(--primary-color) 12%, transparent);border-color:color-mix(in oklab, var(--primary-color) 30%, var(--line-strong));color:var(--primary-color);}
 
 /* Screenshot-like matrix */
-.matrix-wrap{
-  border:1px solid var(--line-strong);
-  border-radius:14px;
-  overflow:auto;
-  background:var(--surface);
-  box-shadow:var(--shadow-2);
-}
-.matrix{
-  width:max-content;
-  min-width:100%;
-  border-collapse:collapse;
-}
-.matrix th, .matrix td{
-  border:1px solid var(--line-soft);
-  padding:10px 10px;
-  font-size:13px;
-  vertical-align:top;
-}
-.matrix thead th{
-  background:color-mix(in oklab, var(--surface) 90%, var(--page-hover));
-  font-weight:800;
-  color:var(--ink);
-  text-align:center;
-  white-space:nowrap;
-}
-.matrix .qcol{
-  min-width:520px;
-  max-width:720px;
-  text-align:left;
-}
-.matrix td{
-  text-align:center;
-  font-weight:800;
-}
-.matrix td.qtext{
-  text-align:left;
-  font-weight:700;
-  color:var(--ink);
-}
-.matrix .avgrow td{
-  background:color-mix(in oklab, var(--primary-color) 6%, transparent);
-}
-.matrix .submeta{
-  display:block;
-  margin-top:6px;
-  font-size:12px;
-  color:var(--muted-color);
-  font-weight:600;
-}
+.matrix-wrap{border:1px solid var(--line-strong);border-radius:14px;overflow:auto;background:var(--surface);box-shadow:var(--shadow-2);}
+.matrix{width:max-content;min-width:100%;border-collapse:collapse;}
+.matrix th, .matrix td{border:1px solid var(--line-soft);padding:10px 10px;font-size:13px;vertical-align:top;}
+.matrix thead th{background:color-mix(in oklab, var(--surface) 90%, var(--page-hover));font-weight:800;color:var(--ink);text-align:center;white-space:nowrap;}
+.matrix .qcol{min-width:520px;max-width:720px;text-align:left;}
+.matrix td{text-align:center;font-weight:800;}
+.matrix td.qtext{text-align:left;font-weight:700;color:var(--ink);}
+.matrix .avgrow td{background:color-mix(in oklab, var(--primary-color) 6%, transparent);}
+/* ✅ ensure avg-row single cell truly behaves like full-width content */
+.matrix .avgrow td.qtext{width:100%;text-align:center;white-space:normal;}
+.matrix .submeta{display:block;margin-top:6px;font-size:12px;color:var(--muted-color);font-weight:600;}
 
 /* ✅ Column colors (5..1) */
 :root{
@@ -230,23 +105,8 @@ td .fw-semibold{color:var(--ink)}
 .matrix .avgrow td.col1{ background:color-mix(in oklab, var(--rate-1) 12%, color-mix(in oklab, var(--primary-color) 6%, transparent)); }
 
 /* Export modal helpers */
-.export-pills{
-  display:flex; flex-wrap:wrap; gap:8px;
-  padding:10px;
-  border:1px dashed var(--line-soft);
-  border-radius:14px;
-  background:color-mix(in oklab, var(--surface) 92%, transparent);
-}
-.export-pill{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:8px 10px;
-  border:1px solid var(--line-strong);
-  border-radius:999px;
-  background:var(--surface);
-  font-weight:800;
-  font-size:12.5px;
-  color:var(--ink);
-}
+.export-pills{display:flex; flex-wrap:wrap; gap:8px;padding:10px;border:1px dashed var(--line-soft);border-radius:14px;background:color-mix(in oklab, var(--surface) 92%, transparent);}
+.export-pill{display:inline-flex; align-items:center; gap:8px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);font-weight:800;font-size:12.5px;color:var(--ink);}
 .export-pill input{ transform:translateY(1px); }
 .export-pill i{opacity:.85}
 
@@ -371,7 +231,7 @@ td .fw-semibold{color:var(--ink)}
           <div class="fw-bold mb-2"><i class="fa fa-circle-info me-2"></i>How this page works</div>
           <ul class="mb-0 text-muted">
             <li>This page shows aggregated results per <b>Feedback Post</b>.</li>
-            <li>Click any row (or the eye button) to open the detailed view with <b>rating % distribution</b> (Overall) and <b>faculty-wise breakdown</b> tabs.</li>
+            <li>Click any row (or the eye button) to open the detailed view with <b>grade distribution</b> (Overall) and <b>faculty-wise breakdown</b> tabs.</li>
             <li>Use filters to narrow by Department/Course/Semester/Subject/Section and (optional) Academic Year / Year.</li>
           </ul>
         </div>
@@ -480,8 +340,8 @@ td .fw-semibold{color:var(--ink)}
           <div class="detail-meta">
             <span class="chip"><i class="fa fa-calendar"></i> Publish: <span id="detailPublish">—</span></span>
             {{-- ✅ Removed Expire chip --}}
+            {{-- ✅ UPDATED: show X out of Y (Participated out of Eligible) --}}
             <span class="chip"><i class="fa fa-users"></i> Participated: <b id="detailParticipated">0</b></span>
-            {{-- <span class="chip"><i class="fa fa-star"></i> Out of: <b>9</b></span> --}}
           </div>
         </div>
 
@@ -501,11 +361,31 @@ td .fw-semibold{color:var(--ink)}
           <div class="p-3" style="border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);" id="detailDesc">—</div>
         </div>
 
+        {{-- ✅ NEW: Attendance % filter (in modal, top of faculty/overall tabs) --}}
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="pill"><i class="fa-solid fa-filter"></i>Attendance Filter</span>
+            <div class="input-group" style="max-width:260px;">
+              <span class="input-group-text"><i class="fa-solid fa-percent"></i></span>
+              <input id="attMin" type="number" class="form-control" min="0" max="100" step="1" placeholder="Min attendance (e.g. 75)">
+              <button id="btnAttApply" class="btn btn-outline-primary" type="button" title="Apply">
+                <i class="fa fa-check"></i>
+              </button>
+              <button id="btnAttClear" class="btn btn-light" type="button" title="Clear">
+                <i class="fa fa-rotate-left"></i>
+              </button>
+            </div>
+          </div>
+          <div class="small text-muted">
+            Only students with attendance <b>&ge;</b> this percentage will be included.
+          </div>
+        </div>
+
         {{-- Faculty Tabs (auto) --}}
         <div id="detailFacultyTabs" class="fac-tabsbar mb-2" style="display:none;"></div>
 
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-          <div class="fw-semibold" id="detailMatrixTitle"><i class="fa fa-table me-2"></i>Question-wise Rating Distribution (%)</div>
+          <div class="fw-semibold" id="detailMatrixTitle"><i class="fa fa-table me-2"></i>Question-wise Grade Distribution</div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <button type="button" id="btnExport" class="btn btn-outline-primary">
               <i class="fa-solid fa-file-export me-1"></i>Export
@@ -554,7 +434,8 @@ td .fw-semibold{color:var(--ink)}
           <div class="small text-muted">
             <i class="fa fa-circle-info me-1"></i>
             ✅ CSV: Top academic details first, then blocks: <b>Overall</b>, then selected <b>Faculty</b> blocks (same format).<br>
-            PDF is generated as pages: <b>Overall first</b>, then selected faculties.
+            PDF is generated as pages: <b>Overall first</b>, then selected faculties.<br>
+            <b>Note:</b> Exports use <b>grade counts</b> (NO percentages).
           </div>
         </div>
       </div>
@@ -634,28 +515,25 @@ td .fw-semibold{color:var(--ink)}
 
   function safeText(s){ return (s ?? '').toString().trim(); }
 
-  function normalizePctMap(pct){
-    const p = pct || {};
+  /* =========================
+   * ✅ Grade helpers (NO %)
+   * ========================= */
+  function normalizeCountMap(counts){
+    const c = counts || {};
     const get = (k) => {
-      const v = (p[k] ?? p[String(k)] ?? p[Number(k)] ?? 0);
+      const v = (c[k] ?? c[String(k)] ?? c[Number(k)] ?? 0);
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
     };
     return { '5': get(5), '4': get(4), '3': get(3), '2': get(2), '1': get(1) };
   }
 
-  function computeAveragePctFromPctRows(rows){
-    const sum = {5:0,4:0,3:0,2:0,1:0};
-    let cnt = 0;
-    (rows || []).forEach(r => {
-      const p = normalizePctMap(r);
-      [5,4,3,2,1].forEach(k => sum[k] += Number(p[String(k)]||0));
-      cnt++;
-    });
-    if (!cnt) return {5:0,4:0,3:0,2:0,1:0};
-    const out = {};
-    [5,4,3,2,1].forEach(k => out[k] = Math.round(sum[k] / cnt));
-    return out;
+  function computeAvgGradeFromCounts(counts){
+    const c = normalizeCountMap(counts || {});
+    const total = (c['5'] + c['4'] + c['3'] + c['2'] + c['1']);
+    if (!total) return { avg: null, total: 0 };
+    const sum = (5*c['5']) + (4*c['4']) + (3*c['3']) + (2*c['2']) + (1*c['1']);
+    return { avg: Math.round((sum/total) * 100) / 100, total };
   }
 
   function downloadBlob(filename, mime, content){
@@ -691,30 +569,15 @@ td .fw-semibold{color:var(--ink)}
       .slice(0,40) || 'feedback';
   }
 
-  function makeSubjectLabel(code, name){
-    const c = (code ?? '').toString().trim();
-    const n = (name ?? '').toString().trim();
-    if (c && n){
-      const nLow = n.toLowerCase();
-      const cLow = c.toLowerCase();
-      if (nLow.includes(cLow)) return n; // already has code
-      return `${c} - ${n}`;
-    }
-    return n || c || '—';
-  }
-
   function facultyShortName(fullName){
     let s = (fullName ?? '').toString().trim();
     if (!s) return '';
 
-    // remove bracket parts & trailing comma suffixes (degrees etc)
     s = s.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
     s = s.split(',')[0].trim();
 
-    // normalize spaces
     let parts = s.split(/\s+/).filter(Boolean);
 
-    // drop leading honorifics/prefixes (skip front part: Asst/Dr/Prof etc)
     const drop = new Set([
       'ad','addl','additional','adv','advocate',
       'dr','dr.','prof','prof.','asst','asst.','assistant','assoc','assoc.','associate',
@@ -730,7 +593,6 @@ td .fw-semibold{color:var(--ink)}
       parts.shift();
     }
 
-    // drop trailing degrees (common)
     const tailDrop = new Set([
       'phd','ph.d','mtech','m.tech','btech','b.tech','me','m.e','be','b.e',
       'mba','mca','msc','m.sc','bsc','b.sc','ma','m.a','ba','b.a',
@@ -743,7 +605,6 @@ td .fw-semibold{color:var(--ink)}
     if (!parts.length) return '';
     if (parts.length === 1) return parts[0];
 
-    // last name particles support
     const particles = new Set(['de','del','della','da','di','la','le','van','von','bin','ibn','al','der','den']);
 
     let start = parts.length - 1;
@@ -810,11 +671,9 @@ td .fw-semibold{color:var(--ink)}
     const fYear   = $('f_year');
 
     const filterModalEl = $('filterModal');
-    const filterModal   = filterModalEl ? new bootstrap.Modal(filterModalEl) : null;
 
     // Detail modal fields
     const detailModalEl = $('detailModal');
-    const detailModal   = detailModalEl ? new bootstrap.Modal(detailModalEl) : null;
 
     const detailTitle     = $('detailTitle');
     const detailPostName  = $('detailPostName');
@@ -839,15 +698,49 @@ td .fw-semibold{color:var(--ink)}
     const detailQuestions = $('detailQuestions');
     const detailSearch = $('detailSearch');
 
+    // ✅ Attendance filter controls (detail modal)
+    const attMin = $('attMin');
+    const btnAttApply = $('btnAttApply');
+    const btnAttClear = $('btnAttClear');
+
     // Export modal fields
     const btnExport = $('btnExport');
     const exportModalEl = $('exportModal');
-    const exportModal = exportModalEl ? new bootstrap.Modal(exportModalEl) : null;
     const exportPostTitle = $('exportPostTitle');
     const exportPostSub = $('exportPostSub');
     const exportTargets = $('exportTargets');
     const btnDoCsv = $('btnDoCsv');
     const btnDoPdf = $('btnDoPdf');
+
+    /* =========================================================
+     * ✅ FIX: Orphan backdrop cleanup (prevents stuck backdrop)
+     * - Happens when modal is hidden programmatically but backdrop
+     *   doesn't get removed due to transition/interruption.
+     * ========================================================= */
+    function cleanupOrphanBackdrops(){
+      // If any modal is currently open, do nothing.
+      if (document.querySelector('.modal.show')) return;
+
+      document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('padding-right');
+    }
+
+    // Always use getOrCreateInstance (prevents instance mismatch)
+    const filterModal = filterModalEl ? bootstrap.Modal.getOrCreateInstance(filterModalEl) : null;
+    const detailModal = detailModalEl ? bootstrap.Modal.getOrCreateInstance(detailModalEl) : null;
+    const exportModal = exportModalEl ? bootstrap.Modal.getOrCreateInstance(exportModalEl) : null;
+
+    // Cleanup on any modal hidden (safety net)
+    [filterModalEl, detailModalEl, exportModalEl].forEach(elm => {
+      if (!elm) return;
+      elm.addEventListener('hidden.bs.modal', () => {
+        // allow Bootstrap to finish its own cleanup first, then force-remove any leftovers
+        setTimeout(cleanupOrphanBackdrops, 0);
+      });
+    });
 
     // State
     const state = {
@@ -861,24 +754,52 @@ td .fw-semibold{color:var(--ink)}
         subject_id: '',
         section_id: '',
         academic_year: '',
-        year: ''
+        year: '',
+        min_attendance: '' // ✅ NEW
       },
       rawHierarchy: [],
       postIndex: new Map(),
       flatPosts: [],
       total: 0,
 
+      // ✅ cache last known dropdown options to prevent wipe on empty result
+      optionCache: {
+        deptMap: new Map(),
+        courseMap: new Map(),
+        semMap: new Map(),
+        subMap: new Map(),
+        subTitleMap: new Map(),
+        secMap: new Map()
+      },
+
       // detail tabs
       lastDetailPostKey: null,
       activeFacultyId: 0,          // "0" means Overall
       activeFacultyName: 'Overall',
-      availableFaculty: [],
+      availableFaculty: [],        // [{id,name,short}]
 
       // last opened post cached for export
       lastDetailCtx: null,
       lastDetailPost: null,
       lastDetailQuestions: [],
+
+      // ✅ keep the “opened post” pinned even if filtering returns empty once
+      pinnedDetailPostKey: null,
     };
+
+    detailModalEl?.addEventListener('hidden.bs.modal', () => {
+      state.pinnedDetailPostKey = null;
+      state.lastDetailPostKey = null;
+    });
+
+    function clampAttendance(v){
+      const s = (v ?? '').toString().trim();
+      if (s === '') return '';
+      const n = Number(s);
+      if (!Number.isFinite(n)) return '';
+      const c = Math.max(0, Math.min(100, Math.round(n)));
+      return String(c);
+    }
 
     function buildParams(){
       const p = new URLSearchParams();
@@ -891,6 +812,9 @@ td .fw-semibold{color:var(--ink)}
       if (f.section_id) p.set('section_id', f.section_id);
       if (f.academic_year) p.set('academic_year', f.academic_year);
       if (f.year) p.set('year', f.year);
+
+      // ✅ Attendance filter passed to API (>=)
+      if (f.min_attendance !== '') p.set('min_attendance', f.min_attendance);
 
       return p.toString();
     }
@@ -929,6 +853,14 @@ td .fw-semibold{color:var(--ink)}
       state.postIndex.clear();
       state.flatPosts = [];
 
+      const hierarchy = Array.isArray(state.rawHierarchy) ? state.rawHierarchy : [];
+
+      // ✅ FIX: if API returned empty, do NOT rebuild dropdowns to empty (keep optionCache)
+      if (!hierarchy.length){
+        state.total = 0;
+        return;
+      }
+
       const deptSet = new Map();
       const courseSet = new Map();
       const semSet = new Map();
@@ -936,7 +868,7 @@ td .fw-semibold{color:var(--ink)}
       const subTitleSet = new Map();
       const secSet = new Map();
 
-      (state.rawHierarchy || []).forEach(dept => {
+      hierarchy.forEach(dept => {
         const dId = dept?.department_id ?? '';
         const dName = dept?.department_name ?? '';
         if (dId !== null && dId !== undefined && dId !== '') deptSet.set(String(dId), String(dName || ('Dept #' + dId)));
@@ -993,7 +925,7 @@ td .fw-semibold{color:var(--ink)}
                     key,
                     post_id: postId,
 
-                    // ✅ keep uuid in data (not displayed), for searching if needed
+                    // keep uuid in data (not displayed)
                     uuid: post?.feedback_post_uuid ?? '',
 
                     title: post?.title ?? '—',
@@ -1002,7 +934,10 @@ td .fw-semibold{color:var(--ink)}
                     description: post?.description ?? '',
                     academic_year: post?.academic_year ?? '',
                     year: post?.year ?? '',
+
+                    // ✅ includes eligible_students from API if present
                     participated_students: post?.participated_students ?? 0,
+                    eligible_students: (post?.eligible_students === null || post?.eligible_students === undefined) ? null : Number(post.eligible_students),
                     ctx
                   });
                 });
@@ -1011,6 +946,14 @@ td .fw-semibold{color:var(--ink)}
           });
         });
       });
+
+      // ✅ update cache only when we got non-empty hierarchy
+      state.optionCache.deptMap = deptSet;
+      state.optionCache.courseMap = courseSet;
+      state.optionCache.semMap = semSet;
+      state.optionCache.subMap = subSet;
+      state.optionCache.subTitleMap = subTitleSet;
+      state.optionCache.secMap = secSet;
 
       const fillSel = (sel, map, titleMap=null) => {
         if (!sel) return;
@@ -1114,26 +1057,49 @@ td .fw-semibold{color:var(--ink)}
      * Detail: faculty tabs helpers
      * =========================== */
 
+    // ✅ CHANGED: capture name_short_form from API and use it for tabs display
     function collectFacultyFromQuestions(questions){
-      const map = new Map(); // id -> name
+      const map = new Map(); // id -> { name, short }
+
       (questions || []).forEach(q => {
         (Array.isArray(q.faculty) ? q.faculty : []).forEach(f => {
           const id = Number(f?.faculty_id);
           if (!Number.isFinite(id)) return;
+
           const name = (f?.faculty_name ?? '').toString().trim() || ('Faculty #' + id);
-          map.set(String(id), name);
+
+          // requested key: name_short_form (fallbacks are harmless)
+          const short =
+            (f?.name_short_form ?? f?.faculty_name_short_form ?? f?.short_name ?? f?.short_form ?? '')
+              .toString().trim();
+
+          const key = String(id);
+          const prev = map.get(key);
+
+          if (!prev){
+            map.set(key, { name, short });
+          } else {
+            // keep best values without breaking
+            const nextName = prev.name || name;
+            const nextShort = (prev.short || short);
+            map.set(key, { name: nextName, short: nextShort });
+          }
         });
       });
 
-      if (!map.has('0')) map.set('0', 'Overall');
+      if (!map.has('0')) map.set('0', { name: 'Overall', short: 'Overall' });
 
       const out = [];
-      out.push({ id: '0', name: map.get('0') || 'Overall' });
+      out.push({ id: '0', name: (map.get('0')?.name || 'Overall'), short: (map.get('0')?.short || 'Overall') });
 
       Array.from(map.entries())
         .filter(([id]) => id !== '0')
-        .sort((a,b)=>String(a[1]).localeCompare(String(b[1])))
-        .forEach(([id,name]) => out.push({ id, name }));
+        .sort((a,b)=>{
+          const aa = (a[1]?.name || '').toString();
+          const bb = (b[1]?.name || '').toString();
+          return aa.localeCompare(bb);
+        })
+        .forEach(([id,obj]) => out.push({ id, name: obj?.name || ('Faculty #' + id), short: obj?.short || '' }));
 
       return out;
     }
@@ -1151,16 +1117,18 @@ td .fw-semibold{color:var(--ink)}
       detailFacultyTabs.innerHTML = list.map(f => {
         const active = String(f.id) === String(state.activeFacultyId);
         const isOverall = String(f.id) === '0';
-        const fullName = String(f.name);
-        const shortName = isOverall ? fullName : (facultyShortName(fullName) || fullName);
+
+        const fullName = String(f.name || '');
+        // ✅ Requested: show ONLY name_short_form on tab button (fallback to full name if missing)
+        const displayName = isOverall ? 'Overall' : (String(f.short || '').trim() || fullName || ('Faculty #' + f.id));
 
         return `
           <button type="button"
             class="fac-tabbtn ${active ? 'active' : ''}"
             data-fid="${esc(String(f.id))}"
-            data-fname="${esc(String(f.name))}">
+            data-fname="${esc(String(f.name || ''))}">
             <i class="fa-solid ${isOverall ? 'fa-star' : 'fa-user-tie'}"></i>
-            <span class="nm" title="${esc(String(f.name))}">${esc(shortName)}</span>
+            <span class="nm" title="${esc(fullName || displayName)}">${esc(displayName)}</span>
           </button>
         `;
       }).join('');
@@ -1171,65 +1139,66 @@ td .fw-semibold{color:var(--ink)}
       return arr.find(x => String(x?.faculty_id) === String(fid)) || null;
     }
 
+    /* ===========================
+     * ✅ Matrix renderer (COUNTS)
+     * =========================== */
     function renderMatrixHtml({ questions, mode, fid, facName }){
-      const rowPcts = [];
+      const rowCounts = [];
+
+      // keep for avg-grade computation only (NOT displayed as totals)
+      const totalCounts = {'5':0,'4':0,'3':0,'2':0,'1':0};
 
       const rowsHtml = (questions || []).map((q, idx) => {
         const qTitle = (q.question_title || '—').toString();
         const searchable = (qTitle || '').toLowerCase();
 
-        let pct = null;
-
+        let dist = null;
         if (mode === 'overall'){
-          const dist = q.distribution || {};
-          pct = normalizePctMap(dist.percent || {});
+          dist = q.distribution || null; // {counts,total,avg}
         } else {
           const f = facultyRowForQuestion(q, fid);
-          pct = (f && f.distribution && f.distribution.percent) ? normalizePctMap(f.distribution.percent) : null;
+          dist = (f && f.distribution) ? f.distribution : null;
         }
 
-        rowPcts.push({
+        const counts = dist ? normalizeCountMap(dist.counts || {}) : {'5':0,'4':0,'3':0,'2':0,'1':0};
+        const total = dist ? Number(dist.total || 0) : 0;
+
+        // accumulate totals ONLY for avg grade (not for showing totals)
+        ['5','4','3','2','1'].forEach(k => totalCounts[k] += Number(counts[k] || 0));
+
+        rowCounts.push({
           idx: idx+1,
           question: qTitle,
-          pct: pct ? pct : {'5':0,'4':0,'3':0,'2':0,'1':0},
-          hasData: !!pct
+          counts,
+          total
         });
+
+        const cell = (k) => total ? esc(String(counts[k] ?? 0)) : '—';
 
         return `
           <tr data-qrow="1" data-qsearch="${esc(searchable)}">
             <td class="qtext">${esc((idx+1) + '. ' + qTitle)}</td>
-            <td class="col5">${pct ? esc((pct['5'] ?? 0) + '%') : '—'}</td>
-            <td class="col4">${pct ? esc((pct['4'] ?? 0) + '%') : '—'}</td>
-            <td class="col3">${pct ? esc((pct['3'] ?? 0) + '%') : '—'}</td>
-            <td class="col2">${pct ? esc((pct['2'] ?? 0) + '%') : '—'}</td>
-            <td class="col1">${pct ? esc((pct['1'] ?? 0) + '%') : '—'}</td>
+            <td class="col5">${cell('5')}</td>
+            <td class="col4">${cell('4')}</td>
+            <td class="col3">${cell('3')}</td>
+            <td class="col2">${cell('2')}</td>
+            <td class="col1">${cell('1')}</td>
           </tr>
         `;
       }).join('');
 
-      let avgPct = null;
-      if (mode === 'overall'){
-        const overallCounts = {5:0,4:0,3:0,2:0,1:0};
-        (questions || []).forEach(q => {
-          const c = (q.distribution && q.distribution.counts) ? q.distribution.counts : {};
-          [5,4,3,2,1].forEach(s => overallCounts[s] += Number(c[String(s)] || 0));
-        });
-        const overallTotal = [5,4,3,2,1].reduce((a,s)=>a+overallCounts[s], 0);
-        avgPct = {};
-        [5,4,3,2,1].forEach(s => avgPct[s] = overallTotal ? Math.round((overallCounts[s]*100)/overallTotal) : 0);
-      } else {
-        const usable = rowPcts.filter(r => r.hasData).map(r => r.pct);
-        avgPct = usable.length ? computeAveragePctFromPctRows(usable) : null;
-      }
+      const agg = computeAvgGradeFromCounts(totalCounts);
+      const avgGrade = agg.avg;
+      const totalRatings = agg.total; // kept for internal compatibility (not displayed/used)
 
+      // ✅ CHANGED (NOW): avg row has ONLY ONE td and spans all columns => `.qtext` becomes full 100%
       const avgRowHtml = `
         <tr class="avgrow">
-          <td class="qtext"><b>Average</b></td>
-          <td class="col5">${avgPct ? esc(avgPct[5] + '%') : '—'}</td>
-          <td class="col4">${avgPct ? esc(avgPct[4] + '%') : '—'}</td>
-          <td class="col3">${avgPct ? esc(avgPct[3] + '%') : '—'}</td>
-          <td class="col2">${avgPct ? esc(avgPct[2] + '%') : '—'}</td>
-          <td class="col1">${avgPct ? esc(avgPct[1] + '%') : '—'}</td>
+          <td class="qtext" colspan="6">
+            <b>Avg grade:</b>
+            ${avgGrade !== null ? `<b>${esc(String(avgGrade))}</b> / 5` : '—'}
+            <span class="submeta">This is based on all submitted ratings.</span>
+          </td>
         </tr>
       `;
 
@@ -1254,7 +1223,7 @@ td .fw-semibold{color:var(--ink)}
         </div>
       `;
 
-      return { html, avgPct, rowPcts };
+      return { html, rowCounts, totalCounts, avgGrade, totalRatings };
     }
 
     function renderDetail(postKey){
@@ -1271,7 +1240,6 @@ td .fw-semibold{color:var(--ink)}
 
       const postName = (post.title || '—').toString();
 
-      console.log(ctx)
       if (detailTitle) detailTitle.innerHTML = `<i class="fa fa-eye me-2"></i>${esc(postName)}`;
       if (detailPostName) detailPostName.textContent = postName;
       if (detailPublish) detailPublish.textContent = prettyDate(post.publish_at);
@@ -1286,7 +1254,14 @@ td .fw-semibold{color:var(--ink)}
       if (detailAcadYear) detailAcadYear.textContent = (post.academic_year ?? '—') || '—';
       if (detailYear) detailYear.textContent = (post.year ?? '—') || '—';
 
-      if (detailParticipated) detailParticipated.textContent = String(post.participated_students ?? 0);
+      const participated = Number(post.participated_students ?? 0) || 0;
+
+if (detailParticipated) {
+  detailParticipated.textContent = String(participated);
+}
+
+      // ✅ keep modal input in sync with current filter
+      if (attMin) attMin.value = (state.filters.min_attendance ?? '');
 
       const desc = (post.description ?? '').toString().trim();
       if (detailDescWrap && detailDesc){
@@ -1303,7 +1278,7 @@ td .fw-semibold{color:var(--ink)}
       state.lastDetailQuestions = questions;
 
       if (!questions.length){
-        if (detailMatrixTitle) detailMatrixTitle.innerHTML = `<i class="fa fa-table me-2"></i>Question-wise Rating Distribution (%)`;
+        if (detailMatrixTitle) detailMatrixTitle.innerHTML = `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution`;
         if (detailFacultyTabs) detailFacultyTabs.style.display = 'none';
         detailQuestions.innerHTML = `<div class="text-center text-muted" style="padding:22px;">No question ratings found for this post.</div>`;
         return;
@@ -1329,7 +1304,7 @@ td .fw-semibold{color:var(--ink)}
 
       if (fid === '0'){
         if (detailMatrixTitle) detailMatrixTitle.innerHTML =
-          `<i class="fa fa-table me-2"></i>Question-wise Rating Distribution (%) <span class="pill ms-2"><i class="fa fa-star"></i>Overall</span>`;
+          `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution <span class="pill ms-2"><i class="fa fa-star"></i>Overall</span>`;
 
         const { html } = renderMatrixHtml({ questions, mode: 'overall', fid: '0', facName: 'Overall' });
         detailQuestions.innerHTML = html;
@@ -1340,7 +1315,7 @@ td .fw-semibold{color:var(--ink)}
       const facName = state.activeFacultyName || 'Faculty';
       if (detailMatrixTitle){
         detailMatrixTitle.innerHTML =
-          `<i class="fa fa-table me-2"></i>Question-wise Rating Distribution (%) <span class="pill ms-2"><i class="fa fa-user-tie"></i>${esc(facName)}</span>`;
+          `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution <span class="pill ms-2"><i class="fa fa-user-tie"></i>${esc(facName)}</span>`;
       }
 
       const { html } = renderMatrixHtml({ questions, mode: 'faculty', fid, facName });
@@ -1359,10 +1334,13 @@ td .fw-semibold{color:var(--ink)}
     }, 200));
 
     /* ===========================
-     * Export (CSV/PDF)
+     * Export (CSV/PDF) - COUNTS
      * =========================== */
 
     function buildBasicMetaRows(post, ctx){
+      const participated = Number(post?.participated_students ?? 0) || 0;
+const participatedLabel = String(participated);
+
       return [
         ['Feedback Post', safeText(post?.title)],
         ['Department', safeText(ctx?.department_name)],
@@ -1374,7 +1352,8 @@ td .fw-semibold{color:var(--ink)}
         ['Academic Year', safeText(post?.academic_year)],
         ['Year', safeText(post?.year)],
         ['Publish', safeText(post?.publish_at)],
-        ['Participated', String(post?.participated_students ?? 0)],
+        // ✅ UPDATED: show X out of Y in exports too
+        ['Participated', participatedLabel],
       ];
     }
 
@@ -1388,20 +1367,22 @@ td .fw-semibold{color:var(--ink)}
       if (exportPostSub) exportPostSub.textContent =
         `${safeText(ctx.department_name) || '—'} / ${safeText(ctx.course_name) || '—'} / ${safeText(ctx.subject_code) || '—'} / ${safeText(ctx.subject_name) || '—'}`;
 
-      const list = Array.isArray(state.availableFaculty) ? state.availableFaculty : [{id:'0',name:'Overall'}];
+      const list = Array.isArray(state.availableFaculty) ? state.availableFaculty : [{id:'0',name:'Overall',short:'Overall'}];
 
       const curActive = String(state.activeFacultyId || '0');
       exportTargets.innerHTML = list.map(f => {
         const isOverall = String(f.id) === '0';
         const checked = isOverall || (!isOverall && String(f.id) === curActive);
-        const fullName = String(f.name);
-        const shortName = isOverall ? fullName : (facultyShortName(fullName) || fullName);
+
+        const fullName = String(f.name || '');
+        // keep export label aligned (uses short if present, else fallback)
+        const displayName = isOverall ? 'Overall' : (String(f.short || '').trim() || fullName || ('Faculty #' + f.id));
 
         return `
-          <label class="export-pill" title="${esc(fullName)}">
+          <label class="export-pill" title="${esc(fullName || displayName)}">
             <input type="checkbox" class="form-check-input m-0" data-fid="${esc(String(f.id))}" ${checked ? 'checked' : ''}>
             <i class="fa-solid ${isOverall ? 'fa-star' : 'fa-user-tie'}"></i>
-            <span>${esc(shortName)}</span>
+            <span>${esc(displayName)}</span>
           </label>
         `;
       }).join('');
@@ -1426,11 +1407,14 @@ td .fw-semibold{color:var(--ink)}
       const questions = Array.isArray(state.lastDetailQuestions) ? state.lastDetailQuestions : [];
 
       const isOverall = String(fid) === '0';
+      const facObj = state.availableFaculty.find(x => String(x.id) === String(fid));
       const facName = isOverall
         ? 'Overall'
-        : (state.availableFaculty.find(x => String(x.id) === String(fid))?.name || ('Faculty #' + fid));
+        : (facObj?.name || ('Faculty #' + fid));
 
-      const facShort = isOverall ? 'Overall' : (facultyShortName(facName) || facName);
+      const facShort = isOverall
+        ? 'Overall'
+        : (String(facObj?.short || '').trim() || facName);
 
       const matrix = renderMatrixHtml({
         questions,
@@ -1471,42 +1455,43 @@ td .fw-semibold{color:var(--ink)}
       const tableHeader = [
         'Q.No',
         'Question',
-        'Outstanding [5]',
-        'Excellent [4]',
-        'Good [3]',
-        'Fair [2]',
-        'Not Satisfactory [1]'
+        'Outstanding [5] (Count)',
+        'Excellent [4] (Count)',
+        'Good [3] (Count)',
+        'Fair [2] (Count)',
+        'Not Satisfactory [1] (Count)'
       ];
 
       ordered.forEach((fid, idx) => {
-        const { facName, facShort, isOverall, matrix } = buildExportMatrixForTarget(fid);
+        const { facShort, isOverall, matrix } = buildExportMatrixForTarget(fid);
         const sheetLabel = isOverall ? 'Overall' : `Faculty: ${facShort}`;
 
         lines.push([sheetLabel].map(csvEscape).join(','));
         lines.push(tableHeader.map(csvEscape).join(','));
 
-        (matrix.rowPcts || []).forEach(r => {
-          const p = normalizePctMap(r.pct || {});
+        (matrix.rowCounts || []).forEach(r => {
+          const c = normalizeCountMap(r.counts || {});
           lines.push([
             String(r.idx),
             r.question,
-            (p['5'] ?? 0) + '%',
-            (p['4'] ?? 0) + '%',
-            (p['3'] ?? 0) + '%',
-            (p['2'] ?? 0) + '%',
-            (p['1'] ?? 0) + '%',
+            String(c['5'] ?? 0),
+            String(c['4'] ?? 0),
+            String(c['3'] ?? 0),
+            String(c['2'] ?? 0),
+            String(c['1'] ?? 0),
           ].map(csvEscape).join(','));
         });
 
-        const avg = matrix.avgPct;
+        // ✅ CHANGED: No totals / no ratings. Keep ONLY Avg Grade.
+        const avg = matrix.avgGrade;
         lines.push([
           '',
-          'Average',
-          avg ? (avg[5] + '%') : '—',
-          avg ? (avg[4] + '%') : '—',
-          avg ? (avg[3] + '%') : '—',
-          avg ? (avg[2] + '%') : '—',
-          avg ? (avg[1] + '%') : '—',
+          `Avg Grade: ${avg !== null ? avg : '—'}/5`,
+          '',
+          '',
+          '',
+          '',
+          '',
         ].map(csvEscape).join(','));
 
         if (idx !== ordered.length - 1){
@@ -1551,7 +1536,6 @@ td .fw-semibold{color:var(--ink)}
         doc.setFont('helvetica','normal');
         doc.setFontSize(9);
 
-        // meta key-values (2 columns)
         let x = margin, y = 58;
         const colGap = 280;
         const rowH = 12;
@@ -1574,20 +1558,21 @@ td .fw-semibold{color:var(--ink)}
       function addMatrixTable(matrix, sheetLabel){
         const head = [['Question','Outstanding [5]','Excellent [4]','Good [3]','Fair [2]','Not Satisfactory [1]']];
 
-        const body = (matrix.rowPcts || []).map(r => {
-          const p = normalizePctMap(r.pct || {});
+        const body = (matrix.rowCounts || []).map(r => {
+          const c = normalizeCountMap(r.counts || {});
           const q = `${r.idx}. ${r.question}`;
-          return [q, p['5']+'%', p['4']+'%', p['3']+'%', p['2']+'%', p['1']+'%'];
+          return [q, String(c['5']), String(c['4']), String(c['3']), String(c['2']), String(c['1'])];
         });
 
-        const avg = matrix.avgPct;
+        // ✅ CHANGED: No totals / no ratings. Keep ONLY Avg Grade.
+        const avg = matrix.avgGrade;
         body.push([
-          'Average',
-          avg ? (avg[5] + '%') : '—',
-          avg ? (avg[4] + '%') : '—',
-          avg ? (avg[3] + '%') : '—',
-          avg ? (avg[2] + '%') : '—',
-          avg ? (avg[1] + '%') : '—',
+          `Avg Grade: ${avg !== null ? avg : '—'}/5`,
+          '',
+          '',
+          '',
+          '',
+          '',
         ]);
 
         doc.setFont('helvetica','bold');
@@ -1611,6 +1596,7 @@ td .fw-semibold{color:var(--ink)}
           },
           margin: { left: margin, right: margin },
           didParseCell: (data) => {
+            // highlight last row (avg row)
             if (data.section === 'body' && data.row.index === body.length - 1){
               data.cell.styles.fillColor = [245,245,245];
               data.cell.styles.fontStyle = 'bold';
@@ -1680,7 +1666,10 @@ td .fw-semibold{color:var(--ink)}
         if (!res.ok || js.success === false) throw new Error(js?.message || 'Failed to load');
 
         state.rawHierarchy = Array.isArray(js.data) ? js.data : [];
+
+        // ✅ FIX: if empty result, keep dropdowns (do not wipe), but still clear posts
         rebuildFromHierarchy();
+
         renderTable();
 
       }catch(ex){
@@ -1734,6 +1723,10 @@ td .fw-semibold{color:var(--ink)}
       state.activeFacultyId = 0;
       state.activeFacultyName = 'Overall';
 
+      // ✅ PIN this post so attendance filter can recover after an empty load
+      state.pinnedDetailPostKey = String(postKey);
+      state.lastDetailPostKey   = String(postKey);
+
       renderDetail(postKey);
       if (detailSearch) detailSearch.value = '';
       detailModal && detailModal.show();
@@ -1763,8 +1756,26 @@ td .fw-semibold{color:var(--ink)}
       state.filters.year = (fYear?.value || '').trim();
 
       state.page = 1;
-      filterModal && filterModal.hide();
-      loadResults();
+
+      // ✅ FIX: hide modal first, then load results AFTER hidden (prevents stuck backdrop)
+      if (filterModalEl && filterModal){
+        let done = false;
+        const fireOnce = () => {
+          if (done) return;
+          done = true;
+          cleanupOrphanBackdrops();
+          loadResults();
+        };
+
+        filterModalEl.addEventListener('hidden.bs.modal', fireOnce, { once: true });
+        filterModal.hide();
+
+        // failsafe: if hidden event doesn't fire (rare), cleanup + load anyway
+        setTimeout(fireOnce, 600);
+      } else {
+        cleanupOrphanBackdrops();
+        loadResults();
+      }
     });
 
     btnReset?.addEventListener('click', () => {
@@ -1781,7 +1792,8 @@ td .fw-semibold{color:var(--ink)}
         subject_id: '',
         section_id: '',
         academic_year: '',
-        year: ''
+        year: '',
+        min_attendance: '' // ✅ NEW
       };
 
       if (fDept) fDept.value = '';
@@ -1792,10 +1804,56 @@ td .fw-semibold{color:var(--ink)}
       if (fAcad) fAcad.value = '';
       if (fYear) fYear.value = '';
 
+      // ✅ NEW
+      if (attMin) attMin.value = '';
+
       loadResults();
     });
 
     btnRefresh?.addEventListener('click', () => loadResults());
+
+    async function applyAttendanceFromModal(){
+      const val = clampAttendance(attMin ? attMin.value : '');
+      state.filters.min_attendance = val;
+      if (attMin) attMin.value = val;
+
+      // ✅ Use pinned key so we can recover even after a "0 results" load
+      const keepPost = state.pinnedDetailPostKey ? String(state.pinnedDetailPostKey) : null;
+
+      await loadResults();
+
+      if (keepPost && state.postIndex.has(keepPost)){
+        // ✅ Post exists again under loosened attendance -> re-render details
+        state.lastDetailPostKey = keepPost;
+        renderDetail(keepPost);
+      } else if (keepPost) {
+        // ✅ Post doesn't match this attendance threshold -> show friendly msg
+        // ❌ DO NOT clear pinnedDetailPostKey (that was the bug)
+        state.lastDetailPostKey = null; // disables export and prevents stale state
+
+        if (detailFacultyTabs) detailFacultyTabs.style.display = 'none';
+        if (detailMatrixTitle) detailMatrixTitle.innerHTML =
+          `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution`;
+
+        if (detailQuestions) detailQuestions.innerHTML =
+          `<div class="text-center text-muted" style="padding:22px;">No results for this post under current attendance filter.</div>`;
+      }
+    }
+
+    btnAttApply?.addEventListener('click', () => { applyAttendanceFromModal(); });
+
+    btnAttClear?.addEventListener('click', () => {
+      if (attMin) attMin.value = '';
+      state.filters.min_attendance = '';
+      applyAttendanceFromModal();
+    });
+
+    attMin?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        applyAttendanceFromModal();
+      }
+    });
 
     // Init
     (async () => {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -13,6 +14,165 @@ class NoticeController extends Controller
     /* ============================================
      | Helpers
      |============================================ */
+
+    /**
+     * Write activity to user_data_activity_log.
+     * Never throws (so it won't break API functionality).
+     */
+    private function logActivity(
+        Request $r,
+        string $activity,
+        string $module,
+        string $tableName,
+        $recordId = null,
+        ?string $note = null,
+        ?array $changedFields = null,
+        $oldValues = null,
+        $newValues = null
+    ): void {
+        try {
+            if (!Schema::hasTable('user_data_activity_log')) {
+                return;
+            }
+
+            $actor = $this->actor($r);
+
+            $role = trim((string)($actor['role'] ?? ''));
+            if ($role === '') $role = null;
+
+            $ua = (string) ($r->userAgent() ?? '');
+            if (strlen($ua) > 512) $ua = substr($ua, 0, 512);
+
+            DB::table('user_data_activity_log')->insert([
+                'performed_by'       => (int)($actor['id'] ?? 0),
+                'performed_by_role'  => $role,
+                'ip'                 => (string) ($r->ip() ?? ''),
+                'user_agent'         => $ua,
+
+                'activity'           => substr((string)$activity, 0, 50),
+                'module'             => substr((string)$module, 0, 100),
+
+                'table_name'         => substr((string)$tableName, 0, 128),
+                'record_id'          => $recordId !== null ? (int)$recordId : null,
+
+                'changed_fields'     => $changedFields !== null ? json_encode(array_values($changedFields)) : null,
+                'old_values'         => $oldValues !== null ? json_encode($oldValues) : null,
+                'new_values'         => $newValues !== null ? json_encode($newValues) : null,
+
+                'log_note'           => $note,
+
+                'created_at'         => now(),
+                'updated_at'         => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // swallow
+        }
+    }
+
+    private function trunc(?string $s, int $limit = 1000): ?string
+    {
+        if ($s === null) return null;
+        $s = (string) $s;
+        if (strlen($s) <= $limit) return $s;
+        return substr($s, 0, $limit) . '...';
+    }
+
+    private function noticeSnapshot($row): array
+    {
+        if (!$row) return [];
+
+        $a = (array) $row;
+
+        return [
+            'id'                  => $a['id'] ?? null,
+            'uuid'                => $a['uuid'] ?? null,
+            'department_id'       => $a['department_id'] ?? null,
+            'title'               => $this->trunc(isset($a['title']) ? (string)$a['title'] : null, 255),
+            'slug'                => $a['slug'] ?? null,
+            'body'                => $this->trunc(isset($a['body']) ? (string)$a['body'] : null, 1200),
+            'cover_image'         => $a['cover_image'] ?? null,
+            'attachments_json'    => $this->trunc(isset($a['attachments_json']) ? (string)$a['attachments_json'] : null, 2000),
+
+            'is_featured_home'    => $a['is_featured_home'] ?? null,
+            'request_for_approval'=> $a['request_for_approval'] ?? null,
+            'is_approved'         => $a['is_approved'] ?? null,
+
+            'status'              => $a['status'] ?? null,
+            'publish_at'          => $a['publish_at'] ?? null,
+            'expire_at'           => $a['expire_at'] ?? null,
+            'views_count'         => $a['views_count'] ?? null,
+
+            'created_by'          => $a['created_by'] ?? null,
+            'created_at'          => $a['created_at'] ?? null,
+            'updated_at'          => $a['updated_at'] ?? null,
+            'deleted_at'          => $a['deleted_at'] ?? null,
+
+            'metadata'            => $this->trunc(isset($a['metadata']) ? (string)$a['metadata'] : null, 2000),
+        ];
+    }
+
+    /**
+     * accessControl (ONLY users table)
+     *
+     * Returns ONLY:
+     *  - ['mode' => 'all',         'department_id' => null]
+     *  - ['mode' => 'department',  'department_id' => <int>]
+     *  - ['mode' => 'none',        'department_id' => null]
+     *  - ['mode' => 'not_allowed', 'department_id' => null]
+     */
+    private function accessControl(int $userId): array
+    {
+        if ($userId <= 0) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // Safety (if some env doesn't have dept column yet)
+        if (!Schema::hasColumn('users', 'department_id')) {
+            return ['mode' => 'not_allowed', 'department_id' => null];
+        }
+
+        $q = DB::table('users')->select(['id', 'role', 'department_id', 'status']);
+
+        // your schema has deleted_at; keep it safe
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        $u = $q->where('id', $userId)->first();
+
+        if (!$u) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // optional: inactive users => none
+        if (isset($u->status) && (string)$u->status !== 'active') {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // normalize role from users table
+        $role = strtolower(trim((string)($u->role ?? '')));
+        $role = str_replace([' ', '-'], '_', $role);
+        $role = preg_replace('/_+/', '_', $role) ?? $role;
+
+        $deptId = $u->department_id !== null ? (int)$u->department_id : null;
+        if ($deptId !== null && $deptId <= 0) $deptId = null;
+
+        // ✅ CONFIG: decide access by role + department_id
+        $allRoles  = ['admin', 'director', 'principal']; // gets ALL even if dept null
+        $deptRoles = ['hod', 'faculty', 'technical_assistant', 'it_person', 'placement_officer', 'student']; // needs dept
+
+        if (in_array($role, $allRoles, true)) {
+            return ['mode' => 'all', 'department_id' => null];
+        }
+
+        if (in_array($role, $deptRoles, true)) {
+            // none is based on role + dept id (your rule)
+            if (!$deptId) return ['mode' => 'none', 'department_id' => null];
+            return ['mode' => 'department', 'department_id' => $deptId];
+        }
+
+        return ['mode' => 'not_allowed', 'department_id' => null];
+    }
 
     private function actor(Request $r): array
     {
@@ -298,12 +458,33 @@ class NoticeController extends Controller
 
     public function index(Request $request)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => (int) $request->query('per_page', 20),
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
         $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
         $onlyDeleted    = filter_var($request->query('only_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
         $query = $this->baseQuery($request, $includeDeleted || $onlyDeleted);
+
+        // ✅ apply department restriction (authenticated)
+        if ($ac['mode'] === 'department') {
+            $query->where('n.department_id', (int) $ac['department_id']);
+        }
 
         if ($onlyDeleted) {
             $query->whereNotNull('n.deleted_at');
@@ -340,9 +521,17 @@ class NoticeController extends Controller
 
     public function show(Request $request, $identifier)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['message' => 'Notice not found'], 404);
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveNotice($request, $identifier, $includeDeleted);
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveNotice($request, $identifier, $includeDeleted, $deptId);
         if (! $row) return response()->json(['message' => 'Notice not found'], 404);
 
         // optional: ?inc_view=1
@@ -359,12 +548,25 @@ class NoticeController extends Controller
 
     public function showByDepartment(Request $request, $department, $identifier)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['message' => 'Notice not found'], 404);
+
         $dept = $this->resolveDepartment($department, true);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
 
+        // ✅ if user is department-scoped, they can only access their own department
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['message' => 'Notice not found'], 404);
+        }
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveNotice($request, $identifier, $includeDeleted, $dept->id);
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : (int) $dept->id;
+
+        $row = $this->resolveNotice($request, $identifier, $includeDeleted, $deptId);
         if (! $row) return response()->json(['message' => 'Notice not found'], 404);
 
         return response()->json([
@@ -375,6 +577,14 @@ class NoticeController extends Controller
 
     public function store(Request $request)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'forbidden', 'notices', 'notices', null, 'Store blocked by accessControl');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
         $actor = $this->actor($request);
 
         $validated = $request->validate([
@@ -395,6 +605,18 @@ class NoticeController extends Controller
             'attachments_json'  => ['nullable'],
         ]);
 
+        // ✅ department scope enforcement
+        if ($ac['mode'] === 'department') {
+            $deptId = (int) $ac['department_id'];
+            if (array_key_exists('department_id', $validated) && $validated['department_id'] !== null && (int)$validated['department_id'] !== $deptId) {
+                $this->logActivity($request, 'forbidden', 'notices', 'notices', null, 'Store blocked: department mismatch');
+                return response()->json(['error' => 'Not allowed'], 403);
+            }
+            // force to actor dept
+            $validated['department_id'] = $deptId;
+            $request->merge(['department_id' => $deptId]);
+        }
+
         $slug = $this->normSlug($validated['slug'] ?? '');
         if ($slug === '') $slug = Str::slug($validated['title'], '-');
         $slug = $this->ensureUniqueSlug($slug);
@@ -410,6 +632,7 @@ class NoticeController extends Controller
         if ($request->hasFile('cover_image')) {
             $f = $request->file('cover_image');
             if (!$f || !$f->isValid()) {
+                $this->logActivity($request, 'error', 'notices', 'notices', null, 'Store failed: cover image upload invalid');
                 return response()->json(['success' => false, 'message' => 'Cover image upload failed'], 422);
             }
             $meta = $this->uploadFileToPublic($f, $dirRel, $slug . '-cover');
@@ -422,6 +645,7 @@ class NoticeController extends Controller
             foreach ((array) $request->file('attachments') as $file) {
                 if (!$file) continue;
                 if (!$file->isValid()) {
+                    $this->logActivity($request, 'error', 'notices', 'notices', null, 'Store failed: one attachment upload invalid');
                     return response()->json(['success' => false, 'message' => 'One of the attachments failed to upload'], 422);
                 }
                 $attachments[] = $this->uploadFileToPublic($file, $dirRel, $slug . '-att');
@@ -448,28 +672,55 @@ class NoticeController extends Controller
             if (json_last_error() === JSON_ERROR_NONE) $metadata = $decoded;
         }
 
-        $id = DB::table('notices')->insertGetId([
-            'uuid'             => $uuid,
-            'department_id'    => $validated['department_id'] ?? null,
-            'title'            => $validated['title'],
-            'slug'             => $slug,
-            'body'             => $validated['body'],
-            'cover_image'      => $coverPath,
-            'attachments_json' => !empty($attachments) ? json_encode($attachments) : null,
-            'is_featured_home' => (int) ($validated['is_featured_home'] ?? 0),
-            'status'           => (string) ($validated['status'] ?? 'draft'),
-            'publish_at'       => !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null,
-            'expire_at'        => !empty($validated['expire_at']) ? Carbon::parse($validated['expire_at']) : null,
-            'views_count'      => 0,
-            'created_by'       => $actor['id'] ?: null,
-            'created_at'       => $now,
-            'updated_at'       => $now,
-            'created_at_ip'    => $request->ip(),
-            'updated_at_ip'    => $request->ip(),
-            'metadata'         => $metadata !== null ? json_encode($metadata) : null,
-        ]);
+        // ✅ Authority Control:
+        // if is_featured_home = 1 => request_for_approval = 1
+        // if is_featured_home = 0 => request_for_approval = 0
+        $featured = (int) ($validated['is_featured_home'] ?? 0);
+        $requestForApproval = $featured ? 1 : 0;
+
+        $insert = [
+            'uuid'                 => $uuid,
+            'department_id'        => $validated['department_id'] ?? null,
+            'title'                => $validated['title'],
+            'slug'                 => $slug,
+            'body'                 => $validated['body'],
+            'cover_image'          => $coverPath,
+            'attachments_json'     => !empty($attachments) ? json_encode($attachments) : null,
+
+            'is_featured_home'     => $featured,
+
+            // ✅ NEW FLAGS
+            'request_for_approval' => $requestForApproval,
+            'is_approved'          => 0,
+
+            'status'               => (string) ($validated['status'] ?? 'draft'),
+            'publish_at'           => !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null,
+            'expire_at'            => !empty($validated['expire_at']) ? Carbon::parse($validated['expire_at']) : null,
+            'views_count'          => 0,
+            'created_by'           => $actor['id'] ?: null,
+            'created_at'           => $now,
+            'updated_at'           => $now,
+            'created_at_ip'        => $request->ip(),
+            'updated_at_ip'        => $request->ip(),
+            'metadata'             => $metadata !== null ? json_encode($metadata) : null,
+        ];
+
+        $id = DB::table('notices')->insertGetId($insert);
 
         $row = DB::table('notices')->where('id', $id)->first();
+
+        // ✅ LOG: create
+        $this->logActivity(
+            $request,
+            'create',
+            'notices',
+            'notices',
+            $id,
+            'Created notice',
+            array_keys($insert),
+            null,
+            $this->noticeSnapshot($row)
+        );
 
         return response()->json([
             'success' => true,
@@ -488,8 +739,21 @@ class NoticeController extends Controller
 
     public function update(Request $request, $identifier)
     {
-        $row = $this->resolveNotice($request, $identifier, true);
-        if (! $row) return response()->json(['message' => 'Notice not found'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'forbidden', 'notices', 'notices', null, 'Update blocked by accessControl');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveNotice($request, $identifier, true, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'not_found', 'notices', 'notices', null, 'Update failed: notice not found');
+            return response()->json(['message' => 'Notice not found'], 404);
+        }
 
         $validated = $request->validate([
             'department_id'      => ['nullable', 'integer', 'exists:departments,id'],
@@ -512,6 +776,23 @@ class NoticeController extends Controller
             'attachments_remove' => ['nullable', 'array'],
         ]);
 
+        // ✅ department scope enforcement (cannot move across departments)
+        if ($ac['mode'] === 'department') {
+            $forcedDeptId = (int) $ac['department_id'];
+
+            if (array_key_exists('department_id', $validated) && $validated['department_id'] !== null && (int)$validated['department_id'] !== $forcedDeptId) {
+                $this->logActivity($request, 'forbidden', 'notices', 'notices', (int)$row->id, 'Update blocked: department mismatch');
+                return response()->json(['error' => 'Not allowed'], 403);
+            }
+
+            // force department_id to actor dept (even if null was sent)
+            $validated['department_id'] = $forcedDeptId;
+            $request->merge(['department_id' => $forcedDeptId]);
+        }
+
+        // snapshot before
+        $beforeRow = DB::table('notices')->where('id', (int)$row->id)->first();
+
         $update = [
             'updated_at'    => now(),
             'updated_at_ip' => $request->ip(),
@@ -531,8 +812,15 @@ class NoticeController extends Controller
             $update['department_id'] = $validated['department_id'] !== null ? (int) $validated['department_id'] : null;
         }
 
+        // ✅ Authority Control change on FEATURED toggle via update request
         if (array_key_exists('is_featured_home', $validated)) {
-            $update['is_featured_home'] = (int) $validated['is_featured_home'];
+            $featured = (int) $validated['is_featured_home'];
+
+            $update['is_featured_home'] = $featured;
+
+            // ✅ if featured=1 => request_for_approval=1
+            // ✅ if featured=0 => request_for_approval=0
+            $update['request_for_approval'] = $featured ? 1 : 0;
         }
 
         if (array_key_exists('publish_at', $validated)) {
@@ -574,6 +862,7 @@ class NoticeController extends Controller
         if ($request->hasFile('cover_image')) {
             $f = $request->file('cover_image');
             if (!$f || !$f->isValid()) {
+                $this->logActivity($request, 'error', 'notices', 'notices', (int)$row->id, 'Update failed: cover image upload invalid');
                 return response()->json(['success' => false, 'message' => 'Cover image upload failed'], 422);
             }
             $this->deletePublicPath($row->cover_image ?? null);
@@ -614,6 +903,7 @@ class NoticeController extends Controller
             foreach ((array) $request->file('attachments') as $file) {
                 if (!$file) continue;
                 if (!$file->isValid()) {
+                    $this->logActivity($request, 'error', 'notices', 'notices', (int)$row->id, 'Update failed: one attachment upload invalid');
                     return response()->json(['success' => false, 'message' => 'One of the attachments failed to upload'], 422);
                 }
                 $useSlug = (string) ($update['slug'] ?? $row->slug ?? 'notice');
@@ -635,55 +925,162 @@ class NoticeController extends Controller
 
         DB::table('notices')->where('id', (int) $row->id)->update($update);
 
-        $fresh = DB::table('notices')->where('id', (int) $row->id)->first();
+        $afterRow = DB::table('notices')->where('id', (int) $row->id)->first();
+
+        // ✅ LOG: update (diff by changed keys)
+        $changedKeys = array_values(array_diff(array_keys($update), ['updated_at', 'updated_at_ip']));
+        $old = [];
+        $new = [];
+        foreach ($changedKeys as $k) {
+            $old[$k] = $beforeRow->$k ?? null;
+            $new[$k] = $afterRow->$k ?? null;
+        }
+
+        $this->logActivity(
+            $request,
+            'update',
+            'notices',
+            'notices',
+            (int)$row->id,
+            'Updated notice',
+            $changedKeys,
+            $old,
+            $new
+        );
 
         return response()->json([
             'success' => true,
-            'data'    => $fresh ? $this->normalizeRow($fresh) : null,
+            'data'    => $afterRow ? $this->normalizeRow($afterRow) : null,
         ]);
     }
 
     public function toggleFeatured(Request $request, $identifier)
     {
-        $row = $this->resolveNotice($request, $identifier, true);
-        if (! $row) return response()->json(['message' => 'Notice not found'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
 
-        $new = ((int) ($row->is_featured_home ?? 0)) ? 0 : 1;
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'forbidden', 'notices', 'notices', null, 'Toggle featured blocked by accessControl');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
 
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveNotice($request, $identifier, true, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'not_found', 'notices', 'notices', null, 'Toggle featured failed: notice not found');
+            return response()->json(['message' => 'Notice not found'], 404);
+        }
+
+        $beforeRow = DB::table('notices')->where('id', (int)$row->id)->first();
+
+        $newFeatured = ((int) ($row->is_featured_home ?? 0)) ? 0 : 1;
+
+        // ✅ Authority Control:
+        // toggle featured => sync request_for_approval accordingly
         DB::table('notices')->where('id', (int) $row->id)->update([
-            'is_featured_home' => $new,
-            'updated_at'       => now(),
-            'updated_at_ip'    => $request->ip(),
+            'is_featured_home'      => $newFeatured,
+            'request_for_approval'  => $newFeatured ? 1 : 0,
+            'updated_at'            => now(),
+            'updated_at_ip'         => $request->ip(),
         ]);
 
-        $fresh = DB::table('notices')->where('id', (int) $row->id)->first();
+        $afterRow = DB::table('notices')->where('id', (int) $row->id)->first();
+
+        // ✅ LOG: toggle featured
+        $changedKeys = ['is_featured_home', 'request_for_approval'];
+        $old = [
+            'is_featured_home'     => $beforeRow->is_featured_home ?? null,
+            'request_for_approval' => $beforeRow->request_for_approval ?? null,
+        ];
+        $new = [
+            'is_featured_home'     => $afterRow->is_featured_home ?? null,
+            'request_for_approval' => $afterRow->request_for_approval ?? null,
+        ];
+
+        $this->logActivity(
+            $request,
+            'update',
+            'notices',
+            'notices',
+            (int)$row->id,
+            'Toggled featured flag',
+            $changedKeys,
+            $old,
+            $new
+        );
 
         return response()->json([
             'success' => true,
-            'data'    => $fresh ? $this->normalizeRow($fresh) : null,
+            'data'    => $afterRow ? $this->normalizeRow($afterRow) : null,
         ]);
     }
 
     public function destroy(Request $request, $identifier)
     {
-        $row = $this->resolveNotice($request, $identifier, false);
-        if (! $row) return response()->json(['message' => 'Not found or already deleted'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'forbidden', 'notices', 'notices', null, 'Destroy blocked by accessControl');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveNotice($request, $identifier, false, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'not_found', 'notices', 'notices', null, 'Destroy failed: not found or already deleted');
+            return response()->json(['message' => 'Not found or already deleted'], 404);
+        }
+
+        $beforeRow = DB::table('notices')->where('id', (int)$row->id)->first();
+
+        $now = now();
 
         DB::table('notices')->where('id', (int) $row->id)->update([
-            'deleted_at'    => now(),
-            'updated_at'    => now(),
+            'deleted_at'    => $now,
+            'updated_at'    => $now,
             'updated_at_ip' => $request->ip(),
         ]);
+
+        $afterRow = DB::table('notices')->where('id', (int)$row->id)->first();
+
+        // ✅ LOG: soft delete
+        $this->logActivity(
+            $request,
+            'delete',
+            'notices',
+            'notices',
+            (int)$row->id,
+            'Soft deleted notice',
+            ['deleted_at'],
+            ['deleted_at' => $beforeRow->deleted_at ?? null],
+            ['deleted_at' => $afterRow->deleted_at ?? null]
+        );
 
         return response()->json(['success' => true]);
     }
 
     public function restore(Request $request, $identifier)
     {
-        $row = $this->resolveNotice($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'forbidden', 'notices', 'notices', null, 'Restore blocked by accessControl');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveNotice($request, $identifier, true, $deptId);
         if (! $row || $row->deleted_at === null) {
+            $this->logActivity($request, 'not_found', 'notices', 'notices', null, 'Restore failed: not found in bin');
             return response()->json(['message' => 'Not found in bin'], 404);
         }
+
+        $beforeRow = DB::table('notices')->where('id', (int)$row->id)->first();
 
         DB::table('notices')->where('id', (int) $row->id)->update([
             'deleted_at'    => null,
@@ -691,18 +1088,48 @@ class NoticeController extends Controller
             'updated_at_ip' => $request->ip(),
         ]);
 
-        $fresh = DB::table('notices')->where('id', (int) $row->id)->first();
+        $afterRow = DB::table('notices')->where('id', (int) $row->id)->first();
+
+        // ✅ LOG: restore
+        $this->logActivity(
+            $request,
+            'restore',
+            'notices',
+            'notices',
+            (int)$row->id,
+            'Restored notice',
+            ['deleted_at'],
+            ['deleted_at' => $beforeRow->deleted_at ?? null],
+            ['deleted_at' => $afterRow->deleted_at ?? null]
+        );
 
         return response()->json([
             'success' => true,
-            'data'    => $fresh ? $this->normalizeRow($fresh) : null,
+            'data'    => $afterRow ? $this->normalizeRow($afterRow) : null,
         ]);
     }
 
     public function forceDelete(Request $request, $identifier)
     {
-        $row = $this->resolveNotice($request, $identifier, true);
-        if (! $row) return response()->json(['message' => 'Notice not found'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'forbidden', 'notices', 'notices', null, 'Force delete blocked by accessControl');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveNotice($request, $identifier, true, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'not_found', 'notices', 'notices', null, 'Force delete failed: notice not found');
+            return response()->json(['message' => 'Notice not found'], 404);
+        }
+
+        // snapshot before permanent delete
+        $beforeRow = DB::table('notices')->where('id', (int)$row->id)->first();
+        $beforeSnap = $this->noticeSnapshot($beforeRow);
 
         // delete cover
         $this->deletePublicPath($row->cover_image ?? null);
@@ -719,6 +1146,19 @@ class NoticeController extends Controller
         }
 
         DB::table('notices')->where('id', (int) $row->id)->delete();
+
+        // ✅ LOG: force delete
+        $this->logActivity(
+            $request,
+            'force_delete',
+            'notices',
+            'notices',
+            (int)$row->id,
+            'Force deleted notice (permanent)',
+            array_keys($beforeSnap),
+            $beforeSnap,
+            null
+        );
 
         return response()->json(['success' => true]);
     }

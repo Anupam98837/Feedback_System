@@ -5,15 +5,15 @@ use Illuminate\Support\Facades\Route;
 // Login Routes 
 
 
-Route::get('/', function () {
-    return view('landing.pages.home');
-});
+// Route::get('/', function () {
+//     return view('landing.pages.home');
+// });
 
 //pages route
 Route::get('/page/{slug}', function () {
     return view('landing.pages.dynamicPage');
 });
-Route::get('/login', function () {
+Route::get('/', function () {
     return view('pages.auth.login');
 });
 
@@ -199,6 +199,9 @@ Route::get('/feedback/question/manage', function () {
 });
 Route::get('/feedback/post/manage', function () {
     return view('pages.users.pages.feedback.feedbackPost');
+});
+Route::get('/feedback/manage', function () {
+    return view('pages.users.pages.feedback.feedbackManage');
 });
 Route::get('/feedback/result', function () {
     return view('pages.users.pages.feedback.feedbackResult');
@@ -386,6 +389,18 @@ Route::get('/faculty-members', function () {
 
 });
 
+Route::get('/technical-assistants', function () {
+
+    return view('landing.pages.technicalAssistant.viewAllTechnicalAssistant');
+
+});
+
+Route::get('/placement-officers', function () {
+
+    return view('landing.pages.placementOfficer.viewAllPlacementOfficer');
+
+});
+
 Route::get('/placed-students', function () {
 
     return view('landing.pages.placedStudents.viewAllPlacedStudents');
@@ -424,8 +439,9 @@ Route::get('/contact-us-visibility/manage', function () {
     return view('pages.users.pages.contactUs.manageContactVisibility');
 });
 
-
-
+Route::get('/enquiry', function () {
+    return view('landing.pages.enquiry.createEnquiry');
+});
  
 Route::get('/students/manage', function () {
     return view('pages.users.pages.users.manageStudents');
@@ -441,4 +457,37 @@ Route::get('/other-roles/manage', function () {
  
 Route::get('/faculty/manage', function () {
     return view('pages.users.pages.users.manageFaculty');
+});
+ 
+Route::get('/faculty-preview-order', function () {
+    return view('pages.users.pages.faculty.facultyPreviewOrder');
+});
+ 
+Route::get('/technical-assistant-preview-order', function () {
+    return view('pages.users.pages.technicalAssistant.technicalAssistantPreviewOrder');
+});
+ 
+Route::get('/placement-officer-preview-order', function () {
+    return view('pages.users.pages.placementOfficer.placementOfficerPreviewOrder');
+});
+ 
+Route::get('/sticky-buttons/manage', function () {
+    return view('pages.users.pages.stickyButtons.manageStickyButtons');
+});
+ 
+Route::get('/master-approval/manage', function () {
+    return view('pages.users.pages.masterApproval.manageMasterApproval');
+});
+ 
+Route::get('/student-subject-attendance', function () {
+    return view('pages.users.pages.subject.studentSubjectAttendance');
+});
+
+
+// Activity Logs
+Route::get('/activity-logs', fn () => view('pages.users.pages.userActivityLogs.userActivityLogsView'));
+
+ 
+Route::get('/meta-tags/manage', function () {
+    return view('pages.users.pages.metaTags.manageMetaTags');
 });

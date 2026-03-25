@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -17,6 +18,69 @@ class CourseSemesterController extends Controller
 
     /** Cache schema checks to avoid repeated queries */
     protected array $colCache = [];
+
+    /**
+     * accessControl (ONLY users table)
+     *
+     * Returns ONLY:
+     *  - ['mode' => 'all',         'department_id' => null]
+     *  - ['mode' => 'department',  'department_id' => <int>]
+     *  - ['mode' => 'none',        'department_id' => null]
+     *  - ['mode' => 'not_allowed', 'department_id' => null]
+     */
+    private function accessControl(int $userId): array
+    {
+        if ($userId <= 0) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // Safety (if some env doesn't have dept column yet)
+        if (!Schema::hasColumn('users', 'department_id')) {
+            return ['mode' => 'not_allowed', 'department_id' => null];
+        }
+
+        $q = DB::table('users')->select(['id', 'role', 'department_id', 'status']);
+
+        // your schema has deleted_at; keep it safe
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        $u = $q->where('id', $userId)->first();
+
+        if (!$u) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // optional: inactive users => none
+        if (isset($u->status) && (string)$u->status !== 'active') {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // normalize role from users table
+        $role = strtolower(trim((string)($u->role ?? '')));
+        $role = str_replace([' ', '-'], '_', $role);
+        $role = preg_replace('/_+/', '_', $role) ?? $role;
+
+        $deptId = $u->department_id !== null ? (int)$u->department_id : null;
+        if ($deptId !== null && $deptId <= 0) $deptId = null;
+
+        // ✅ CONFIG: decide access by role + department_id
+        $allRoles  = ['admin', 'director', 'principal']; // gets ALL even if dept null
+        $deptRoles = ['hod', 'faculty', 'technical_assistant', 'it_person', 'placement_officer', 'student']; // needs dept
+
+        if (in_array($role, $allRoles, true)) {
+            return ['mode' => 'all', 'department_id' => null];
+        }
+
+        if (in_array($role, $deptRoles, true)) {
+            // none is based on role + dept id (your rule)
+            if (!$deptId) return ['mode' => 'none', 'department_id' => null];
+            return ['mode' => 'department', 'department_id' => $deptId];
+        }
+
+        return ['mode' => 'not_allowed', 'department_id' => null];
+    }
 
     private function actor(Request $r): array
     {
@@ -37,6 +101,100 @@ class CourseSemesterController extends Controller
             return $this->colCache[$k] = Schema::hasColumn($table, $col);
         } catch (\Throwable $e) {
             return $this->colCache[$k] = false;
+        }
+    }
+
+    protected function pickArray(array $arr, array $keys): array
+    {
+        $out = [];
+        foreach ($keys as $k) {
+            if (array_key_exists($k, $arr)) $out[$k] = $arr[$k];
+        }
+        return $out;
+    }
+
+    protected function safeJson($value): ?string
+    {
+        if ($value === null) return null;
+        try {
+            $json = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            return (json_last_error() === JSON_ERROR_NONE) ? $json : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * ✅ Activity logging (NEVER breaks API flow)
+     * Logs for POST/PUT/PATCH/DELETE operations (non-GET).
+     */
+    protected function logActivity(
+        Request $request,
+        string $activity,
+        string $module,
+        string $tableName,
+        ?int $recordId = null,
+        ?array $changedFields = null,
+        ?array $oldValues = null,
+        ?array $newValues = null,
+        ?string $note = null
+    ): void {
+        try {
+            if (!Schema::hasTable('user_data_activity_log')) return;
+
+            $actor = $this->actor($request);
+
+            $ua = (string) $request->userAgent();
+            if (strlen($ua) > 512) $ua = substr($ua, 0, 512);
+
+            $role = trim((string) ($actor['role'] ?? ''));
+            if ($role !== '' && strlen($role) > 50) $role = substr($role, 0, 50);
+
+            $activity = substr((string) $activity, 0, 50);
+            $module   = substr((string) $module, 0, 100);
+            $tableName= substr((string) $tableName, 0, 128);
+
+            $changedFieldsJson = null;
+            if (is_array($changedFields)) {
+                // store as array of field names
+                $changedFieldsJson = $this->safeJson(array_values($changedFields));
+            }
+
+            $oldJson = is_array($oldValues) ? $this->safeJson($oldValues) : null;
+            $newJson = is_array($newValues) ? $this->safeJson($newValues) : null;
+
+            // keep log_note safe-ish
+            $noteStr = $note !== null ? (string) $note : null;
+            if ($noteStr !== null && strlen($noteStr) > 5000) $noteStr = substr($noteStr, 0, 5000);
+
+            DB::table('user_data_activity_log')->insert([
+                'performed_by'      => (int) ($actor['id'] ?? 0),
+                'performed_by_role' => $role !== '' ? $role : null,
+                'ip'                => $request->ip(),
+                'user_agent'        => $ua !== '' ? $ua : null,
+
+                'activity'          => $activity,
+                'module'            => $module,
+
+                'table_name'        => $tableName,
+                'record_id'         => $recordId,
+
+                'changed_fields'    => $changedFieldsJson,
+                'old_values'        => $oldJson,
+                'new_values'        => $newJson,
+
+                'log_note'          => $noteStr,
+
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Never let logging break any controller response
+            try {
+                Log::warning('user_data_activity_log insert failed: ' . $e->getMessage());
+            } catch (\Throwable $e2) {
+                // ignore
+            }
         }
     }
 
@@ -126,7 +284,7 @@ class CourseSemesterController extends Controller
         $q = DB::table('courses as c');
         if (! $includeDeleted) $q->whereNull('c.deleted_at');
 
-        if ($departmentId !== null) {
+        if ($departmentId !== null && $this->hasCol('courses', 'department_id')) {
             $q->where('c.department_id', (int) $departmentId);
         }
 
@@ -150,7 +308,17 @@ class CourseSemesterController extends Controller
             $q->where('s.course_id', (int) $courseId);
         }
 
+        // ✅ Department scoping:
+        //  - Prefer scoping by COURSE department_id (stronger and correct)
+        //  - Also keep existing s.department_id behavior (null or dept) for shared rows
         if ($departmentId !== null) {
+            if ($this->hasCol('courses', 'department_id')) {
+                $q->whereIn('s.course_id', function ($sub) use ($departmentId) {
+                    $sub->from('courses')->select('id')->where('department_id', (int) $departmentId);
+                    if ($this->hasCol('courses', 'deleted_at')) $sub->whereNull('deleted_at');
+                });
+            }
+
             $q->where(function ($w) use ($departmentId) {
                 $w->whereNull('s.department_id')
                   ->orWhere('s.department_id', (int) $departmentId);
@@ -233,7 +401,7 @@ class CourseSemesterController extends Controller
           });
     }
 
-    protected function baseQuery(Request $request, bool $includeDeleted = false)
+    protected function baseQuery(Request $request, bool $includeDeleted = false, ?array $ac = null)
     {
         $q = DB::table('course_semesters as s')
             ->join('courses as c', 'c.id', '=', 's.course_id')
@@ -252,6 +420,23 @@ class CourseSemesterController extends Controller
             $q->whereNull('s.deleted_at');
         }
 
+        // ✅ Access Control: department-scoped users only see their department
+        if ($ac && ($ac['mode'] ?? null) === 'department') {
+            $deptId = (int) ($ac['department_id'] ?? 0);
+            if ($deptId > 0) {
+                if ($this->hasCol('courses', 'department_id')) {
+                    $q->where('c.department_id', $deptId);
+                } else {
+                    $q->where(function ($w) use ($deptId) {
+                        $w->whereNull('s.department_id')
+                          ->orWhere('s.department_id', $deptId);
+                    });
+                }
+            } else {
+                $q->whereRaw('1=0');
+            }
+        }
+
         // ?q=
         if ($request->filled('q')) {
             $term = '%' . trim((string) $request->query('q')) . '%';
@@ -268,7 +453,10 @@ class CourseSemesterController extends Controller
 
         // ?course=id|uuid|slug
         if ($request->filled('course')) {
-            $course = $this->resolveCourse($request->query('course'), true);
+            $deptScope = null;
+            if ($ac && ($ac['mode'] ?? null) === 'department') $deptScope = (int) $ac['department_id'];
+
+            $course = $this->resolveCourse($request->query('course'), true, $deptScope);
             if ($course) $q->where('s.course_id', (int) $course->id);
             else $q->whereRaw('1=0');
         }
@@ -313,10 +501,26 @@ class CourseSemesterController extends Controller
     {
         $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
 
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
         $onlyDeleted    = filter_var($request->query('only_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $query = $this->baseQuery($request, $includeDeleted || $onlyDeleted);
+        $query = $this->baseQuery($request, $includeDeleted || $onlyDeleted, $ac);
 
         if ($onlyDeleted) {
             $query->whereNotNull('s.deleted_at');
@@ -338,7 +542,27 @@ class CourseSemesterController extends Controller
 
     public function indexByCourse(Request $request, $course)
     {
-        $c = $this->resolveCourse($course, false);
+        $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
+
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $c = $this->resolveCourse($course, false, $deptScope);
         if (! $c) return response()->json(['message' => 'Course not found'], 404);
 
         $request->query->set('course', $c->id);
@@ -347,6 +571,30 @@ class CourseSemesterController extends Controller
 
     public function indexByDepartment(Request $request, $department)
     {
+        $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
+
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
+        // dept-scoped users always see their own department (ignore identifier)
+        if ($ac['mode'] === 'department') {
+            $request->query->set('department', (int) $ac['department_id']);
+            return $this->index($request);
+        }
+
         $d = $this->resolveDepartment($department, false);
         if (! $d) return response()->json(['message' => 'Department not found'], 404);
 
@@ -362,9 +610,17 @@ class CourseSemesterController extends Controller
 
     public function show(Request $request, $identifier)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Course semester not found'], 404);
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveSemester($request, $identifier, $includeDeleted);
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveSemester($request, $identifier, $includeDeleted, null, $deptScope);
         if (! $row) return response()->json(['message' => 'Course semester not found'], 404);
 
         return response()->json([
@@ -375,12 +631,20 @@ class CourseSemesterController extends Controller
 
     public function showByCourse(Request $request, $course, $identifier)
     {
-        $c = $this->resolveCourse($course, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Course semester not found'], 404);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $c = $this->resolveCourse($course, true, $deptScope);
         if (! $c) return response()->json(['message' => 'Course not found'], 404);
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveSemester($request, $identifier, $includeDeleted, $c->id);
+        $row = $this->resolveSemester($request, $identifier, $includeDeleted, $c->id, $deptScope);
         if (! $row) return response()->json(['message' => 'Course semester not found'], 404);
 
         return response()->json([
@@ -391,7 +655,14 @@ class CourseSemesterController extends Controller
 
     public function store(Request $request)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
         $actor = $this->actor($request);
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
 
         $validated = $request->validate([
             'course_id'      => ['required', 'integer', 'exists:courses,id'],
@@ -417,6 +688,22 @@ class CourseSemesterController extends Controller
 
             'metadata'       => ['nullable'],
         ]);
+
+        // ✅ department-scoped users can only create inside their department
+        if ($deptScope !== null) {
+            $cq = DB::table('courses')->select(['id']);
+            if ($this->hasCol('courses', 'department_id')) $cq->addSelect(['department_id']);
+            if ($this->hasCol('courses', 'deleted_at')) $cq->whereNull('deleted_at');
+            $courseRow = $cq->where('id', (int) $validated['course_id'])->first();
+
+            if (!$courseRow) return response()->json(['message' => 'Course not found'], 404);
+            if ($this->hasCol('courses', 'department_id') && (int) ($courseRow->department_id ?? 0) !== $deptScope) {
+                return response()->json(['error' => 'Not allowed'], 403);
+            }
+
+            // force semester.department_id to actor dept
+            $validated['department_id'] = $deptScope;
+        }
 
         $uuid = (string) Str::uuid();
         $now  = now();
@@ -491,6 +778,30 @@ class CourseSemesterController extends Controller
 
         $row = DB::table('course_semesters')->where('id', $id)->first();
 
+        // ✅ LOG (POST)
+        $trackKeys = [
+            'uuid','course_id','department_id','semester_no','title','description',
+            'code','slug','total_credits','syllabus_url','sort_order','status',
+            'publish_at','expire_at','metadata'
+        ];
+        $newArr = $row ? (array) $row : [];
+        $changed = [];
+        foreach ($trackKeys as $k) {
+            // on create, consider these as changed if present
+            if (array_key_exists($k, $newArr)) $changed[] = $k;
+        }
+        $this->logActivity(
+            $request,
+            'create',
+            'course_semesters',
+            'course_semesters',
+            (int) $id,
+            $changed,
+            null,
+            $this->pickArray($newArr, $changed),
+            'Created course semester'
+        );
+
         return response()->json([
             'success' => true,
             'data'    => $row ? $this->normalizeRow($row) : null,
@@ -499,17 +810,42 @@ class CourseSemesterController extends Controller
 
     public function storeForCourse(Request $request, $course)
     {
-        $c = $this->resolveCourse($course, false);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $c = $this->resolveCourse($course, false, $deptScope);
         if (! $c) return response()->json(['message' => 'Course not found'], 404);
 
         $request->merge(['course_id' => (int) $c->id]);
+
+        // force department_id for dept users (store() also enforces, but keep consistent)
+        if ($deptScope !== null) $request->merge(['department_id' => $deptScope]);
+
+        // ✅ store() will log create
         return $this->store($request);
     }
 
     public function update(Request $request, $identifier)
     {
-        $row = $this->resolveSemester($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveSemester($request, $identifier, true, null, $deptScope);
         if (! $row) return response()->json(['message' => 'Course semester not found'], 404);
+
+        // ✅ snapshot BEFORE update for logging
+        $before = DB::table('course_semesters')->where('id', (int) $row->id)->first();
+        $beforeArr = $before ? (array) $before : [];
 
         $validated = $request->validate([
             'course_id'       => ['nullable', 'integer', 'exists:courses,id'],
@@ -536,6 +872,27 @@ class CourseSemesterController extends Controller
 
             'metadata'        => ['nullable'],
         ]);
+
+        // ✅ department-scoped users cannot move semester to another department/course outside their dept
+        if ($deptScope !== null) {
+            // If client tries to change department_id, force it back
+            if (array_key_exists('department_id', $validated)) {
+                $validated['department_id'] = $deptScope;
+            }
+
+            // If client tries to change course_id, ensure that course belongs to dept
+            if (array_key_exists('course_id', $validated) && !empty($validated['course_id'])) {
+                $cq = DB::table('courses')->select(['id']);
+                if ($this->hasCol('courses', 'department_id')) $cq->addSelect(['department_id']);
+                if ($this->hasCol('courses', 'deleted_at')) $cq->whereNull('deleted_at');
+                $courseRow = $cq->where('id', (int) $validated['course_id'])->first();
+
+                if (!$courseRow) return response()->json(['message' => 'Course not found'], 404);
+                if ($this->hasCol('courses', 'department_id') && (int) ($courseRow->department_id ?? 0) !== $deptScope) {
+                    return response()->json(['error' => 'Not allowed'], 403);
+                }
+            }
+        }
 
         $update = [
             'updated_at'    => now(),
@@ -633,6 +990,37 @@ class CourseSemesterController extends Controller
         DB::table('course_semesters')->where('id', (int) $row->id)->update($update);
 
         $fresh = DB::table('course_semesters')->where('id', (int) $row->id)->first();
+        $afterArr = $fresh ? (array) $fresh : [];
+
+        // ✅ LOG (PUT/PATCH)
+        $trackKeys = [
+            'course_id','department_id','semester_no','title','description',
+            'code','slug','total_credits','syllabus_url','sort_order','status',
+            'publish_at','expire_at','metadata','deleted_at'
+        ];
+        $changed = [];
+        foreach ($trackKeys as $k) {
+            $old = array_key_exists($k, $beforeArr) ? $beforeArr[$k] : null;
+            $new = array_key_exists($k, $afterArr)  ? $afterArr[$k]  : null;
+
+            // normalize for compare
+            $oldN = is_string($old) ? trim($old) : $old;
+            $newN = is_string($new) ? trim($new) : $new;
+
+            if ($oldN != $newN) $changed[] = $k;
+        }
+
+        $this->logActivity(
+            $request,
+            'update',
+            'course_semesters',
+            'course_semesters',
+            (int) $row->id,
+            $changed,
+            $this->pickArray($beforeArr, $changed),
+            $this->pickArray($afterArr,  $changed),
+            'Updated course semester'
+        );
 
         return response()->json([
             'success' => true,
@@ -642,32 +1030,92 @@ class CourseSemesterController extends Controller
 
     public function destroy(Request $request, $identifier)
     {
-        $row = $this->resolveSemester($request, $identifier, false);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveSemester($request, $identifier, false, null, $deptScope);
         if (! $row) return response()->json(['message' => 'Not found or already deleted'], 404);
 
+        // ✅ snapshot BEFORE delete for logging
+        $before = DB::table('course_semesters')->where('id', (int) $row->id)->first();
+        $beforeArr = $before ? (array) $before : [];
+
+        $now = now();
+
         DB::table('course_semesters')->where('id', (int) $row->id)->update([
-            'deleted_at'    => now(),
-            'updated_at'    => now(),
+            'deleted_at'    => $now,
+            'updated_at'    => $now,
             'updated_at_ip' => $request->ip(),
         ]);
+
+        $after = DB::table('course_semesters')->where('id', (int) $row->id)->first();
+        $afterArr = $after ? (array) $after : [];
+
+        // ✅ LOG (DELETE - soft)
+        $changed = ['deleted_at'];
+        $this->logActivity(
+            $request,
+            'delete',
+            'course_semesters',
+            'course_semesters',
+            (int) $row->id,
+            $changed,
+            $this->pickArray($beforeArr, $changed),
+            $this->pickArray($afterArr,  $changed),
+            'Soft deleted course semester'
+        );
 
         return response()->json(['success' => true]);
     }
 
     public function restore(Request $request, $identifier)
     {
-        $row = $this->resolveSemester($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveSemester($request, $identifier, true, null, $deptScope);
         if (! $row || $row->deleted_at === null) {
             return response()->json(['message' => 'Not found in bin'], 404);
         }
 
+        // ✅ snapshot BEFORE restore for logging
+        $before = DB::table('course_semesters')->where('id', (int) $row->id)->first();
+        $beforeArr = $before ? (array) $before : [];
+
+        $now = now();
+
         DB::table('course_semesters')->where('id', (int) $row->id)->update([
             'deleted_at'    => null,
-            'updated_at'    => now(),
+            'updated_at'    => $now,
             'updated_at_ip' => $request->ip(),
         ]);
 
         $fresh = DB::table('course_semesters')->where('id', (int) $row->id)->first();
+        $afterArr = $fresh ? (array) $fresh : [];
+
+        // ✅ LOG (PATCH/POST - restore)
+        $changed = ['deleted_at'];
+        $this->logActivity(
+            $request,
+            'restore',
+            'course_semesters',
+            'course_semesters',
+            (int) $row->id,
+            $changed,
+            $this->pickArray($beforeArr, $changed),
+            $this->pickArray($afterArr,  $changed),
+            'Restored course semester'
+        );
 
         return response()->json([
             'success' => true,
@@ -677,12 +1125,37 @@ class CourseSemesterController extends Controller
 
     public function forceDelete(Request $request, $identifier)
     {
-        $row = $this->resolveSemester($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveSemester($request, $identifier, true, null, $deptScope);
         if (! $row) return response()->json(['message' => 'Course semester not found'], 404);
+
+        // ✅ snapshot BEFORE hard delete for logging
+        $before = DB::table('course_semesters')->where('id', (int) $row->id)->first();
+        $beforeArr = $before ? (array) $before : [];
 
         $this->deletePublicPath($row->syllabus_url ?? null);
 
         DB::table('course_semesters')->where('id', (int) $row->id)->delete();
+
+        // ✅ LOG (DELETE - force)
+        $this->logActivity(
+            $request,
+            'force_delete',
+            'course_semesters',
+            'course_semesters',
+            (int) $row->id,
+            ['force_delete'],
+            $beforeArr,
+            null,
+            'Permanently deleted course semester'
+        );
 
         return response()->json(['success' => true]);
     }
@@ -695,7 +1168,7 @@ class CourseSemesterController extends Controller
     {
         $perPage = max(1, min(200, (int) $request->query('per_page', 50)));
 
-        $q = $this->baseQuery($request, true);
+        $q = $this->baseQuery($request, true, null);
         $this->applyVisibleWindow($q);
 
         $q->orderBy('s.sort_order', 'asc')
@@ -744,5 +1217,342 @@ class CourseSemesterController extends Controller
             'success' => true,
             'item'    => $this->normalizeRow($row),
         ]);
+    }
+
+    public function importCsv(Request $request)
+    {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $actor = $this->actor($request);
+
+        // If dept-scoped, lock import to their department UUID
+        $deptScope = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+        $deptScopeUuid = null;
+        if ($deptScope !== null) {
+            $dq = DB::table('departments')->select(['id','uuid']);
+            if ($this->hasCol('departments', 'deleted_at')) $dq->whereNull('deleted_at');
+            $deptRow = $dq->where('id', $deptScope)->first();
+            if (!$deptRow || empty($deptRow->uuid)) {
+                return response()->json(['error' => 'Not allowed'], 403);
+            }
+            $deptScopeUuid = (string) $deptRow->uuid;
+        }
+
+        // Accept either "csv" or "file" as input name (frontend can use any)
+        $request->validate([
+            'csv'  => ['nullable', 'file', 'max:20480', 'mimes:csv,txt'],
+            'file' => ['nullable', 'file', 'max:20480', 'mimes:csv,txt'],
+        ]);
+
+        $file = $request->file('csv') ?: $request->file('file');
+        if (!$file || !$file->isValid()) {
+            return response()->json(['success' => false, 'message' => 'CSV file is required'], 422);
+        }
+
+        $path = $file->getRealPath();
+        $handle = @fopen($path, 'r');
+        if (!$handle) {
+            return response()->json(['success' => false, 'message' => 'Unable to read CSV file'], 422);
+        }
+
+        // ---------- helpers ----------
+        $normHeader = function ($h) {
+            $h = (string) $h;
+            // remove UTF-8 BOM if present
+            $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);
+            $h = trim($h);
+            $h = strtolower($h);
+            // normalize separators
+            $h = preg_replace('/[^a-z0-9]+/', '_', $h);
+            $h = trim($h, '_');
+            return $h;
+        };
+
+        $pickIndex = function (array $map, array $candidates) {
+            foreach ($candidates as $k) {
+                if (array_key_exists($k, $map)) return $map[$k];
+            }
+            return null;
+        };
+
+        $cell = function (array $row, $idx) {
+            if ($idx === null) return '';
+            return isset($row[$idx]) ? trim((string) $row[$idx]) : '';
+        };
+
+        // ---------- read header ----------
+        $header = fgetcsv($handle);
+        if (!$header || !is_array($header)) {
+            fclose($handle);
+            return response()->json(['success' => false, 'message' => 'CSV header row is missing'], 422);
+        }
+
+        $headerMap = [];
+        foreach ($header as $i => $h) {
+            $headerMap[$normHeader($h)] = $i;
+        }
+
+        // Required columns (flexible matching)
+        $idxDept = $pickIndex($headerMap, [
+            'department', 'department_uuid', 'dept', 'dept_uuid'
+        ]);
+        $idxCourse = $pickIndex($headerMap, [
+            'course', 'course_uuid'
+        ]);
+        $idxSemNo = $pickIndex($headerMap, [
+            'semester_no', 'semester_no_', 'semester', 'semester_number', 'sem_no', 'sem'
+        ]);
+        if ($idxSemNo === null && isset($headerMap['semester_no'])) $idxSemNo = $headerMap['semester_no'];
+
+        $idxTitle = $pickIndex($headerMap, [
+            'semester_title', 'title', 'semester_name'
+        ]);
+        $idxCode = $pickIndex($headerMap, ['code']);
+        $idxSlug = $pickIndex($headerMap, ['slug']);
+
+        // Validate required columns exist
+        $missing = [];
+        if ($idxDept === null)   $missing[] = 'Department';
+        if ($idxCourse === null) $missing[] = 'Course';
+        if ($idxSemNo === null)  $missing[] = 'Semester No.';
+        if ($idxTitle === null)  $missing[] = 'Semester Title';
+
+        if (!empty($missing)) {
+            fclose($handle);
+            return response()->json([
+                'success' => false,
+                'message' => 'Missing required CSV columns: ' . implode(', ', $missing),
+            ], 422);
+        }
+
+        // Column existence checks (avoid SQL errors on older schema)
+        $hasCodeCol   = $this->hasCol('course_semesters', 'code');
+        $hasSlugCol   = $this->hasCol('course_semesters', 'slug');
+        $hasMetaCol   = $this->hasCol('course_semesters', 'metadata');
+        $hasDescCol   = $this->hasCol('course_semesters', 'description');
+        $hasSortCol   = $this->hasCol('course_semesters', 'sort_order');
+        $hasStatusCol = $this->hasCol('course_semesters', 'status');
+        $hasPubCol    = $this->hasCol('course_semesters', 'publish_at');
+        $hasExpCol    = $this->hasCol('course_semesters', 'expire_at');
+        $hasCByCol    = $this->hasCol('course_semesters', 'created_by');
+        $hasCAipCol   = $this->hasCol('course_semesters', 'created_at_ip');
+        $hasUAipCol   = $this->hasCol('course_semesters', 'updated_at_ip');
+        $hasCreditsCol= $this->hasCol('course_semesters', 'total_credits');
+        $hasSylCol    = $this->hasCol('course_semesters', 'syllabus_url');
+        $hasDeletedAt = $this->hasCol('course_semesters', 'deleted_at');
+
+        $now = now();
+        $ip  = $request->ip();
+
+        // Cache UUID->row for speed
+        $deptCache = [];
+        $courseCache = [];
+
+        $inserted = 0;
+        $skipped  = 0;
+        $failed   = [];
+
+        $rowNum = 1; // header = 1
+        DB::beginTransaction();
+        try {
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowNum++;
+
+                // Skip empty lines
+                $allEmpty = true;
+                foreach ($row as $v) { if (trim((string)$v) !== '') { $allEmpty = false; break; } }
+                if ($allEmpty) continue;
+
+                $deptUuid   = $cell($row, $idxDept);
+                $courseUuid = $cell($row, $idxCourse);
+                $semNoRaw   = $cell($row, $idxSemNo);
+                $title      = $cell($row, $idxTitle);
+                $code       = $cell($row, $idxCode);
+                $slug       = $cell($row, $idxSlug);
+
+                // Dept-scope: only allow their department
+                if ($deptScopeUuid !== null) {
+                    if (!Str::isUuid($deptUuid) || strtolower($deptUuid) !== strtolower($deptScopeUuid)) {
+                        $failed[] = ['row' => $rowNum, 'message' => 'Department not allowed for this user'];
+                        continue;
+                    }
+                }
+
+                // Basic validations
+                if (!$deptUuid || !Str::isUuid($deptUuid)) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Invalid Department UUID'];
+                    continue;
+                }
+                if (!$courseUuid || !Str::isUuid($courseUuid)) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Invalid Course UUID'];
+                    continue;
+                }
+
+                $semNo = (int) trim((string)$semNoRaw);
+                if ($semNo <= 0 || $semNo > 50) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Semester No. must be 1..50'];
+                    continue;
+                }
+                if (!$title || mb_strlen($title) > 255) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Semester Title is required (max 255)'];
+                    continue;
+                }
+
+                if ($code !== '' && mb_strlen($code) > 80) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Code max length is 80'];
+                    continue;
+                }
+                if ($slug !== '' && mb_strlen($slug) > 160) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Slug max length is 160'];
+                    continue;
+                }
+
+                // Resolve department by UUID (not deleted)
+                if (!array_key_exists($deptUuid, $deptCache)) {
+                    $dq = DB::table('departments')->where('uuid', $deptUuid);
+                    if ($this->hasCol('departments', 'deleted_at')) $dq->whereNull('deleted_at');
+                    $deptCache[$deptUuid] = $dq->first();
+                }
+                $dept = $deptCache[$deptUuid];
+                if (!$dept) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Department not found for UUID: ' . $deptUuid];
+                    continue;
+                }
+
+                // Resolve course by UUID (not deleted)
+                if (!array_key_exists($courseUuid, $courseCache)) {
+                    $cq = DB::table('courses')->where('uuid', $courseUuid);
+                    if ($this->hasCol('courses', 'deleted_at')) $cq->whereNull('deleted_at');
+                    $courseCache[$courseUuid] = $cq->first();
+                }
+                $course = $courseCache[$courseUuid];
+                if (!$course) {
+                    $failed[] = ['row' => $rowNum, 'message' => 'Course not found for UUID: ' . $courseUuid];
+                    continue;
+                }
+
+                // Ensure course belongs to department (recommended for consistency)
+                if (!empty($course->department_id) && (int)$course->department_id !== (int)$dept->id) {
+                    $failed[] = [
+                        'row' => $rowNum,
+                        'message' => 'Course does not belong to given Department (course.department_id mismatch)'
+                    ];
+                    continue;
+                }
+
+                // Defaults if not provided
+                if ($code === '') $code = $this->codeDefault($semNo);
+                if ($slug === '') $slug = $this->slugDefault($title, $semNo);
+
+                // Skip duplicates (same course_id + semester_no) if exists and not deleted
+                $existsQ = DB::table('course_semesters')
+                    ->where('course_id', (int)$course->id)
+                    ->where('semester_no', (int)$semNo);
+
+                if ($hasDeletedAt) $existsQ->whereNull('deleted_at');
+
+                $exists = $existsQ->first();
+                if ($exists) {
+                    $skipped++;
+                    continue;
+                }
+
+                // Build insert
+                $uuid = (string) Str::uuid();
+                $ins = [
+                    'uuid'          => $uuid,
+                    'course_id'     => (int) $course->id,
+                    'department_id' => (int) $dept->id,
+                    'semester_no'   => (int) $semNo,
+                    'title'         => $title,
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
+                ];
+
+                if ($hasDescCol)    $ins['description'] = null;
+                if ($hasSortCol)    $ins['sort_order'] = 0;
+                if ($hasStatusCol)  $ins['status'] = 'active';
+                if ($hasPubCol)     $ins['publish_at'] = null;
+                if ($hasExpCol)     $ins['expire_at'] = null;
+                if ($hasCreditsCol) $ins['total_credits'] = 0;
+                if ($hasSylCol)     $ins['syllabus_url'] = null;
+
+                if ($hasCByCol)  $ins['created_by'] = $actor['id'] ?: null;
+                if ($hasCAipCol) $ins['created_at_ip'] = $ip;
+                if ($hasUAipCol) $ins['updated_at_ip'] = $ip;
+
+                // Save code/slug to columns if exist
+                if ($hasCodeCol) $ins['code'] = $code;
+                if ($hasSlugCol) $ins['slug'] = $slug;
+
+                // Otherwise store them in metadata (keeps UI logic consistent)
+                if ($hasMetaCol && (!$hasCodeCol || !$hasSlugCol)) {
+                    $meta = [];
+                    if (!$hasCodeCol) $meta['code'] = $code;
+                    if (!$hasSlugCol) $meta['slug'] = $slug;
+                    $ins['metadata'] = json_encode($meta);
+                }
+
+                DB::table('course_semesters')->insert($ins);
+                $inserted++;
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            fclose($handle);
+
+            // ✅ LOG (POST - import failed)
+            $this->logActivity(
+                $request,
+                'import_failed',
+                'course_semesters',
+                'course_semesters',
+                null,
+                ['import'],
+                null,
+                ['error' => $e->getMessage()],
+                'CSV import failed'
+            );
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Import failed: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        fclose($handle);
+
+        $resp = [
+            'success'  => true,
+            'message'  => 'Import completed',
+            'inserted' => $inserted,
+            'skipped'  => $skipped,
+            'failed'   => count($failed),
+            'errors'   => array_slice($failed, 0, 50),
+        ];
+
+        // ✅ LOG (POST - import)
+        $this->logActivity(
+            $request,
+            'import',
+            'course_semesters',
+            'course_semesters',
+            null,
+            ['import'],
+            null,
+            [
+                'inserted' => $inserted,
+                'skipped'  => $skipped,
+                'failed'   => count($failed),
+            ],
+            'Imported course semesters via CSV'
+        );
+
+        return response()->json($resp);
     }
 }

@@ -552,8 +552,8 @@ td.col-slug code{
 
               {{-- ✅ Department (added) --}}
               <div class="col-12">
-                <label class="form-label">Department <span class="text-danger">*</span></label>
-                <select class="form-select" id="saDepartmentId" required>
+                <label class="form-label">Department</label>
+                <select class="form-select" id="saDepartmentId">
                   <option value="">Loading departments…</option>
                 </select>
                 <div class="form-text">Select the department (dropdown shows only the department name).</div>
@@ -1965,102 +1965,112 @@ if (act === 'mark-draft'){
       }
     });
 
-    // =========================
-    // Submit (create/edit)
-    // =========================
-    itemForm?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (saving) return;
-      saving = true;
+// =========================
+// Submit (create/edit)
+// =========================
+itemForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (saving) return;
+  saving = true;
 
-      try{
-        if (itemForm.dataset.mode === 'view') return;
+  try{
+    if (itemForm.dataset.mode === 'view') return;
 
-        const intent = itemForm.dataset.intent || 'create';
-        const isEdit = intent === 'edit' && !!fUuid.value;
+    const intent = itemForm.dataset.intent || 'create';
+    const isEdit = intent === 'edit' && !!fUuid.value;
 
-        if (isEdit && !canEdit) return;
-        if (!isEdit && !canCreate) return;
+    if (isEdit && !canEdit) return;
+    if (!isEdit && !canCreate) return;
 
-        const title = (fTitle.value || '').trim();
-        const slug = (fSlug.value || '').trim();
+    const title = (fTitle.value || '').trim();
+    const slug  = (fSlug.value || '').trim();
 
-        // ✅ department id (added)
-        const deptId = (fDepartmentId?.value || '').toString().trim();
+    // ✅ department id
+    const deptId = (fDepartmentId?.value || '').toString().trim();
 
-        const status = (fStatus.value || 'draft').trim();
-        const featured = (fFeatured.value || '0').trim();
+    const status   = (fStatus.value || 'draft').trim();
+    const featured = (fFeatured.value || '0').trim();
 
-        const rawBody = (rte.mode === 'code') ? (rte.code.value || '') : (rte.editor.innerHTML || '');
-        const cleanBody = ensurePreHasCode(rawBody).trim();
-        if (rte.hidden) rte.hidden.value = cleanBody;
+    const rawBody  = (rte.mode === 'code') ? (rte.code.value || '') : (rte.editor.innerHTML || '');
+    const cleanBody = ensurePreHasCode(rawBody).trim();
+    if (rte.hidden) rte.hidden.value = cleanBody;
 
-        if (!title){ err('Title is required'); fTitle.focus(); return; }
-        if (!deptId){ err('Department is required'); fDepartmentId?.focus(); return; }
-        if (!cleanBody){ err('Body is required'); rteFocus(); return; }
+    if (!title){ err('Title is required'); fTitle.focus(); return; }
+    if (!cleanBody){ err('Body is required'); rteFocus(); return; }
 
-        const fd = new FormData();
-        fd.append('title', title);
-        if (slug) fd.append('slug', slug);
+    // ✅ fd MUST be created BEFORE appending
+    const fd = new FormData();
 
-        // ✅ send department_id (added)
-        fd.append('department_id', deptId);
+    fd.append('title', title);
+    if (slug) fd.append('slug', slug);
 
-        fd.append('status', status);
-        fd.append('is_featured_home', featured === '1' ? '1' : '0');
-        if ((fPublishAt.value || '').trim()) fd.append('publish_at', fPublishAt.value);
-        if ((fExpireAt.value || '').trim()) fd.append('expire_at', fExpireAt.value);
-        fd.append('body', cleanBody);
+    // ✅ send department only if selected
+    // - if edit and user cleared it -> send empty to clear on backend
+    if (deptId) {
+      fd.append('department_id', deptId);
+    } else if (isEdit) {
+      fd.append('department_id', '');
+    }
 
-        // cover remove
-        if (isEdit && (fCoverRemove?.value === '1')) fd.append('cover_image_remove', '1');
+    fd.append('status', status);
+    fd.append('is_featured_home', featured === '1' ? '1' : '0');
 
-        // cover upload
-        const cover = fCover.files?.[0] || null;
-        if (cover) fd.append('cover_image', cover);
+    if ((fPublishAt.value || '').trim()) fd.append('publish_at', fPublishAt.value);
+    if ((fExpireAt.value || '').trim())  fd.append('expire_at', fExpireAt.value);
 
-        // attachments upload
-        Array.from(fAttachments.files || []).forEach(f => fd.append('attachments[]', f));
+    fd.append('body', cleanBody);
 
-        let url = '/api/student-activities';
-        if (isEdit){
-          url = `/api/student-activities/${encodeURIComponent(fUuid.value)}`;
-          fd.append('_method', 'PUT');
-        }
+    // cover remove
+    if (isEdit && (fCoverRemove?.value === '1')) fd.append('cover_image_remove', '1');
 
-        setBtnLoading(saveBtn, true);
-        showLoading(true);
+    // cover upload
+    const cover = fCover.files?.[0] || null;
+    if (cover) fd.append('cover_image', cover);
 
-        const res = await fetchWithTimeout(url, {
-          method: 'POST',
-          headers: authHeaders(),
-          body: fd
-        }, 20000);
+    // attachments upload
+    Array.from(fAttachments.files || []).forEach(f => fd.append('attachments[]', f));
 
-        const js = await res.json().catch(()=> ({}));
-        if (!res.ok || js.success === false){
-          let msg = js?.message || 'Save failed';
-          if (js?.errors){
-            const k = Object.keys(js.errors)[0];
-            if (k && js.errors[k] && js.errors[k][0]) msg = js.errors[k][0];
-          }
-          throw new Error(msg);
-        }
+    let url = '/api/student-activities';
+    if (isEdit){
+      url = `/api/student-activities/${encodeURIComponent(fUuid.value)}`;
+      fd.append('_method', 'PUT');
+    }
 
-        ok(isEdit ? 'Updated' : 'Created');
-        itemModal && itemModal.hide();
+    setBtnLoading(saveBtn, true);
+    showLoading(true);
 
-        state.tabs.active.page = state.tabs.inactive.page = state.tabs.trash.page = 1;
-        await Promise.all([loadTab('active'), loadTab('inactive'), loadTab('trash')]);
-      }catch(ex){
-        err(ex?.name === 'AbortError' ? 'Request timed out' : (ex.message || 'Failed'));
-      }finally{
-        saving = false;
-        setBtnLoading(saveBtn, false);
-        showLoading(false);
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: fd
+    }, 20000);
+
+    const js = await res.json().catch(()=> ({}));
+    if (!res.ok || js.success === false){
+      let msg = js?.message || 'Save failed';
+      if (js?.errors){
+        const k = Object.keys(js.errors)[0];
+        if (k && js.errors[k] && js.errors[k][0]) msg = js.errors[k][0];
       }
-    });
+      throw new Error(msg);
+    }
+
+    ok(isEdit ? 'Updated' : 'Created');
+    itemModal && itemModal.hide();
+
+    state.tabs.active.page = state.tabs.inactive.page = state.tabs.trash.page = 1;
+    await Promise.all([loadTab('active'), loadTab('inactive'), loadTab('trash')]);
+
+  }catch(ex){
+    err(ex?.name === 'AbortError' ? 'Request timed out' : (ex.message || 'Failed'));
+  }finally{
+    saving = false;
+    setBtnLoading(saveBtn, false);
+    showLoading(false);
+  }
+});
+
 
     // Init
     (async () => {

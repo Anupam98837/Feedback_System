@@ -49,7 +49,14 @@
     display:flex;align-items:center;gap:10px;
     padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--rad);
     background:var(--surface);
+    transition:transform .12s ease, box-shadow .12s ease;
   }
+  .tree-node:hover{transform:translateY(-1px);box-shadow:var(--shadow-1)}
+  .tree-node.is-selected{
+    border-color:color-mix(in oklab, var(--accent-color) 45%, var(--line-strong));
+    box-shadow:0 0 0 3px rgba(201,75,80,.14);
+  }
+
   .tree-node .toggle{
     width:24px;height:24px;border:1px solid var(--line-strong);border-radius:8px;
     display:inline-grid;place-items:center;cursor:pointer;flex:0 0 auto;
@@ -88,11 +95,13 @@
 
     <div class="card-body">
 
-      {{-- ===== BELONGS TO PAGE (REQUIRED) ===== --}}
+      {{-- ===== BELONGS TO PAGE (NOW OPTIONAL + HIDDEN) ===== --}}
       <div class="section-label">Belongs To Page</div>
       <div class="row g-3">
-        <div class="col-12 col-md-6">
-          <label class="form-label">Page ID <span class="text-danger">*</span></label>
+
+        {{-- ✅ Page ID is now OPTIONAL + hidden from UI --}}
+        <div class="col-12 col-md-4 d-none" id="pageIdWrap" style="display:none!important;">
+          <label class="form-label">Page ID <span class="pill ms-1">optional</span></label>
           <div class="input-group">
             <span class="input-group-text"><i class="fa-solid fa-file-lines"></i></span>
             <select class="form-select" id="page_id">
@@ -100,19 +109,59 @@
             </select>
           </div>
           <small class="text-muted tiny">
-            This submenu will be created under this page (required). Parent picker tree also loads from this Page ID.
+            Optional. (Legacy) Not used for parent picking anymore.
           </small>
           <div class="err" data-for="page_id"></div>
         </div>
 
-        <div class="col-12 col-md-6">
+        {{-- ✅ Header Menu Parent dropdown → ✅ REPLACED with Button + Modal Tree (TREE API) --}}
+        <div class="col-12 col-md-4">
+          <label class="form-label">Header Menu (Parent) <span class="text-danger">*</span></label>
+
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span id="headerMenuBadge" class="badge-soft">Not selected</span>
+
+            <button class="btn btn-light pick-parent-btn" type="button" id="btnPickHeaderMenu">
+              <i class="fa-solid fa-bars me-1"></i>Choose from tree
+            </button>
+
+            <button class="btn btn-outline-danger btn-sm" type="button" id="btnClearHeaderMenu">
+              <i class="fa-solid fa-xmark me-1"></i>Clear
+            </button>
+          </div>
+
+          {{-- ✅ hidden real value (same field name / id used in API payload) --}}
+          <input type="hidden" id="header_menu_id" value="">
+
+          <small class="text-muted tiny">
+            Select the <b>header menu item</b> where this submenu will appear.
+          </small>
+          <div class="err" data-for="header_menu_id"></div>
+        </div>
+
+        {{-- ✅ Department dropdown --}}
+        <div class="col-12 col-md-4">
+          <label class="form-label">Department <span class="pill ms-1">optional</span></label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fa-solid fa-building-columns"></i></span>
+            <select class="form-select" id="department_id">
+              <option value="">Loading departments…</option>
+            </select>
+          </div>
+          <small class="text-muted tiny" id="deptHint">
+            Department is optional.
+          </small>
+          <div class="err" data-for="department_id"></div>
+        </div>
+
+        <div class="col-12">
           <label class="form-label">Page Slug <span class="pill ms-1">optional</span></label>
           <div class="input-group">
             <span class="input-group-text"><i class="fa-solid fa-link"></i></span>
             <input type="text" class="form-control" id="belongs_page_slug" maxlength="200" placeholder="(optional) just for reference">
           </div>
           <small class="text-muted tiny">
-            Optional note/reference only. Creation uses <b>Page ID</b>.
+            Optional reference only.
           </small>
         </div>
       </div>
@@ -174,6 +223,9 @@
               <i class="fa-solid fa-xmark me-1"></i>Clear
             </button>
           </div>
+          <small class="text-muted tiny" id="parentHint">
+            Choose a parent from <b>all existing page submenus</b> and nest under it (optional).
+          </small>
           <input type="hidden" id="parent_id">
           <div class="err" data-for="parent_id"></div>
         </div>
@@ -276,6 +328,45 @@
     </div>
   </div>
 
+  {{-- ✅ Header Menu Picker Modal (TREE API) --}}
+  <div class="modal fade" id="headerMenuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title"><i class="fa-solid fa-bars me-2"></i>Pick Header Menu</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="d-flex justify-content-between align-items-center mb-2 modal-tools">
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-light btn-sm" type="button" id="btnReloadHeaderTree">
+                <span class="label"><i class="fa-solid fa-rotate"></i> Reload</span>
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div class="input-group" style="max-width: 340px;">
+              <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="text" class="form-control" id="headerTreeSearch" placeholder="Search by title…">
+            </div>
+          </div>
+
+          <div class="tree-wrap">
+            <div class="tree-loader" id="headerTreeLoader">
+              <div class="spin me-2"></div><span class="text-muted">Loading tree…</span>
+            </div>
+            <div id="headerTreeEmpty" class="tree-empty" style="display:none">No header menus found.</div>
+            <div id="headerTreeRoot" class="tree"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {{-- Parent Picker Modal --}}
   <div class="modal fade" id="parentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -361,6 +452,21 @@
     pageId: byId('page_id'),
     belongsPageSlug: byId('belongs_page_slug'),
 
+    // ✅ header menu (hidden input now)
+    headerMenuId: byId('header_menu_id'),
+    headerMenuBadge: byId('headerMenuBadge'),
+    btnPickHeaderMenu: byId('btnPickHeaderMenu'),
+    btnClearHeaderMenu: byId('btnClearHeaderMenu'),
+    headerMenuModal: new bootstrap.Modal(byId('headerMenuModal')),
+    headerTreeRoot: byId('headerTreeRoot'),
+    headerTreeSearch: byId('headerTreeSearch'),
+    headerTreeLoader: byId('headerTreeLoader'),
+    headerTreeEmpty: byId('headerTreeEmpty'),
+    btnReloadHeaderTree: byId('btnReloadHeaderTree'),
+
+    // department
+    deptId: byId('department_id'),
+
     // submenu
     title: byId('title'),
     desc: byId('description'),
@@ -388,7 +494,7 @@
     pageTitle: byId('pageTitle'),
     hint: byId('hint'),
 
-    // modal + tree
+    // submenu-parent modal + tree
     btnPickParent: byId('btnPickParent'),
     btnClearParent: byId('btnClearParent'),
     parentModal: new bootstrap.Modal(byId('parentModal')),
@@ -404,13 +510,17 @@
   const afterSaveRedirect = '/page/submenu/manage';
 
   /* ============================
-     ✅ EDIT MODE: ID comes from Manage page
+     ✅ EDIT MODE
      URL example: /page-submenus/create?edit=12
   ============================ */
   const usp = new URLSearchParams(window.location.search || '');
   const EDIT_ID_RAW = (usp.get('edit') || '').trim();
   const IS_EDIT = EDIT_ID_RAW !== '' && !isNaN(Number(EDIT_ID_RAW));
   const EDIT_ID = IS_EDIT ? Number(EDIT_ID_RAW) : null;
+
+  // legacy (hidden)
+  const PAGE_ID_RAW = (usp.get('page_id') || usp.get('page') || usp.get('pid') || '').trim();
+  const PAGE_ID_FROM_QUERY = (PAGE_ID_RAW !== '' && !isNaN(Number(PAGE_ID_RAW))) ? Number(PAGE_ID_RAW) : null;
 
   let initialData = null;
 
@@ -455,6 +565,7 @@
       finally{ inflight = false; }
     };
   }
+
   function getPageId(){
     const v = parseInt(String(els.pageId.value||'').trim(), 10);
     return Number.isFinite(v) && v > 0 ? v : 0;
@@ -463,13 +574,13 @@
     const opt = els.pageId?.options?.[els.pageId.selectedIndex];
     return (opt && opt.getAttribute('data-slug')) ? opt.getAttribute('data-slug') : '';
   }
+
   function ensurePageOption(id, title, slug){
     const existing = Array.from(els.pageId.options).find(o => String(o.value) === String(id));
     if (existing) return;
 
     const t = (title || '').toString().trim();
     const s = (slug || '').toString().trim();
-
     const label = (t ? t : (s ? ('/' + s) : 'Untitled page')) + (t && s ? ('  •  /' + s) : '');
 
     const opt = document.createElement('option');
@@ -479,7 +590,196 @@
     els.pageId.appendChild(opt);
   }
 
-  /* ---------- pages dropdown (API: GET /api/page-submenus/pages) ---------- */
+  function ensureDeptOption(id, title){
+    const existing = Array.from(els.deptId.options).find(o => String(o.value) === String(id));
+    if (existing) return;
+
+    const opt = document.createElement('option');
+    opt.value = String(id);
+    opt.textContent = (title || ('Department #' + id));
+    els.deptId.appendChild(opt);
+  }
+
+  function getDepartmentId(){
+    const v = parseInt(String(els.deptId.value||'').trim(), 10);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }
+
+  function getHeaderMenuId(){
+    const v = parseInt(String(els.headerMenuId.value||'').trim(), 10);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }
+
+  /* ============================
+     ✅ Header Menu Picker (TREE API) — dropdown replaced
+  ============================ */
+  function setHeaderMenu(id, label){
+    els.headerMenuId.value = id ? String(id) : '';
+    els.headerMenuBadge.textContent = id ? `#${id}: ${label || '-'}` : 'Not selected';
+
+    // changing header menu changes submenu parent scope -> reset parent submenu safely
+    setParent('', 'Self (Root)');
+    updateParentPickerAvailability();
+  }
+
+  els.btnClearHeaderMenu.addEventListener('click', ()=>{
+    setHeaderMenu('', '');
+    ok('Header menu cleared.');
+  });
+
+  function closeHeaderPicker(){
+    try { els.headerMenuModal.hide(); } catch {}
+    els.headerTreeLoader.classList.remove('show');
+    setTimeout(()=>{
+      document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('padding-right');
+    }, 50);
+  }
+  byId('headerMenuModal').addEventListener('hidden.bs.modal', closeHeaderPicker);
+
+  function renderHeaderTree(nodes){
+    els.headerTreeRoot.innerHTML = '';
+    if (!nodes || !nodes.length){
+      els.headerTreeEmpty.style.display = 'block';
+      return;
+    }
+    els.headerTreeEmpty.style.display = 'none';
+
+    const ul = document.createElement('ul');
+    ul.className = 'm-0 p-0';
+
+    function makeNode(n, depth=0){
+      const li = document.createElement('li');
+
+      const node = document.createElement('div');
+      node.className = 'tree-node';
+      node.dataset.open = (depth<=1 ? '1' : '0');
+
+      if (els.headerMenuId.value && String(n.id) === String(els.headerMenuId.value)) {
+        node.classList.add('is-selected');
+      }
+
+      const toggle = document.createElement('div');
+      toggle.className = 'toggle';
+      toggle.innerHTML = '<i class="fa-solid fa-chevron-right tiny"></i>';
+      if (!n.children || !n.children.length) toggle.style.visibility = 'hidden';
+
+      const title = document.createElement('div');
+      title.className = 'tree-title';
+      title.textContent = n.title || '-';
+
+      const meta = document.createElement('div');
+      meta.className = 'tree-meta';
+      const slugText  = n.slug ? '/' + n.slug : '';
+      const pageSlug  = n.page_slug ? ' • page: /' + n.page_slug : '';
+      const pageUrl   = n.page_url ? ' • url: ' + n.page_url : '';
+      const statusText = n.active ? ' • active' : ' • inactive';
+      const deptText = (n.department_id === null || n.department_id === undefined) ? ' • dept: global' : (' • dept: #' + n.department_id);
+      meta.textContent = slugText + pageSlug + pageUrl + statusText + deptText;
+
+      const actions = document.createElement('div');
+      actions.className = 'tree-actions';
+
+      const pickBtn = document.createElement('button');
+      pickBtn.type = 'button';
+      pickBtn.className = 'btn btn-sm btn-outline-primary';
+      pickBtn.innerHTML = '<span class="label"><i class="fa-regular fa-circle-check me-1"></i>Select</span><span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>';
+
+      pickBtn.addEventListener('click', ()=>{
+        setBtnBusy(pickBtn, true);
+        setHeaderMenu(n.id, n.title || '-');
+        setTimeout(()=>{ setBtnBusy(pickBtn, false); closeHeaderPicker(); }, 120);
+      });
+
+      actions.appendChild(pickBtn);
+
+      node.appendChild(toggle);
+      node.appendChild(title);
+      node.appendChild(meta);
+      node.appendChild(actions);
+
+      li.appendChild(node);
+
+      const childrenWrap = document.createElement('div');
+      childrenWrap.className = 'children';
+      if (n.children && n.children.length){
+        const inner = document.createElement('ul');
+        n.children.forEach(c => inner.appendChild(makeNode(c, depth+1)));
+        childrenWrap.appendChild(inner);
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'tiny text-muted ps-2';
+        empty.textContent = 'No children';
+        childrenWrap.appendChild(empty);
+      }
+      li.appendChild(childrenWrap);
+
+      toggle.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const open = node.dataset.open === '1';
+        node.dataset.open = open ? '0' : '1';
+      });
+
+      return li;
+    }
+
+    nodes.forEach(n => ul.appendChild(makeNode(n, 0)));
+    els.headerTreeRoot.appendChild(ul);
+
+    els.headerTreeSearch.value = '';
+    els.headerTreeSearch.oninput = function(){
+      const q = this.value.trim().toLowerCase();
+      els.headerTreeRoot.querySelectorAll('.tree-node').forEach(nd=>{
+        const t = (nd.querySelector('.tree-title')?.textContent || '').toLowerCase();
+        const m = (nd.querySelector('.tree-meta')?.textContent || '').toLowerCase();
+        const match = !q || t.includes(q) || m.includes(q);
+        nd.parentElement.style.display = match ? '' : 'none';
+      });
+
+      if (q){
+        els.headerTreeRoot.querySelectorAll('.tree-node').forEach(nd => nd.dataset.open = '1');
+      }
+    };
+  }
+
+  async function loadHeaderMenuTree(){
+    els.headerTreeRoot.innerHTML = '';
+    els.headerTreeEmpty.style.display='none';
+    els.headerTreeLoader.classList.add('show');
+    setBtnBusy(els.btnReloadHeaderTree, true);
+
+    try{
+      const j = await fetchJSON('/api/header-menus/tree?only_active=0');
+      renderHeaderTree(Array.isArray(j.data) ? j.data : []);
+    }catch(e){
+      console.error(e);
+      els.headerTreeEmpty.style.display='block';
+      els.headerTreeRoot.innerHTML='';
+    }finally{
+      els.headerTreeLoader.classList.remove('show');
+      setBtnBusy(els.btnReloadHeaderTree, false);
+    }
+  }
+
+  els.btnPickHeaderMenu.addEventListener('click', ()=>{
+    loadHeaderMenuTree();
+    els.headerMenuModal.show();
+  });
+  els.btnReloadHeaderTree.addEventListener('click', loadHeaderMenuTree);
+
+  /* ---------- FIX: Parent picker should be available only when header menu selected ---------- */
+  function updateParentPickerAvailability(){
+    const hm = getHeaderMenuId();
+    const ok = hm > 0;
+
+    els.btnPickParent.disabled = !ok;
+    els.btnPickParent.title = ok
+      ? 'Choose parent submenu'
+      : 'Select Header Menu first to load available parents';
+  }
+
+  /* ---------- pages dropdown (legacy) ---------- */
   function setPagesDropdownStateLoading(){
     els.pageId.innerHTML = '';
     const opt = document.createElement('option');
@@ -500,7 +800,7 @@
     if (Array.isArray(j?.data)) return j.data;
     if (Array.isArray(j?.pages)) return j.pages;
     if (Array.isArray(j?.items)) return j.items;
-    if (Array.isArray(j?.data?.data)) return j.data.data; // pagination
+    if (Array.isArray(j?.data?.data)) return j.data.data;
     return [];
   }
   function setPagesDropdownOptions(pages){
@@ -522,7 +822,7 @@
       const opt = document.createElement('option');
       opt.value = String(id);
       opt.setAttribute('data-slug', slug);
-      opt.textContent = label; // ✅ no "#id" shown
+      opt.textContent = label;
       els.pageId.appendChild(opt);
     });
 
@@ -545,26 +845,83 @@
           setPagesDropdownOptions(arr);
           return;
         }
-      }catch(e){
-        // try next
-      }
+      }catch(e){}
     }
 
     setPagesDropdownStateError();
-    err('Unable to load pages list for Page ID dropdown.');
   }
 
-  // when page changes, reset parent selection (parent tree is page-specific)
-  els.pageId.addEventListener('change', ()=>{
-    clearErrors();
-    setParent('', 'Self (Root)');
+  /* ---------- departments dropdown ---------- */
+  function setDeptDropdownStateLoading(){
+    els.deptId.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Loading departments…';
+    els.deptId.appendChild(opt);
+    els.deptId.disabled = true;
+  }
+  function setDeptDropdownStateError(){
+    els.deptId.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Unable to load departments';
+    els.deptId.appendChild(opt);
+    els.deptId.disabled = false;
+  }
+  function extractDepartmentsArray(j){
+    if (Array.isArray(j?.data)) return j.data;
+    if (Array.isArray(j?.departments)) return j.departments;
+    if (Array.isArray(j?.items)) return j.items;
+    if (Array.isArray(j?.data?.data)) return j.data.data;
+    return [];
+  }
+  function setDeptDropdownOptions(depts){
+    els.deptId.innerHTML = '';
 
-    // convenience: auto-fill belongs_page_slug only if empty
-    if (!els.belongsPageSlug.value.trim()){
-      const s = selectedPageSlug();
-      if (s) els.belongsPageSlug.value = s;
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = 'Select a department…';
+    els.deptId.appendChild(opt0);
+
+    (depts||[]).forEach(d=>{
+      const id = parseInt(d?.id ?? d?.department_id, 10);
+      if (!Number.isFinite(id) || id <= 0) return;
+
+      const title = (d?.title ?? d?.name ?? d?.department_title ?? '').toString().trim() || ('Department #' + id);
+
+      const opt = document.createElement('option');
+      opt.value = String(id);
+      opt.textContent = title;
+      els.deptId.appendChild(opt);
+    });
+
+    els.deptId.disabled = false;
+  }
+
+  async function loadDepartmentsDropdown(){
+    setDeptDropdownStateLoading();
+
+    const candidates = [
+      '/api/departments?limit=2000&_ts=' + Date.now(),
+      '/api/departments?per_page=2000&_ts=' + Date.now(),
+      '/api/departments?_ts=' + Date.now(),
+      '/api/public/departments?limit=2000&_ts=' + Date.now(),
+      '/api/public/departments?_ts=' + Date.now(),
+    ];
+
+    for (const url of candidates){
+      try{
+        const j = await fetchJSON(url);
+        const arr = extractDepartmentsArray(j);
+        if (Array.isArray(arr) && arr.length){
+          setDeptDropdownOptions(arr);
+          return;
+        }
+      }catch(e){}
     }
-  });
+
+    setDeptDropdownStateError();
+  }
 
   /* ---------- slug auto (submenu slug) ---------- */
   function maybeUpdateSlug(){
@@ -581,7 +938,7 @@
   els.btnRegen.addEventListener('click', ()=>{ els.slug.value = slugify(els.title.value); });
 
   /* ---------- destination single-select lock ---------- */
-  const DEST_KEYS = ['pageUrl','includablePath','pageSlug','pageShortcode']; // precedence
+  const DEST_KEYS = ['pageUrl','includablePath','pageSlug','pageShortcode'];
   function getDestValues(){
     return {
       pageUrl: (els.pageUrl.value || '').trim(),
@@ -602,7 +959,6 @@
     const v = getDestValues();
     const activeKey = pickActiveDestKey(preferKey);
 
-    // enable all first
     els.pageUrl.disabled = false;
     els.includablePath.disabled = false;
     els.pageSlug.disabled = false;
@@ -610,7 +966,6 @@
 
     if (!activeKey) return activeKey;
 
-    // disable others (keep values; payload will send only active field)
     if (activeKey !== 'pageUrl') els.pageUrl.disabled = true;
     if (activeKey !== 'includablePath') els.includablePath.disabled = true;
     if (activeKey !== 'pageSlug') els.pageSlug.disabled = true;
@@ -624,25 +979,10 @@
   els.pageShortcode.addEventListener('input', ()=> syncDestinationLocks('pageShortcode'));
   els.includablePath.addEventListener('change', ()=> syncDestinationLocks('includablePath'));
 
-  /* ==========================================================
-     ✅ CHANGED: includable paths dropdown is now DYNAMIC
-     - Tries API first:
-         GET /api/page-submenus/includables
-       Expected response formats (any one):
-         { success:true, data:["modules.a.b", ...] }
-         { success:true, data:[{label:"Page Editor", value:"modules.pageEditor.pageEditor"}] }
-         { modules:[...] } or { items:[...] } also supported
-     - If API fails, it falls back to the array below.
-     ========================================================== */
-
-  // 🔧 FALLBACK LIST (you can insert modules here anytime)
-  const INCLUDABLE_PATHS_FALLBACK = [
-    // "modules.pageEditor.pageEditor",
-    // "modules.someModule.index",
-  ];
+  /* ---------- includable paths dropdown ---------- */
+  const INCLUDABLE_PATHS_FALLBACK = [];
 
   function normalizeIncludableItem(x){
-    // allow string or {label,value}
     if (typeof x === 'string') {
       const v = x.trim();
       return v ? { label: v, value: v } : null;
@@ -660,7 +1000,7 @@
     if (Array.isArray(j?.data)) return j.data;
     if (Array.isArray(j?.modules)) return j.modules;
     if (Array.isArray(j?.items)) return j.items;
-    if (Array.isArray(j?.data?.data)) return j.data.data; // pagination-safe
+    if (Array.isArray(j?.data?.data)) return j.data.data;
     return [];
   }
 
@@ -683,14 +1023,12 @@
         els.includablePath.appendChild(opt);
       });
 
-    // restore selection if possible
     if (current){
       els.includablePath.value = current;
     }
   }
 
   async function loadIncludablePaths(){
-    // loading state
     els.includablePath.disabled = true;
     els.includablePath.innerHTML = '<option value="">Loading modules…</option>';
 
@@ -709,22 +1047,18 @@
           els.includablePath.disabled = false;
           return;
         }
-      }catch(e){
-        // try next
-      }
+      }catch(e){}
     }
 
-    // fallback
     setIncludableOptions(INCLUDABLE_PATHS_FALLBACK);
     els.includablePath.disabled = false;
 
-    // only show error toast if fallback is also empty
     if (!INCLUDABLE_PATHS_FALLBACK.length){
       err('Modules list API not found. Add paths in INCLUDABLE_PATHS_FALLBACK or create /api/page-submenus/includables.');
     }
   }
 
-  /* ---------- parent selector (tree) ---------- */
+  /* ---------- parent selector (submenu parent tree modal) ---------- */
   function setParent(id, label){
     els.parentId.value = id || '';
     els.parentBadge.textContent = id ? `#${id}: ${label}` : 'Self (Root)';
@@ -819,7 +1153,8 @@
       }
       li.appendChild(childrenWrap);
 
-      toggle.addEventListener('click', ()=>{
+      toggle.addEventListener('click', (e)=>{
+        e.stopPropagation();
         const open = node.dataset.open === '1';
         node.dataset.open = open ? '0' : '1';
       });
@@ -830,7 +1165,6 @@
     nodes.forEach(n => ul.appendChild(makeNode(n, 0)));
     els.treeRoot.appendChild(ul);
 
-    // search
     els.treeSearch.value = '';
     els.treeSearch.oninput = function(){
       const q = this.value.trim().toLowerCase();
@@ -847,22 +1181,68 @@
     };
   }
 
+  /* ✅ Parent picker shows ALL page submenus inside selected Header Menu scope */
   async function loadTree(){
-    const pid = getPageId();
-    if (!pid){
-      showError('page_id', 'Page ID is required to load the parent tree.');
-      els.pageId.focus();
-      return;
-    }
-
     els.treeRoot.innerHTML = '';
     els.treeEmpty.style.display='none';
     els.treeLoader.classList.add('show');
     setBtnBusy(els.btnReloadTree, true);
 
     try{
-      const j = await fetchJSON('/api/page-submenus/tree?only_active=0&page_id=' + encodeURIComponent(pid));
-      renderTree(Array.isArray(j.data) ? j.data : []);
+      const headerMenuId = getHeaderMenuId();
+      const pageId = getPageId(); // optional (hidden legacy)
+
+      if (!headerMenuId){
+        els.treeLoader.classList.remove('show');
+        setBtnBusy(els.btnReloadTree, false);
+        err('Select Header Menu first to load parent submenus');
+        return;
+      }
+
+      // if pageId is empty -> show only page_id = NULL items (global for that header menu)
+      const pageScope = (pageId > 0) ? String(pageId) : 'null';
+
+      const url =
+        `/api/page-submenus?per_page=2000&sort=position&direction=asc` +
+        `&header_menu_id=${headerMenuId}` +
+        `&page_id=${pageScope}` +
+        `&_ts=${Date.now()}`;
+
+      const j = await fetchJSON(url);
+      let items = Array.isArray(j?.data) ? j.data : [];
+
+      // in edit mode: prevent selecting self as parent
+      if (IS_EDIT && EDIT_ID){
+        items = items.filter(x => String(x.id) !== String(EDIT_ID));
+      }
+
+      // build tree from flat list
+      const map = new Map();
+      items.forEach(it=>{
+        map.set(it.id, { ...it, children: [] });
+      });
+
+      const roots = [];
+      map.forEach(node=>{
+        const pid = node.parent_id ? Number(node.parent_id) : 0;
+        if (pid > 0 && map.has(pid)){
+          map.get(pid).children.push(node);
+        } else {
+          roots.push(node);
+        }
+      });
+
+      // sort by position inside tree
+      function sortTree(arr){
+        arr.sort((a,b)=>(Number(a.position||0) - Number(b.position||0)) || (Number(a.id||0) - Number(b.id||0)));
+        arr.forEach(n=>{
+          if (Array.isArray(n.children)) sortTree(n.children);
+        });
+      }
+      sortTree(roots);
+
+      renderTree(roots);
+
     }catch(e){
       console.error(e);
       els.treeEmpty.style.display='block';
@@ -875,99 +1255,28 @@
 
   els.btnPickParent.addEventListener('click', ()=>{
     clearErrors();
+
+    if (!getHeaderMenuId()){
+      showError('header_menu_id', 'Select Header Menu first');
+      els.btnPickHeaderMenu?.focus();
+      return;
+    }
+
     loadTree();
     els.parentModal.show();
   });
+
   els.btnReloadTree.addEventListener('click', loadTree);
-
-  /* ============================
-     ✅ Load selected submenu & populate (EDIT mode)
-     API: GET /api/page-submenus/{id}
-  ============================ */
-  async function loadForEdit(){
-    if (!IS_EDIT) return;
-
-    els.pageTitle.textContent = 'Edit Page Submenu';
-    els.btnCreateLabel.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
-    els.hint.textContent = 'Editing selected submenu from Manage page.';
-
-    // In edit: don’t auto-overwrite slug unless user turns it ON.
-    els.slugAuto.checked = false;
-    els.slug.disabled = false;
-    els.btnRegen.disabled = false;
-
-    showBusy(true);
-    clearErrors();
-
-    try{
-      const j = await fetchJSON('/api/page-submenus/' + encodeURIComponent(EDIT_ID));
-      const m = (j && typeof j === 'object' && 'data' in j) ? j.data : j;
-      initialData = m || null;
-
-      if (!m) throw new Error('No data found');
-
-      // belongs-to page
-      if (m.page_id){
-        // ensure option exists even if API /pages list didn't include it
-        ensurePageOption(
-          m.page_id,
-          m.page_title || m.page_name || '',
-          m.belongs_page_slug || m.belongs_slug || m.page_slug || ''
-        );
-        els.pageId.value = String(m.page_id);
-      }
-
-      // best-effort belongs slug display
-      const guessBelongsSlug =
-        m.belongs_page_slug ||
-        m.belongs_slug ||
-        m.page_parent_slug ||
-        m.page_slug ||
-        selectedPageSlug() ||
-        '';
-
-      if (guessBelongsSlug) els.belongsPageSlug.value = String(guessBelongsSlug);
-
-      // submenu fields
-      els.title.value = m.title || '';
-      els.desc.value  = m.description || '';
-      els.slug.value  = m.slug || '';
-
-      // destination
-      els.pageSlug.value       = m.page_slug || '';
-      els.pageShortcode.value  = m.page_shortcode || '';
-      els.pageUrl.value        = m.page_url || '';
-      els.includablePath.value = m.includable_path || '';
-
-      els.active.checked = !!m.active;
-
-      // parent label best-effort
-      const parentLabel =
-        m.parent_title ||
-        (m.parent && m.parent.title) ||
-        (m.parent_id ? ('#' + m.parent_id) : 'Self (Root)');
-
-      setParent(m.parent_id || '', parentLabel);
-
-      // apply destination locks (based on current values)
-      syncDestinationLocks();
-
-    }catch(e){
-      console.error(e);
-      err(e.message || 'Failed to load submenu');
-    }finally{
-      showBusy(false);
-    }
-  }
 
   /* ---------- Create or Update ---------- */
   const saveSubmenu = oneFlight(async function(){
     clearErrors();
 
-    const pid = getPageId();
-    if (!pid){
-      showError('page_id','Page ID is required');
-      els.pageId.focus();
+    // header menu required
+    const headerMenuId = getHeaderMenuId();
+    if (!headerMenuId){
+      showError('header_menu_id','Header Menu (Parent) is required');
+      els.btnPickHeaderMenu.focus();
       return;
     }
 
@@ -981,19 +1290,25 @@
       els.slug.value = slugify(els.title.value);
     }
 
-    // determine active destination and send ONLY that one (others null)
     const activeDestKey = syncDestinationLocks();
-
     const v = getDestValues();
+
+    const deptId = getDepartmentId();
+    const parentIdSafe = els.parentId.value ? parseInt(els.parentId.value,10) : null;
+
     const payload = {
-      page_id: pid,
+      // legacy optional
+      page_id: (getPageId() > 0) ? getPageId() : null,
+
+      header_menu_id: headerMenuId,
+      department_id: deptId > 0 ? deptId : null,
+
       title: els.title.value.trim(),
       description: els.desc.value.trim() || null,
       slug: els.slug.value.trim() || undefined,
-      parent_id: els.parentId.value ? parseInt(els.parentId.value,10) : null,
+      parent_id: parentIdSafe,
       active: !!els.active.checked,
 
-      // destination (only one allowed)
       page_slug:       (activeDestKey === 'pageSlug')       ? (v.pageSlug || null) : null,
       page_shortcode:  (activeDestKey === 'pageShortcode')  ? (v.pageShortcode || null) : null,
       page_url:        (activeDestKey === 'pageUrl')        ? (v.pageUrl || null) : null,
@@ -1057,17 +1372,118 @@
     }
   });
 
-  els.btnReset.addEventListener('click', ()=>{
+  /* ============================
+     ✅ Load selected submenu & populate (EDIT mode)
+  ============================ */
+  async function loadForEdit(){
+    if (!IS_EDIT) return;
+
+    els.pageTitle.textContent = 'Edit Page Submenu';
+    els.btnCreateLabel.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+    els.hint.textContent = 'Editing selected submenu from Manage page.';
+
+    els.slugAuto.checked = false;
+    els.slug.disabled = false;
+    els.btnRegen.disabled = false;
+
+    showBusy(true);
+    clearErrors();
+
+    try{
+      const j = await fetchJSON('/api/page-submenus/' + encodeURIComponent(EDIT_ID));
+      const m = (j && typeof j === 'object' && 'data' in j) ? j.data : j;
+      initialData = m || null;
+
+      if (!m) throw new Error('No data found');
+
+      if (m.page_id){
+        ensurePageOption(m.page_id, m.page_title || m.page_name || '', m.belongs_page_slug || m.page_slug || '');
+        els.pageId.value = String(m.page_id);
+      }
+
+      const guessBelongsSlug =
+        m.belongs_page_slug ||
+        m.belongs_slug ||
+        m.page_parent_slug ||
+        m.page_slug ||
+        selectedPageSlug() ||
+        '';
+      if (guessBelongsSlug) els.belongsPageSlug.value = String(guessBelongsSlug);
+
+      // ✅ set header menu (from edit data) - badge + hidden value
+      const hm = parseInt(m.header_menu_id ?? m.headerMenuId ?? 0, 10);
+      if (Number.isFinite(hm) && hm > 0){
+        const label =
+          (m.header_menu_title || m.header_title || m.headerMenuTitle || '').toString().trim()
+          || ('Header Menu #' + hm);
+        setHeaderMenu(hm, label);
+      } else {
+        setHeaderMenu('', '');
+      }
+
+      const subDept = parseInt(m.department_id ?? 0, 10);
+      if (Number.isFinite(subDept) && subDept > 0){
+        ensureDeptOption(subDept, m.department_title || '');
+        els.deptId.value = String(subDept);
+      }
+
+      els.title.value = m.title || '';
+      els.desc.value  = m.description || '';
+      els.slug.value  = m.slug || '';
+
+      els.pageSlug.value       = m.page_slug || '';
+      els.pageShortcode.value  = m.page_shortcode || '';
+      els.pageUrl.value        = m.page_url || '';
+      els.includablePath.value = m.includable_path || '';
+
+      els.active.checked = !!m.active;
+
+      const parentLabel =
+        m.parent_title ||
+        (m.parent && m.parent.title) ||
+        (m.parent_id ? ('#' + m.parent_id) : 'Self (Root)');
+
+      setParent(m.parent_id || '', parentLabel);
+
+      syncDestinationLocks();
+      updateParentPickerAvailability();
+
+    }catch(e){
+      console.error(e);
+      err(e.message || 'Failed to load submenu');
+    }finally{
+      showBusy(false);
+    }
+  }
+
+  /* ---------- reset ---------- */
+  els.btnReset.addEventListener('click', async ()=>{
     setBtnBusy(els.btnReset, true, '<i class="fa-regular fa-trash-can"></i> Resetting…');
     clearErrors();
 
     if (IS_EDIT && initialData){
-      // restore loaded data
       if (initialData.page_id){
         ensurePageOption(initialData.page_id, initialData.page_title || '', initialData.page_slug || '');
         els.pageId.value = String(initialData.page_id);
+      } else {
+        els.pageId.value = '';
       }
+
       els.belongsPageSlug.value = initialData.belongs_page_slug || initialData.page_slug || selectedPageSlug() || '';
+
+      // ✅ header menu reset
+      const hm = parseInt(initialData.header_menu_id ?? 0, 10);
+      if (hm > 0){
+        const label =
+          (initialData.header_menu_title || initialData.header_title || '').toString().trim()
+          || ('Header Menu #' + hm);
+        setHeaderMenu(hm, label);
+      } else {
+        setHeaderMenu('', '');
+      }
+
+      const subDept = parseInt(initialData.department_id ?? 0, 10);
+      els.deptId.value = subDept > 0 ? String(subDept) : '';
 
       els.title.value = initialData.title || '';
       els.desc.value  = initialData.description || '';
@@ -1087,15 +1503,27 @@
 
       setParent(initialData.parent_id || '', parentLabel);
 
-      // keep edit-mode slug behavior
       els.slugAuto.checked = false;
       els.slug.disabled = false;
       els.btnRegen.disabled = false;
 
+      syncDestinationLocks();
+      updateParentPickerAvailability();
+
     } else {
-      // create-mode reset
-      els.pageId.value='';
       els.belongsPageSlug.value='';
+
+      if (PAGE_ID_FROM_QUERY){
+        ensurePageOption(PAGE_ID_FROM_QUERY, '', '');
+        els.pageId.value = String(PAGE_ID_FROM_QUERY);
+      } else {
+        els.pageId.value='';
+      }
+
+      // ✅ clear header menu selection
+      setHeaderMenu('', '');
+
+      els.deptId.value='';
 
       els.title.value='';
       els.desc.value='';
@@ -1111,41 +1539,46 @@
       els.slug.disabled = true;
       els.btnRegen.disabled = true;
       maybeUpdateSlug();
-    }
 
-    // re-apply destination locks
-    syncDestinationLocks();
+      syncDestinationLocks();
+      updateParentPickerAvailability();
+    }
 
     setTimeout(()=> setBtnBusy(els.btnReset, false, '<i class="fa-regular fa-trash-can"></i> Reset'), 120);
   });
 
   /* ---------- init ---------- */
   (async function init(){
-    els.hint.textContent = 'Page submenus are attached to a specific page and used to build page-level navigation.';
+    els.hint.textContent = 'Header menu is selected from full tree (parents + children). Parent submenu picker is scoped under selected header menu.';
 
-    // default state
     els.slug.value = '';
     els.slugAuto.checked = true;
     els.slug.disabled = true;
     els.btnRegen.disabled = true;
     maybeUpdateSlug();
 
-    // ✅ CHANGED: load includables dynamically (API -> fallback array)
-    await loadIncludablePaths();
+    // default header menu state
+    setHeaderMenu('', '');
 
-    // default destination lock state
+    await loadIncludablePaths();
     syncDestinationLocks();
 
+    await loadDepartmentsDropdown();
     await loadPagesDropdown();
 
-    // convenience: if user picks page first, auto-fill belongs slug (only if empty)
-    if (!IS_EDIT && !els.belongsPageSlug.value.trim()){
-      const s = selectedPageSlug();
-      if (s) els.belongsPageSlug.value = s;
+    if (!IS_EDIT && PAGE_ID_FROM_QUERY){
+      ensurePageOption(PAGE_ID_FROM_QUERY, '', '');
+      els.pageId.value = String(PAGE_ID_FROM_QUERY);
+
+      if (!els.belongsPageSlug.value.trim()){
+        const s = selectedPageSlug();
+        if (s) els.belongsPageSlug.value = s;
+      }
     }
 
-    // ✅ if edit id exists, load and populate
+    updateParentPickerAvailability();
     await loadForEdit();
+
   })();
 
 })();

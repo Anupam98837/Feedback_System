@@ -1,5 +1,4 @@
 {{-- resources/views/modules/managePages.blade.php --}}
-@extends('pages.users.layout.structure')
 
 @section('title','Manage Pages')
 
@@ -12,7 +11,8 @@
  * Manage Pages - Admin UI (reference-aligned)
  * Fixes:
  *  ✅ Action dropdown opens (not clipped / not blocked)
- *  ✅ Table + toolbar structure aligned like reference module
+ *  ✅ Pagination works reliably (same approach as Manage Users)
+ *  ✅ Results meta shows correct range
  * ========================= */
 
 .mp-wrap{max-width:1140px;margin:16px auto 40px;overflow:visible;padding:0 4px}
@@ -57,6 +57,7 @@
   overflow-y:visible !important;
   -webkit-overflow-scrolling:touch;
   position:relative;
+  z-index:0; /* ✅ helps stacking contexts */
 }
 .mp-table-responsive > table{width:max-content; min-width:1050px;}
 .mp-table-responsive th,.mp-table-responsive td{white-space:nowrap;}
@@ -92,16 +93,16 @@
 .badge-secondary{background:#64748b!important}
 
 /* ✅ Dropdown (fixed like reference) */
-.mp-table-responsive .dropdown{position:relative}
+.mp-table-responsive .dropdown{position:relative; z-index:5;} /* ✅ */
 .mp-dd-toggle{border-radius:10px}
 .dropdown-menu{
   border-radius:12px;
   border:1px solid var(--line-strong);
   box-shadow:var(--shadow-2);
   min-width:230px;
-  z-index:99999; /* ✅ keep above */
+  z-index:999999; /* ✅ stronger */
 }
-.dropdown-menu.show{display:block !important} /* ✅ safety against global overrides */
+.dropdown-menu.show{display:block !important}
 .dropdown-item{display:flex;align-items:center;gap:.6rem}
 .dropdown-item i{width:16px;text-align:center}
 .dropdown-item.text-danger{color:var(--danger-color) !important}
@@ -366,11 +367,35 @@
   };
 
   const state = {
-    active: { page: 1, lastPage: 1 },
-    archived: { page: 1, lastPage: 1 },
-    bin: { page: 1, lastPage: 1 },
+    active:   { page: 1, lastPage: 1, total: 0, perPage: 10 },
+    archived: { page: 1, lastPage: 1, total: 0, perPage: 10 },
+    bin:      { page: 1, lastPage: 1, total: 0, perPage: 10 },
     departments: []
   };
+
+  /* ================== PAGINATION NORMALIZER (same concept as Manage Users) ================== */
+  function pickPagination(j){
+    const pag = j?.pagination || j?.meta || j?.paginate || j?.page || {};
+    const current = parseInt(pag.current_page ?? pag.currentPage ?? j?.current_page ?? 1, 10) || 1;
+    const last    = parseInt(pag.last_page ?? pag.lastPage ?? j?.last_page ?? 1, 10) || 1;
+    const per     = parseInt(pag.per_page ?? pag.perPage ?? j?.per_page ?? 10, 10) || 10;
+    const total   = parseInt(pag.total ?? j?.total ?? 0, 10) || 0;
+
+    const from = (pag.from !== undefined && pag.from !== null) ? parseInt(pag.from,10) : null;
+    const to   = (pag.to   !== undefined && pag.to   !== null) ? parseInt(pag.to,10)   : null;
+
+    return { current_page: current, last_page: Math.max(1,last), per_page: per, total, from, to };
+  }
+
+  function computeMetaText(pg, rowsLen){
+    const total = (pg.total && pg.total > 0) ? pg.total : rowsLen;
+    if (total <= 0) return '0 item(s)';
+
+    const from = (pg.from && pg.from > 0) ? pg.from : ((pg.current_page - 1) * pg.per_page + 1);
+    const to   = (pg.to   && pg.to   > 0) ? pg.to   : Math.min(total, (pg.current_page - 1) * pg.per_page + rowsLen);
+
+    return `Showing ${from}–${to} of ${total}`;
+  }
 
   /* ================== DEPARTMENTS ================== */
   function deptLabel(d){
@@ -399,7 +424,7 @@
     }
   }
 
-  /* ================== PAGINATION (like reference) ================== */
+  /* ================== PAGINATION RENDER (same behavior as Manage Users) ================== */
   function renderPager(which){
     const st = state[which];
     const pager = which === 'active' ? $('mpPagerActive') : (which === 'archived' ? $('mpPagerArchived') : $('mpPagerBin'));
@@ -416,43 +441,45 @@
 
     let html = '';
     html += item(Math.max(1, page-1), 'Previous', page<=1);
-    const start = Math.max(1, page-2), end = Math.min(totalPages, page+2);
-    for (let p=start; p<=end; p++) html += item(p, p, false, p===page);
+
+    const start = Math.max(1, page-2);
+    const end   = Math.min(totalPages, page+2);
+    for (let p=start; p<=end; p++) html += item(p, String(p), false, p===page);
+
     html += item(Math.min(totalPages, page+1), 'Next', page>=totalPages);
 
-    pager.innerHTML = html;
+    pager.innerHTML = (totalPages <= 1) ? '' : html;
   }
 
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('a.page-link[data-page]');
-    if (!a) return;
-    e.preventDefault();
-    const which = a.dataset.which;
-    const p = parseInt(a.dataset.page, 10);
-    if (!which || Number.isNaN(p)) return;
-
-    if (state[which].page === p) return;
-    state[which].page = p;
-
-    if (which === 'active') loadActive();
-    if (which === 'archived') loadArchived();
-    if (which === 'bin') loadBin();
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-
-  /* ================== DROPDOWN FIX (same concept as reference) ================== */
+  /* ================== ✅ DROPDOWN FIX (Bootstrap + Fallback, no silent failure) ================== */
   function closeAllDropdownsExcept(exceptToggle){
     document.querySelectorAll('.mp-dd-toggle').forEach(t => {
       if (t === exceptToggle) return;
-      try{
-        const inst = bootstrap.Dropdown.getInstance(t);
-        inst && inst.hide();
-      }catch(_){}
+
+      // Bootstrap close if available
+      if (window.bootstrap?.Dropdown){
+        try{
+          const inst = window.bootstrap.Dropdown.getInstance(t);
+          inst && inst.hide();
+        }catch(_){}
+        return;
+      }
+
+      // Fallback close
+      const menu = t.closest('.dropdown')?.querySelector('.dropdown-menu');
+      if (menu) menu.classList.remove('show');
     });
   }
 
-  // open/close dropdown manually with fixed strategy (escapes overflow clipping)
+  // Close dropdowns when clicking outside, but do NOT hijack pagination click.
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('a.page-link[data-page]')) return;
+    if (e.target.closest('.mp-dd-toggle')) return;
+    if (e.target.closest('.dropdown-menu')) return;
+    closeAllDropdownsExcept(null);
+  }, { capture:true });
+
+  // Dropdown toggle (works even if bootstrap is missing/overridden)
   document.addEventListener('click', (e) => {
     const toggle = e.target.closest('.mp-dd-toggle');
     if (!toggle) return;
@@ -462,29 +489,59 @@
 
     closeAllDropdownsExcept(toggle);
 
-    try{
-      const inst = bootstrap.Dropdown.getOrCreateInstance(toggle, {
-        autoClose: true,
-        popperConfig: (def) => {
-          const base = def || {};
-          const mods = Array.isArray(base.modifiers) ? base.modifiers.slice() : [];
-          mods.push({ name:'preventOverflow', options:{ boundary:'viewport', padding:8 } });
-          mods.push({ name:'flip', options:{ boundary:'viewport', padding:8 } });
-          return { ...base, strategy:'fixed', modifiers: mods };
-        }
-      });
-      inst.toggle();
-    }catch(_){}
+    // ✅ Use Bootstrap if present
+    if (window.bootstrap?.Dropdown){
+      try{
+        const inst = window.bootstrap.Dropdown.getOrCreateInstance(toggle, {
+          autoClose: true,
+          popperConfig: (def) => {
+            const base = def || {};
+            const mods = Array.isArray(base.modifiers) ? base.modifiers.slice() : [];
+            mods.push({ name:'preventOverflow', options:{ boundary:'viewport', padding:8 } });
+            mods.push({ name:'flip', options:{ boundary:'viewport', padding:8 } });
+            return { ...base, strategy:'fixed', modifiers: mods };
+          }
+        });
+        inst.toggle();
+        return;
+      }catch(_){}
+    }
+
+    // ✅ Fallback toggle
+    const menu = toggle.closest('.dropdown')?.querySelector('.dropdown-menu');
+    if (menu) menu.classList.toggle('show');
   });
 
-  // clicking elsewhere closes any open dropdowns
-  document.addEventListener('click', () => closeAllDropdownsExcept(null), { capture:true });
-
-  /* ================== LOADERS ================== */
+  /* ================== EMPTY HELPERS ================== */
   function setEmpty(which, show){
     const el = which === 'active' ? $('mpEmptyActive') : (which === 'archived' ? $('mpEmptyArchived') : $('mpEmptyBin'));
     if (el) el.style.display = show ? '' : 'none';
   }
+
+  /* ================== PAGINATION CLICK ================== */
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a.page-link[data-page]');
+    if (!a) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const which = a.dataset.which;
+    const p = parseInt(a.dataset.page, 10);
+    if (!which || Number.isNaN(p)) return;
+
+    const maxP = state[which]?.lastPage || 1;
+    const nextP = Math.min(Math.max(1, p), maxP);
+
+    if (state[which].page === nextP) return;
+    state[which].page = nextP;
+
+    if (which === 'active') loadActive();
+    if (which === 'archived') loadArchived();
+    if (which === 'bin') loadBin();
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 
   /* ================== ACTIVE ================== */
   async function loadActive(){
@@ -493,7 +550,7 @@
     const dept = $('mpDept')?.value || '';
 
     const params = new URLSearchParams();
-    params.set('q', q);
+    if (q) params.set('q', q);
     if(status) params.set('status', status);
     if(dept) params.set('department_id', dept);
     params.set('page', String(state.active.page));
@@ -507,13 +564,17 @@
       const j = await api(`/api/pages?${params.toString()}`);
 
       const rows = Array.isArray(j.data) ? j.data : [];
-      const p = j.pagination || {};
-      state.active.lastPage = parseInt(p.last_page || 1, 10) || 1;
+      const pg = pickPagination(j);
+
+      state.active.page = pg.current_page;
+      state.active.lastPage = pg.last_page;
+      state.active.perPage = pg.per_page || state.active.perPage;
+      state.active.total = pg.total || rows.length;
 
       if(!rows.length){
         if (tbody) tbody.innerHTML = '';
         setEmpty('active', true);
-        $('mpMetaActive').textContent = `0 page(s)`;
+        $('mpMetaActive').textContent = '0 page(s)';
         renderPager('active');
         return;
       }
@@ -566,8 +627,7 @@
 
       if (tbody) tbody.innerHTML = html;
 
-      const total = (p.total ?? rows.length);
-      $('mpMetaActive').textContent = `${total} page(s)`;
+      $('mpMetaActive').textContent = computeMetaText(pg, rows.length);
       renderPager('active');
     }catch(e){
       console.error('Active load failed', e);
@@ -594,13 +654,17 @@
       const j = await api(`/api/pages/archived?${params.toString()}`);
 
       const rows = Array.isArray(j.data) ? j.data : [];
-      const p = j.pagination || {};
-      state.archived.lastPage = parseInt(p.last_page || 1, 10) || 1;
+      const pg = pickPagination(j);
+
+      state.archived.page = pg.current_page;
+      state.archived.lastPage = pg.last_page;
+      state.archived.perPage = pg.per_page || state.archived.perPage;
+      state.archived.total = pg.total || rows.length;
 
       if(!rows.length){
         if (tbody) tbody.innerHTML = '';
         setEmpty('archived', true);
-        $('mpMetaArchived').textContent = `0 archived page(s)`;
+        $('mpMetaArchived').textContent = '0 archived page(s)';
         renderPager('archived');
         return;
       }
@@ -631,8 +695,7 @@
 
       if (tbody) tbody.innerHTML = html;
 
-      const total = (p.total ?? rows.length);
-      $('mpMetaArchived').textContent = `${total} archived page(s)`;
+      $('mpMetaArchived').textContent = computeMetaText(pg, rows.length);
       renderPager('archived');
     }catch(e){
       console.error('Archived load failed', e);
@@ -659,13 +722,17 @@
       const j = await api(`/api/pages/trash?${params.toString()}`);
 
       const rows = Array.isArray(j.data) ? j.data : [];
-      const p = j.pagination || {};
-      state.bin.lastPage = parseInt(p.last_page || 1, 10) || 1;
+      const pg = pickPagination(j);
+
+      state.bin.page = pg.current_page;
+      state.bin.lastPage = pg.last_page;
+      state.bin.perPage = pg.per_page || state.bin.perPage;
+      state.bin.total = pg.total || rows.length;
 
       if(!rows.length){
         if (tbody) tbody.innerHTML = '';
         setEmpty('bin', true);
-        $('mpMetaBin').textContent = `0 item(s)`;
+        $('mpMetaBin').textContent = '0 item(s)';
         renderPager('bin');
         return;
       }
@@ -701,8 +768,7 @@
 
       if (tbody) tbody.innerHTML = html;
 
-      const total = (p.total ?? rows.length);
-      $('mpMetaBin').textContent = `${total} item(s)`;
+      $('mpMetaBin').textContent = computeMetaText(pg, rows.length);
       renderPager('bin');
     }catch(e){
       console.error('Trash load failed', e);
@@ -717,9 +783,7 @@
   }
 
   /* ================== ACTIONS (kept same endpoints/behavior) ================== */
-  window.editPage = (uuid) => {
-    location.href = `/pages/create?uuid=${encodeURIComponent(uuid)}`;
-  };
+  window.editPage = (uuid) => { location.href = `/pages/create?uuid=${encodeURIComponent(uuid)}`; };
 
   window.archivePage = (id) => {
     Swal.fire({

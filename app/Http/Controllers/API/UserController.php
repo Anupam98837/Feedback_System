@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 use App\Models\User;
 use Carbon\Carbon;
@@ -21,7 +22,7 @@ class UserController extends Controller
 
     /**
      * MSIT Home Builder roles:
-     * director, principal, hod, faculty, technical_assistant, it_person, student
+     * director, principal, hod, faculty, technical_assistant, it_person, placement_officer, student, alumni, program_topper
      */
     private const ALLOWED_ROLES = [
         'admin',
@@ -33,26 +34,31 @@ class UserController extends Controller
         'it_person',
         'placement_officer',
         'student',
+        'alumni', // ✅ added
+        'program_topper', // ✅ added
     ];
 
     private const ROLE_SHORT_MAP = [
-    'admin'               => 'adm',
-    'director'            => 'DIR',
-    'principal'           => 'PRI',
-    'hod'                 => 'HOD',
-    'faculty'             => 'FAC',
-    'technical_assistant' => 'TA',
-    'it_person'           => 'IT',
-    'placement_officer'   => 'TPO',   // ✅ added
-    'student'             => 'STD',
-];
+        'admin'               => 'adm',
+        'director'            => 'DIR',
+        'principal'           => 'PRI',
+        'hod'                 => 'HOD',
+        'faculty'             => 'FAC',
+        'technical_assistant' => 'TA',
+        'it_person'           => 'IT',
+        'placement_officer'   => 'TPO',   // ✅ added
+        'student'             => 'STD',
+        'alumni'              => 'ALU',   // ✅ added
+        'program_topper'      => 'TOP',   // ✅ added
+    ];
 
-
+    // ✅ Added: name_short_form + employee_id + department_id
     private const SELECT_COLUMNS = [
         'id',
         'uuid',
         'slug',
         'name',
+        'name_short_form', // ✅ NEW
         'email',
         'phone_number',
         'alternative_email',
@@ -62,6 +68,8 @@ class UserController extends Controller
         'address',
         'role',
         'role_short_form',
+        'employee_id', // ✅ NEW
+        'department_id', // ✅ NEW (for edit prefill + API)
         'status',
         'last_login_at',
         'last_login_ip',
@@ -71,6 +79,25 @@ class UserController extends Controller
         'created_at',
         'updated_at',
     ];
+
+    /** cache for safe select columns */
+    protected ?array $selectColsCache = null;
+
+    /**
+     * ✅ Safe select columns (won't break if migration not run yet)
+     */
+    private function userSelectColumns(): array
+    {
+        if ($this->selectColsCache !== null) return $this->selectColsCache;
+
+        $cols = [];
+        foreach (self::SELECT_COLUMNS as $c) {
+            if (Schema::hasColumn('users', $c)) $cols[] = $c;
+        }
+
+        $this->selectColsCache = $cols;
+        return $cols;
+    }
 
     /* =========================
      * Auth / helpers
@@ -103,6 +130,131 @@ class UserController extends Controller
         ], $extra));
     }
 
+    /**
+     * ✅ NEW: sanitize snapshots for activity log (avoid secrets + huge payloads)
+     */
+    private function sanitizeForActivityLog($data, int $depth = 0)
+    {
+        if ($data === null) return null;
+
+        // prevent deep recursion
+        if ($depth > 3) {
+            if (is_array($data)) return '[array]';
+            if (is_object($data)) return '[object]';
+            return is_string($data) ? mb_substr($data, 0, 200) : $data;
+        }
+
+        // scalars
+        if (is_bool($data) || is_int($data) || is_float($data)) return $data;
+
+        if (is_string($data)) {
+            $s = trim($data);
+            if (mb_strlen($s) > 800) $s = mb_substr($s, 0, 800) . '…';
+            return $s;
+        }
+
+        // objects -> array
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        if (is_array($data)) {
+            $blockedKeys = [
+                'password', 'current_password', 'token', 'plainToken', 'authorization',
+                'abilities', 'remember_token'
+            ];
+
+            $out = [];
+            $count = 0;
+
+            foreach ($data as $k => $v) {
+                $count++;
+                if ($count > 60) { $out['__truncated__'] = true; break; }
+
+                $key = is_string($k) ? strtolower($k) : $k;
+
+                if (is_string($key) && in_array($key, $blockedKeys, true)) {
+                    $out[$k] = '[redacted]';
+                    continue;
+                }
+
+                $out[$k] = $this->sanitizeForActivityLog($v, $depth + 1);
+            }
+
+            return $out;
+        }
+
+        return (string) $data;
+    }
+
+    /**
+     * ✅ NEW: write to user_data_activity_log (safe: won't break if table missing)
+     * Logs every POST/PUT/PATCH/DELETE activity (except GET endpoints).
+     */
+    private function activityLog(
+        Request $r,
+        string $activity,
+        string $module,
+        string $tableName,
+        ?int $recordId = null,
+        ?array $changedFields = null,
+        $oldValues = null,
+        $newValues = null,
+        ?string $note = null,
+        ?array $actorOverride = null
+    ): void {
+        try {
+            if (!Schema::hasTable('user_data_activity_log')) return;
+
+            $a = $actorOverride ?: $this->actor($r);
+
+            $performedBy = (int)($a['id'] ?? 0);
+            if ($performedBy < 0) $performedBy = 0;
+
+            $performedRole = $a['role'] ?? null;
+            $performedRole = is_string($performedRole) ? trim($performedRole) : null;
+            if ($performedRole === '') $performedRole = null;
+
+            $ua = (string)($r->userAgent() ?? '');
+            if (strlen($ua) > 512) $ua = substr($ua, 0, 512);
+
+            $now = Carbon::now();
+
+            $payload = [
+                'performed_by'       => $performedBy,
+                'performed_by_role'  => $performedRole,
+                'ip'                 => $r->ip(),
+                'user_agent'         => $ua,
+
+                'activity'           => substr($activity, 0, 50),
+                'module'             => substr($module, 0, 100),
+
+                'table_name'         => substr($tableName, 0, 128),
+                'record_id'          => $recordId,
+
+                'changed_fields'     => $changedFields !== null ? json_encode($this->sanitizeForActivityLog($changedFields), JSON_UNESCAPED_UNICODE) : null,
+                'old_values'         => $oldValues !== null ? json_encode($this->sanitizeForActivityLog($oldValues), JSON_UNESCAPED_UNICODE) : null,
+                'new_values'         => $newValues !== null ? json_encode($this->sanitizeForActivityLog($newValues), JSON_UNESCAPED_UNICODE) : null,
+
+                'log_note'           => $note,
+
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ];
+
+            DB::table('user_data_activity_log')->insert($payload);
+        } catch (\Throwable $e) {
+            // never break API because of logging
+            Log::warning('user_data_activity_log.write_failed', [
+                'error' => $e->getMessage(),
+                'activity' => $activity,
+                'module' => $module,
+                'table_name' => $tableName,
+                'record_id' => $recordId,
+            ]);
+        }
+    }
+
     private function extractToken(Request $request): ?string
     {
         $header = (string) $request->header('Authorization', '');
@@ -115,53 +267,183 @@ class UserController extends Controller
     }
 
     /**
+     * accessControl (ONLY users table)
+     *
+     * Returns ONLY:
+     *  - ['mode' => 'all',         'department_id' => null]
+     *  - ['mode' => 'department',  'department_id' => <int>]
+     *  - ['mode' => 'none',        'department_id' => null]
+     *  - ['mode' => 'not_allowed', 'department_id' => null]
+     */
+    private function accessControl(int $userId): array
+{
+    if ($userId <= 0) {
+        return ['mode' => 'none', 'department_id' => null];
+    }
+
+    // Safety (if some env doesn't have dept column yet)
+    if (!Schema::hasColumn('users', 'department_id')) {
+        return ['mode' => 'not_allowed', 'department_id' => null];
+    }
+
+    $q = DB::table('users')->select(['id', 'role', 'department_id', 'status']);
+
+    // your schema has deleted_at; keep it safe
+    if (Schema::hasColumn('users', 'deleted_at')) {
+        $q->whereNull('deleted_at');
+    }
+
+    $u = $q->where('id', $userId)->first();
+
+    if (!$u) {
+        return ['mode' => 'none', 'department_id' => null];
+    }
+
+    // optional: inactive users => none
+    if (isset($u->status) && (string)$u->status !== 'active') {
+        return ['mode' => 'none', 'department_id' => null];
+    }
+
+    // normalize role from users table
+    $role = strtolower(trim((string)($u->role ?? '')));
+    $role = str_replace([' ', '-'], '_', $role);
+    $role = preg_replace('/_+/', '_', $role) ?? $role;
+
+    $deptId = $u->department_id !== null ? (int)$u->department_id : null;
+    if ($deptId !== null && $deptId <= 0) $deptId = null;
+
+    // ✅ CONFIG: decide access by role + department_id
+    $allRoles  = ['admin', 'director', 'principal']; // gets ALL even if dept null
+    $deptRoles = ['hod', 'faculty', 'technical_assistant', 'it_person', 'placement_officer', 'student', 'alumni', 'program_topper'];
+
+    if (in_array($role, $allRoles, true)) {
+        return ['mode' => 'all', 'department_id' => null];
+    }
+
+    // ✅ dept roles need a department, but we can derive it from other tables if users.department_id is null
+    if (in_array($role, $deptRoles, true)) {
+
+        // If deptId missing, try resolve from student_academic_details first (best source for students)
+        if (!$deptId) {
+
+            // 1) student_academic_details.department_id
+            if (Schema::hasTable('student_academic_details')
+                && Schema::hasColumn('student_academic_details', 'user_id')
+                && Schema::hasColumn('student_academic_details', 'department_id')) {
+
+                $acadQ = DB::table('student_academic_details')
+                    ->where('user_id', $userId);
+
+                if (Schema::hasColumn('student_academic_details', 'deleted_at')) {
+                    $acadQ->whereNull('deleted_at');
+                }
+
+                $d = $acadQ->value('department_id');
+                $d = $d ? (int)$d : null;
+
+                if ($d && $d > 0) $deptId = $d;
+            }
+
+            // 2) user_personal_information.department_id (fallback)
+            if (!$deptId
+                && Schema::hasTable('user_personal_information')
+                && Schema::hasColumn('user_personal_information', 'user_id')
+                && Schema::hasColumn('user_personal_information', 'department_id')) {
+
+                $upiQ = DB::table('user_personal_information')
+                    ->where('user_id', $userId);
+
+                if (Schema::hasColumn('user_personal_information', 'deleted_at')) {
+                    $upiQ->whereNull('deleted_at');
+                }
+
+                $d = $upiQ->value('department_id');
+                $d = $d ? (int)$d : null;
+
+                if ($d && $d > 0) $deptId = $d;
+            }
+
+            // ✅ optional: cache it back into users.department_id (so next calls are fast)
+            if ($deptId) {
+                try {
+                    DB::table('users')->where('id', $userId)->update([
+                        'department_id' => $deptId,
+                        'updated_at'    => now(),
+                    ]);
+                } catch (\Throwable $e) {
+                    // ignore
+                }
+            }
+        }
+
+        // still missing => none
+        if (!$deptId) return ['mode' => 'none', 'department_id' => null];
+
+        return ['mode' => 'department', 'department_id' => $deptId];
+    }
+
+    return ['mode' => 'not_allowed', 'department_id' => null];
+}
+
+    /**
      * Normalize a role + derive short form.
      * If invalid/missing, default to "faculty" + "FAC".
      */
-    /**
- * Normalize a role + derive short form.
- * If invalid/missing, default to "faculty" + "FAC".
- */
-private function normalizeRole(?string $role): array
-{
-    $role = $role !== null ? strtolower(trim($role)) : '';
+    private function normalizeRole(?string $role): array
+    {
+        $role = $role !== null ? strtolower(trim($role)) : '';
 
-    // normalize separators
-    $role = str_replace([' ', '-'], '_', $role);
-    $role = preg_replace('/_+/', '_', $role) ?? $role;
-    $role = trim($role, '_');
+        // normalize separators
+        $role = str_replace([' ', '-'], '_', $role);
+        $role = preg_replace('/_+/', '_', $role) ?? $role;
+        $role = trim($role, '_');
 
-    // aliases/synonyms
-    if ($role === 'tech_assistant' || $role === 'techassistant') {
-        $role = 'technical_assistant';
+        // aliases/synonyms
+        if ($role === 'tech_assistant' || $role === 'techassistant') {
+            $role = 'technical_assistant';
+        }
+
+        // ✅ alumni aliases
+        if (in_array($role, ['alum', 'alumnus', 'alumni'], true)) {
+            $role = 'alumni';
+        }
+
+        // ✅ program topper aliases
+        if (in_array($role, [
+            'program_topper',
+            'programtopper',
+            'program_top',
+            'program-topper',
+            'topper',
+        ], true)) {
+            $role = 'program_topper';
+        }
+
+        // ✅ placement officer aliases
+        if (in_array($role, [
+            'po',
+            'tpo',
+            'placement',
+            'placementofficer',
+            'placement_officer',
+            'training_placement_officer',
+            'trainingplacementofficer',
+            'trainingandplacementofficer',
+            'training_and_placement_officer',
+            'placement_cell',
+            'placementcell',
+        ], true)) {
+            $role = 'placement_officer';
+        }
+
+        if (!in_array($role, self::ALLOWED_ROLES, true)) {
+            $role = 'faculty';
+        }
+
+        $short = self::ROLE_SHORT_MAP[$role] ?? strtoupper(substr($role, 0, 3));
+
+        return [$role, $short];
     }
-
-    // ✅ placement officer aliases
-    if (in_array($role, [
-        'po',
-        'tpo',
-        'placement',
-        'placementofficer',
-        'placement_officer',
-        'training_placement_officer',
-        'trainingplacementofficer',
-        'trainingandplacementofficer',
-        'training_and_placement_officer',
-        'placement_cell',
-        'placementcell',
-    ], true)) {
-        $role = 'placement_officer';
-    }
-
-    if (!in_array($role, self::ALLOWED_ROLES, true)) {
-        $role = 'faculty';
-    }
-
-    $short = self::ROLE_SHORT_MAP[$role] ?? strtoupper(substr($role, 0, 3));
-
-    return [$role, $short];
-}
-
 
     /**
      * Generate unique slug from name.
@@ -191,6 +473,42 @@ private function normalizeRole(?string $role): array
         }
     }
 
+    /**
+     * ✅ helper: sync department_id into user_personal_information if table/cols exist
+     */
+    private function syncUpiDepartment(int $userId, $departmentId, $now): void
+    {
+        if (!Schema::hasTable('user_personal_information')) return;
+        if (!Schema::hasColumn('user_personal_information', 'user_id')) return;
+        if (!Schema::hasColumn('user_personal_information', 'department_id')) return;
+
+        $hasDeletedAt = Schema::hasColumn('user_personal_information', 'deleted_at');
+        $hasUuid      = Schema::hasColumn('user_personal_information', 'uuid');
+        $hasCreatedAt = Schema::hasColumn('user_personal_information', 'created_at');
+        $hasUpdatedAt = Schema::hasColumn('user_personal_information', 'updated_at');
+
+        $q = DB::table('user_personal_information')->where('user_id', $userId);
+        if ($hasDeletedAt) $q->whereNull('deleted_at');
+
+        $upi = $q->first();
+
+        if ($upi) {
+            $payload = ['department_id' => $departmentId];
+            if ($hasUpdatedAt) $payload['updated_at'] = $now;
+            DB::table('user_personal_information')->where('id', $upi->id)->update($payload);
+        } else {
+            $payload = [
+                'user_id'        => $userId,
+                'department_id'  => $departmentId,
+            ];
+            if ($hasUuid)      $payload['uuid'] = (string) Str::uuid();
+            if ($hasCreatedAt) $payload['created_at'] = $now;
+            if ($hasUpdatedAt) $payload['updated_at'] = $now;
+
+            DB::table('user_personal_information')->insert($payload);
+        }
+    }
+
     /* =====================================================
      * AUTH ENDPOINTS
      * ===================================================== */
@@ -207,6 +525,18 @@ private function normalizeRole(?string $role): array
         ]);
 
         if ($v->fails()) {
+            $this->activityLog(
+                $request,
+                'login_failed_validation',
+                'auth',
+                'users',
+                null,
+                ['email','password'],
+                null,
+                ['email' => (string)$request->input('email')],
+                'Validation failed'
+            );
+
             return response()->json([
                 'success' => false,
                 'errors'  => $v->errors(),
@@ -221,6 +551,19 @@ private function normalizeRole(?string $role): array
             ->first();
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
+            $this->activityLog(
+                $request,
+                'login_failed',
+                'auth',
+                'users',
+                null,
+                ['email'],
+                null,
+                ['email' => (string)$data['email']],
+                'Invalid credentials',
+                ['id' => 0, 'role' => null]
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => 'Invalid credentials',
@@ -228,6 +571,19 @@ private function normalizeRole(?string $role): array
         }
 
         if (isset($user->status) && $user->status !== 'active') {
+            $this->activityLog(
+                $request,
+                'login_blocked',
+                'auth',
+                'users',
+                (int)$user->id,
+                ['status'],
+                ['status' => (string)($user->status ?? '')],
+                ['status' => (string)($user->status ?? '')],
+                'Account is not active',
+                ['id' => (int)$user->id, 'role' => (string)($user->role ?? null)]
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => 'Account is not active',
@@ -248,7 +604,6 @@ private function normalizeRole(?string $role): array
             'last_used_at'   => null,
             'created_at'     => $now,
             'updated_at'     => $now,
-            // 'expires_at'   => $now->copy()->addDays(7), // optional expiry if you want
         ]);
 
         // Track last login
@@ -260,7 +615,7 @@ private function normalizeRole(?string $role): array
             ]);
 
         $fresh = DB::table('users')
-            ->select(self::SELECT_COLUMNS)
+            ->select($this->userSelectColumns())
             ->where('id', $user->id)
             ->first();
 
@@ -269,6 +624,20 @@ private function normalizeRole(?string $role): array
             'email'   => $user->email,
             'ip'      => $request->ip(),
         ]);
+
+        // ✅ ACTIVITY LOG (success)
+        $this->activityLog(
+            $request,
+            'login',
+            'auth',
+            'users',
+            (int)$user->id,
+            ['last_login_at','last_login_ip'],
+            null,
+            ['ip' => $request->ip()],
+            'Login successful',
+            ['id' => (int)$user->id, 'role' => (string)($user->role ?? null)]
+        );
 
         return response()->json([
             'success'    => true,
@@ -286,6 +655,18 @@ private function normalizeRole(?string $role): array
     {
         $token = $this->extractToken($request);
         if (!$token) {
+            $this->activityLog(
+                $request,
+                'logout_failed',
+                'auth',
+                'personal_access_tokens',
+                null,
+                null,
+                null,
+                null,
+                'No token provided'
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => 'No token provided',
@@ -308,6 +689,19 @@ private function normalizeRole(?string $role): array
         $this->logWithActor('msit.auth.logout', $request, [
             'token_id' => $pat->id ?? null,
         ]);
+
+        // ✅ ACTIVITY LOG
+        $this->activityLog(
+            $request,
+            'logout',
+            'auth',
+            'personal_access_tokens',
+            $pat ? (int)$pat->id : null,
+            null,
+            null,
+            null,
+            'Logged out'
+        );
 
         return response()->json([
             'success' => true,
@@ -362,7 +756,7 @@ private function normalizeRole(?string $role): array
         }
 
         $user = DB::table('users')
-            ->select(self::SELECT_COLUMNS)
+            ->select($this->userSelectColumns())
             ->where('id', $pat->tokenable_id)
             ->whereNull('deleted_at')
             ->first();
@@ -402,37 +796,92 @@ private function normalizeRole(?string $role): array
     /**
      * GET /api/users
      * List users with optional filters (role, search).
-     * Allowed: director, principal, hod, technical_assistant, it_person
      */
     public function index(Request $request)
 {
+    // ✅ APPLY accessControl here (listing)
+    $actorId = (int) $request->attributes->get('auth_tokenable_id');
+    $ac      = $this->accessControl($actorId);
+
+    if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+    if ($ac['mode'] === 'none') {
+        return response()->json([
+            'success' => true,
+            'data'    => [],
+        ], 200);
+    }
+
     $search = trim((string) $request->query('q', ''));
     $role   = $request->query('role');
-    $status = $request->query('status'); // ← ADD THIS
+    $status = $request->query('status');
 
-    $query = DB::table('users')
-        ->select(self::SELECT_COLUMNS)
-        ->whereNull('deleted_at');
+    $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+    $hasEmpId     = Schema::hasColumn('users', 'employee_id');
 
+    // ✅ Detect UPI department storage (many of your faculty dept is here)
+    $hasUpiTable  = Schema::hasTable('user_personal_information');
+    $upiHasDept   = $hasUpiTable && Schema::hasColumn('user_personal_information', 'department_id');
+    $upiHasDel    = $hasUpiTable && Schema::hasColumn('user_personal_information', 'deleted_at');
+
+    // ✅ Base query (users + optional UPI)
+    $query = DB::table('users as u')
+        ->whereNull('u.deleted_at');
+
+    if ($hasUpiTable) {
+        $query->leftJoin('user_personal_information as upi', 'upi.user_id', '=', 'u.id');
+
+        // keep only valid/non-deleted upi rows (or no upi row)
+        $query->where(function ($w) use ($upiHasDel) {
+            $w->whereNull('upi.id');
+            if ($upiHasDel) {
+                $w->orWhereNull('upi.deleted_at');
+            } else {
+                $w->orWhere('upi.id', '>', 0);
+            }
+        });
+    }
+
+    // ✅ SELECT only safe columns (prefixed)
+    $cols = $this->userSelectColumns();
+    $query->select(array_map(fn ($c) => "u.$c", $cols));
+
+    // ✅ department scoping (FIX: support both users.department_id and upi.department_id)
+    if ($ac['mode'] === 'department') {
+        $deptId = (int) $ac['department_id'];
+
+        if ($upiHasDept) {
+            $query->where(function ($w) use ($deptId) {
+                $w->where('u.department_id', $deptId)
+                  ->orWhere('upi.department_id', $deptId);
+            });
+        } else {
+            $query->where('u.department_id', $deptId);
+        }
+    }
+
+    // ✅ filters
     if ($role) {
-        $query->where('role', $role);
+        $query->where('u.role', $role);
     }
 
-    // ← ADD STATUS FILTER
     if ($status && $status !== 'all') {
-        $query->where('status', $status);
+        $query->where('u.status', $status);
     }
 
+    // ✅ search
     if ($search !== '') {
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', '%' . $search . '%')
-              ->orWhere('email', 'like', '%' . $search . '%')
-              ->orWhere('phone_number', 'like', '%' . $search . '%');
+        $query->where(function ($q) use ($search, $hasNameShort, $hasEmpId) {
+            $q->where('u.name', 'like', '%' . $search . '%')
+              ->orWhere('u.email', 'like', '%' . $search . '%')
+              ->orWhere('u.phone_number', 'like', '%' . $search . '%');
+
+            if ($hasNameShort) $q->orWhere('u.name_short_form', 'like', '%' . $search . '%');
+            if ($hasEmpId)     $q->orWhere('u.employee_id', 'like', '%' . $search . '%');
         });
     }
 
     $users = $query
-        ->orderBy('id', 'desc')
+        ->orderBy('u.id', 'desc')
         ->limit(200)
         ->get();
 
@@ -441,16 +890,33 @@ private function normalizeRole(?string $role): array
         'data'    => $users,
     ]);
 }
+
     /**
      * POST /api/users
      * Create a new user.
-     * Allowed: director, principal, it_person
      */
     public function store(Request $request)
     {
+        // ✅ APPLY accessControl here (create)
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac      = $this->accessControl($actorId);
 
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->activityLog($request, 'create_denied', 'users', 'users', null, null, null, null, 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptRule = Rule::exists('departments', 'id');
+        if (Schema::hasColumn('departments', 'deleted_at')) {
+            $deptRule = $deptRule->whereNull('deleted_at');
+        }
+
+        // ✅ new cols are optional
         $v = Validator::make($request->all(), [
             'name'                      => ['required', 'string', 'max:190'],
+            'name_short_form'           => ['nullable', 'string', 'max:50'],   // ✅ NEW
+            'employee_id'               => ['nullable', 'string', 'max:50'],   // ✅ NEW
+
             'email'                     => ['required', 'email', 'max:255', 'unique:users,email'],
             'password'                  => ['required', 'string', 'min:8'],
             'phone_number'              => ['nullable', 'string', 'max:32', 'unique:users,phone_number'],
@@ -462,9 +928,22 @@ private function normalizeRole(?string $role): array
             'role'                      => ['nullable', 'string'],
             'status'                    => ['nullable', 'string', 'max:20'],
             'metadata'                  => ['nullable', 'array'],
+            'department_id'             => ['nullable', 'integer', $deptRule],
         ]);
 
         if ($v->fails()) {
+            $this->activityLog(
+                $request,
+                'create_failed_validation',
+                'users',
+                'users',
+                null,
+                array_keys($request->all() ?: []),
+                null,
+                ['email' => (string)$request->input('email')],
+                'Validation failed'
+            );
+
             return response()->json([
                 'success' => false,
                 'errors'  => $v->errors(),
@@ -474,8 +953,31 @@ private function normalizeRole(?string $role): array
         $data  = $v->validated();
         [$role, $roleShort] = $this->normalizeRole($data['role'] ?? null);
 
+        // ✅ department scoping: dept actors can only create inside their dept
+        if ($ac['mode'] === 'department') {
+            $forcedDept = (int) $ac['department_id'];
+
+            if (array_key_exists('department_id', $data)) {
+                $incoming = $data['department_id'];
+                $incoming = ($incoming !== null) ? (int)$incoming : null;
+
+                // if explicitly provided and mismatched => block
+                if ($incoming !== null && $incoming !== $forcedDept) {
+                    $this->activityLog($request, 'create_denied', 'users', 'users', null, ['department_id'], null, ['department_id' => $incoming], 'Dept mismatch');
+                    return response()->json(['error' => 'Not allowed'], 403);
+                }
+            }
+
+            // if not provided, force it
+            $data['department_id'] = $forcedDept;
+        }
+
         $now   = Carbon::now();
         $actor = $this->actor($request);
+
+        $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+        $hasEmpId     = Schema::hasColumn('users', 'employee_id');
+        $hasDept      = Schema::hasColumn('users', 'department_id');
 
         DB::beginTransaction();
 
@@ -483,7 +985,7 @@ private function normalizeRole(?string $role): array
             $uuid = (string) Str::uuid();
             $slug = $this->generateUniqueSlug($data['name']);
 
-            $id = DB::table('users')->insertGetId([
+            $insert = [
                 'name'                     => $data['name'],
                 'email'                    => $data['email'],
                 'password'                 => Hash::make($data['password']),
@@ -505,14 +1007,46 @@ private function normalizeRole(?string $role): array
                 'created_at_ip'            => $request->ip(),
                 'created_at'               => $now,
                 'updated_at'               => $now,
-            ]);
+            ];
+
+            // ✅ optional fields (only if columns exist)
+            if ($hasNameShort) $insert['name_short_form'] = $data['name_short_form'] ?? null;
+            if ($hasEmpId)     $insert['employee_id']     = $data['employee_id'] ?? null;
+
+            // ✅ department_id save (only if column exists)
+            if ($hasDept)      $insert['department_id']   = $data['department_id'] ?? null;
+
+            $id = DB::table('users')->insertGetId($insert);
+
+            // ✅ optional: keep UPI dept in sync if UPI is used as primary in facultyindex()
+            if ($hasDept && array_key_exists('department_id', $data)) {
+                $this->syncUpiDepartment((int)$id, $data['department_id'] ?? null, $now);
+            }
 
             DB::commit();
 
             $this->logWithActor('msit.users.store.success', $request, ['user_id' => $id]);
 
+            // ✅ ACTIVITY LOG (create)
+            $changed = array_keys($insert);
+            $changed = array_values(array_filter($changed, fn($k) => $k !== 'password')); // never log password
+            $newVals = $insert;
+            unset($newVals['password']);
+
+            $this->activityLog(
+                $request,
+                'create',
+                'users',
+                'users',
+                (int)$id,
+                $changed,
+                null,
+                $newVals,
+                'User created'
+            );
+
             $user = DB::table('users')
-                ->select(self::SELECT_COLUMNS)
+                ->select($this->userSelectColumns())
                 ->where('id', $id)
                 ->first();
 
@@ -527,6 +1061,18 @@ private function normalizeRole(?string $role): array
                 'error' => $e->getMessage(),
             ]);
 
+            $this->activityLog(
+                $request,
+                'create_failed',
+                'users',
+                'users',
+                null,
+                null,
+                null,
+                null,
+                'Failed to create user: ' . $e->getMessage()
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => 'Failed to create user',
@@ -537,162 +1083,308 @@ private function normalizeRole(?string $role): array
     /**
      * GET /api/users/{uuid}
      * Show a single user.
-     * High roles can view anyone; others can only see themselves.
      */
     public function show(Request $request, string $uuid)
-{
-    // if ($resp = $this->requireRole($request, self::ALLOWED_ROLES)) {
-    //     return $resp;
-    // }
+    {
+        // ✅ APPLY accessControl here (single view)
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac      = $this->accessControl($actorId);
 
-    $user = DB::table('users')
-        ->select(self::SELECT_COLUMNS)
-        ->where('uuid', $uuid)
-        ->whereNull('deleted_at')
-        ->first();
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'success' => false,
+                'error'   => 'User not found',
+            ], 404);
+        }
 
-    if (!$user) {
-        return response()->json([
-            'success' => false,
-            'error'   => 'User not found',
-        ], 404);
-    }
+        $q = DB::table('users')
+            ->select($this->userSelectColumns())
+            ->where('uuid', $uuid)
+            ->whereNull('deleted_at');
 
-    return response()->json([
-        'success' => true,
-        'data'    => $user,
-    ]);
-}
+        if ($ac['mode'] === 'department') {
+            $q->where('department_id', (int)$ac['department_id']);
+        }
 
-    /**
-     * PUT/PATCH /api/users/{uuid}
-     * Update profile (name, contact, image, address, role/status for high roles).
-     */
-    public function update(Request $request, string $uuid)
-{
-    // if ($resp = $this->requireRole($request, self::ALLOWED_ROLES)) {
-    //     return $resp;
-    // }
+        $user = $q->first();
 
-    $user = DB::table('users')
-        ->where('uuid', $uuid)
-        ->whereNull('deleted_at')
-        ->first();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'User not found',
+            ], 404);
+        }
 
-    if (!$user) {
-        return response()->json([
-            'success' => false,
-            'error'   => 'User not found',
-        ], 404);
-    }
-
-    $v = Validator::make($request->all(), [
-        'name'                     => ['sometimes', 'required', 'string', 'max:190'],
-        'email'                    => [
-            'sometimes', 'required', 'email', 'max:255',
-            Rule::unique('users', 'email')->ignore($user->id),
-        ],
-        'password'                 => ['sometimes', 'nullable', 'string', 'min:8'],
-        'phone_number'             => [
-            'sometimes', 'nullable', 'string', 'max:32',
-            Rule::unique('users', 'phone_number')->ignore($user->id),
-        ],
-        'alternative_email'        => ['sometimes', 'nullable', 'email', 'max:255'],
-        'alternative_phone_number' => ['sometimes', 'nullable', 'string', 'max:32'],
-        'whatsapp_number'          => ['sometimes', 'nullable', 'string', 'max:32'],
-        'image'                    => ['sometimes', 'nullable', 'string', 'max:255'],
-        'address'                  => ['sometimes', 'nullable', 'string'],
-        'role'                     => ['sometimes', 'nullable', 'string'],
-        'status'                   => ['sometimes', 'nullable', 'string', 'max:20'],
-        'metadata'                 => ['sometimes', 'nullable', 'array'],
-    ]);
-
-    if ($v->fails()) {
-        return response()->json([
-            'success' => false,
-            'errors'  => $v->errors(),
-        ], 422);
-    }
-
-    $data   = $v->validated();
-    $update = [];
-    $now    = Carbon::now();
-
-    if (array_key_exists('name', $data)) {
-        $update['name'] = $data['name'];
-        $update['slug'] = $this->generateUniqueSlug($data['name'], (int) $user->id);
-    }
-
-    if (array_key_exists('email', $data)) {
-        $update['email'] = $data['email'];
-    }
-
-    if (array_key_exists('password', $data) && $data['password']) {
-        $update['password'] = Hash::make($data['password']);
-    }
-
-    if (array_key_exists('phone_number', $data)) {
-        $update['phone_number'] = $data['phone_number'] ?? null;
-    }
-    if (array_key_exists('alternative_email', $data)) {
-        $update['alternative_email'] = $data['alternative_email'] ?? null;
-    }
-    if (array_key_exists('alternative_phone_number', $data)) {
-        $update['alternative_phone_number'] = $data['alternative_phone_number'] ?? null;
-    }
-    if (array_key_exists('whatsapp_number', $data)) {
-        $update['whatsapp_number'] = $data['whatsapp_number'] ?? null;
-    }
-    if (array_key_exists('image', $data)) {
-        $update['image'] = $data['image'] ?? null;
-    }
-    if (array_key_exists('address', $data)) {
-        $update['address'] = $data['address'] ?? null;
-    }
-
-    if (array_key_exists('role', $data)) {
-        [$role, $short] = $this->normalizeRole($data['role']);
-        $update['role']            = $role;
-        $update['role_short_form'] = $short;
-    }
-
-    if (array_key_exists('status', $data)) {
-        $update['status'] = $data['status'] ?? 'active';
-    }
-
-    if (array_key_exists('metadata', $data)) {
-        $update['metadata'] = $data['metadata'] !== null
-            ? json_encode($data['metadata'])
-            : null;
-    }
-
-    if (empty($update)) {
         return response()->json([
             'success' => true,
             'data'    => $user,
         ]);
     }
 
-    $update['updated_at'] = $now;
+    /**
+     * PUT/PATCH /api/users/{uuid}
+     * Update profile (name, contact, image, address, role/status...)
+     */
+    public function update(Request $request, string $uuid)
+    {
+        // ✅ APPLY accessControl here (update)
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac      = $this->accessControl($actorId);
 
-    DB::table('users')
-        ->where('id', $user->id)
-        ->update($update);
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->activityLog($request, 'update_denied', 'users', 'users', null, null, null, null, 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
 
-    $this->logWithActor('msit.users.update', $request, [
-        'user_id' => $user->id,
-    ]);
+        $qUser = DB::table('users')
+            ->where('uuid', $uuid)
+            ->whereNull('deleted_at');
 
-    $fresh = DB::table('users')
-        ->select(self::SELECT_COLUMNS)
-        ->where('id', $user->id)
-        ->first();
+        if ($ac['mode'] === 'department') {
+            $qUser->where('department_id', (int)$ac['department_id']);
+        }
 
-    return response()->json([
-        'success' => true,
-        'data'    => $fresh,
-    ]);
-}
+        $user = $qUser->first();
+
+        if (!$user) {
+            $this->activityLog($request, 'update_not_found', 'users', 'users', null, null, null, ['uuid' => $uuid], 'User not found');
+            return response()->json([
+                'success' => false,
+                'error'   => 'User not found',
+            ], 404);
+        }
+
+        $deptRule = Rule::exists('departments', 'id');
+        if (Schema::hasColumn('departments', 'deleted_at')) {
+            $deptRule = $deptRule->whereNull('deleted_at');
+        }
+
+        $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+        $hasEmpId     = Schema::hasColumn('users', 'employee_id');
+        $hasDept      = Schema::hasColumn('users', 'department_id');
+
+        $rules = [
+            'name'                     => ['sometimes', 'required', 'string', 'max:190'],
+
+            // ✅ NEW optional fields
+            'name_short_form'          => ['sometimes', 'nullable', 'string', 'max:50'],
+            'employee_id'              => ['sometimes', 'nullable', 'string', 'max:50'],
+
+            'email'                    => [
+                'sometimes', 'required', 'email', 'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'password'                 => ['sometimes', 'nullable', 'string', 'min:8'],
+            'phone_number'             => [
+                'sometimes', 'nullable', 'string', 'max:32',
+                Rule::unique('users', 'phone_number')->ignore($user->id),
+            ],
+            'alternative_email'        => ['sometimes', 'nullable', 'email', 'max:255'],
+            'alternative_phone_number' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'whatsapp_number'          => ['sometimes', 'nullable', 'string', 'max:32'],
+            'image'                    => ['sometimes', 'nullable', 'string', 'max:255'],
+            'address'                  => ['sometimes', 'nullable', 'string'],
+            'role'                     => ['sometimes', 'nullable', 'string'],
+            'status'                   => ['sometimes', 'nullable', 'string', 'max:20'],
+            'metadata'                 => ['sometimes', 'nullable', 'array'],
+            'department_id'            => ['sometimes', 'nullable', 'integer', $deptRule],
+        ];
+
+        $v = Validator::make($request->all(), $rules);
+
+        if ($v->fails()) {
+            $this->activityLog(
+                $request,
+                'update_failed_validation',
+                'users',
+                'users',
+                (int)$user->id,
+                array_keys($request->all() ?: []),
+                null,
+                null,
+                'Validation failed'
+            );
+
+            return response()->json([
+                'success' => false,
+                'errors'  => $v->errors(),
+            ], 422);
+        }
+
+        $data   = $v->validated();
+
+        // ✅ dept actors: can NOT change to another department or clear it
+        if ($ac['mode'] === 'department' && $hasDept && array_key_exists('department_id', $data)) {
+            $forcedDept = (int)$ac['department_id'];
+            $incoming   = $data['department_id'];
+            $incoming   = ($incoming !== null) ? (int)$incoming : null;
+
+            if ($incoming === null || $incoming !== $forcedDept) {
+                $this->activityLog(
+                    $request,
+                    'update_denied',
+                    'users',
+                    'users',
+                    (int)$user->id,
+                    ['department_id'],
+                    ['department_id' => (int)($user->department_id ?? 0)],
+                    ['department_id' => $incoming],
+                    'Dept mismatch'
+                );
+                return response()->json(['error' => 'Not allowed'], 403);
+            }
+        }
+
+        $update = [];
+        $now    = Carbon::now();
+
+        if (array_key_exists('name', $data)) {
+            $update['name'] = $data['name'];
+            $update['slug'] = $this->generateUniqueSlug($data['name'], (int) $user->id);
+        }
+
+        // ✅ NEW optional fields
+        if ($hasNameShort && array_key_exists('name_short_form', $data)) {
+            $update['name_short_form'] = $data['name_short_form'] ?? null;
+        }
+        if ($hasEmpId && array_key_exists('employee_id', $data)) {
+            $update['employee_id'] = $data['employee_id'] ?? null;
+        }
+
+        // ✅ department_id update (only if column exists)
+        if ($hasDept && array_key_exists('department_id', $data)) {
+            $update['department_id'] = $data['department_id'] ?? null;
+        }
+
+        if (array_key_exists('email', $data)) {
+            $update['email'] = $data['email'];
+        }
+
+        if (array_key_exists('password', $data) && $data['password']) {
+            $update['password'] = Hash::make($data['password']);
+        }
+
+        if (array_key_exists('phone_number', $data)) {
+            $update['phone_number'] = $data['phone_number'] ?? null;
+        }
+        if (array_key_exists('alternative_email', $data)) {
+            $update['alternative_email'] = $data['alternative_email'] ?? null;
+        }
+        if (array_key_exists('alternative_phone_number', $data)) {
+            $update['alternative_phone_number'] = $data['alternative_phone_number'] ?? null;
+        }
+        if (array_key_exists('whatsapp_number', $data)) {
+            $update['whatsapp_number'] = $data['whatsapp_number'] ?? null;
+        }
+        if (array_key_exists('image', $data)) {
+            $update['image'] = $data['image'] ?? null;
+        }
+        if (array_key_exists('address', $data)) {
+            $update['address'] = $data['address'] ?? null;
+        }
+
+        if (array_key_exists('role', $data)) {
+            [$role, $short] = $this->normalizeRole($data['role']);
+            $update['role']            = $role;
+            $update['role_short_form'] = $short;
+        }
+
+        if (array_key_exists('status', $data)) {
+            $update['status'] = $data['status'] ?? 'active';
+        }
+
+        if (array_key_exists('metadata', $data)) {
+            $update['metadata'] = $data['metadata'] !== null
+                ? json_encode($data['metadata'])
+                : null;
+        }
+
+        if (empty($update)) {
+            return response()->json([
+                'success' => true,
+                'data'    => $user,
+            ]);
+        }
+
+        $update['updated_at'] = $now;
+
+        // ✅ prepare old/new snapshots (exclude password)
+        $changedFields = array_keys($update);
+        $changedFields = array_values(array_filter($changedFields, fn($k) => $k !== 'password'));
+
+        $oldVals = [];
+        $newVals = [];
+        foreach ($changedFields as $f) {
+            $oldVals[$f] = $user->{$f} ?? null;
+            $newVals[$f] = $update[$f] ?? null;
+        }
+
+        DB::beginTransaction();
+        try {
+            DB::table('users')
+                ->where('id', $user->id)
+                ->update($update);
+
+            // ✅ optional: keep UPI dept in sync if UPI is used as primary in facultyindex()
+            if ($hasDept && array_key_exists('department_id', $data)) {
+                $this->syncUpiDepartment((int)$user->id, $data['department_id'] ?? null, $now);
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            $this->logWithActor('msit.users.update.failed', $request, [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            $this->activityLog(
+                $request,
+                'update_failed',
+                'users',
+                'users',
+                (int)$user->id,
+                $changedFields,
+                $oldVals,
+                $newVals,
+                'Failed to update user: ' . $e->getMessage()
+            );
+
+            return response()->json([
+                'success' => false,
+                'error'   => 'Failed to update user',
+            ], 500);
+        }
+
+        $this->logWithActor('msit.users.update', $request, [
+            'user_id' => $user->id,
+        ]);
+
+        // ✅ ACTIVITY LOG (update)
+        $this->activityLog(
+            $request,
+            'update',
+            'users',
+            'users',
+            (int)$user->id,
+            $changedFields,
+            $oldVals,
+            $newVals,
+            'User updated'
+        );
+
+        $fresh = DB::table('users')
+            ->select($this->userSelectColumns())
+            ->where('id', $user->id)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $fresh,
+        ]);
+    }
 
     /**
      * PATCH /api/users/{uuid}/password
@@ -701,6 +1393,7 @@ private function normalizeRole(?string $role): array
     public function updatePassword(Request $request, string $uuid)
     {
         if ($resp = $this->requireRole($request, self::ALLOWED_ROLES)) {
+            $this->activityLog($request, 'password_update_denied', 'users', 'users', null, null, null, null, 'Unauthorized Access');
             return $resp;
         }
 
@@ -710,6 +1403,7 @@ private function normalizeRole(?string $role): array
             ->first();
 
         if (!$user) {
+            $this->activityLog($request, 'password_update_not_found', 'users', 'users', null, null, null, ['uuid' => $uuid], 'User not found');
             return response()->json([
                 'success' => false,
                 'error'   => 'User not found',
@@ -723,6 +1417,18 @@ private function normalizeRole(?string $role): array
         $isHigh = in_array($actor['role'], $highRoles, true);
 
         if (!$isHigh && !$isSelf) {
+            $this->activityLog(
+                $request,
+                'password_update_denied',
+                'users',
+                'users',
+                (int)$user->id,
+                ['password'],
+                null,
+                null,
+                'Unauthorized Access'
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => 'Unauthorized Access',
@@ -740,6 +1446,18 @@ private function normalizeRole(?string $role): array
         $v = Validator::make($request->all(), $rules);
 
         if ($v->fails()) {
+            $this->activityLog(
+                $request,
+                'password_update_failed_validation',
+                'users',
+                'users',
+                (int)$user->id,
+                ['password','current_password'],
+                null,
+                null,
+                'Validation failed'
+            );
+
             return response()->json([
                 'success' => false,
                 'errors'  => $v->errors(),
@@ -750,6 +1468,18 @@ private function normalizeRole(?string $role): array
 
         if (array_key_exists('current_password', $rules)) {
             if (!Hash::check($data['current_password'], $user->password)) {
+                $this->activityLog(
+                    $request,
+                    'password_update_failed',
+                    'users',
+                    'users',
+                    (int)$user->id,
+                    ['current_password'],
+                    null,
+                    null,
+                    'Current password incorrect'
+                );
+
                 return response()->json([
                     'success' => false,
                     'errors'  => [
@@ -770,6 +1500,19 @@ private function normalizeRole(?string $role): array
             'user_id' => $user->id,
         ]);
 
+        // ✅ ACTIVITY LOG (password change) - do not store password hashes
+        $this->activityLog(
+            $request,
+            'update_password',
+            'users',
+            'users',
+            (int)$user->id,
+            ['password'],
+            null,
+            null,
+            'Password updated'
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Password updated successfully',
@@ -783,6 +1526,7 @@ private function normalizeRole(?string $role): array
     public function updateImage(Request $request, string $uuid)
     {
         if ($resp = $this->requireRole($request, self::ALLOWED_ROLES)) {
+            $this->activityLog($request, 'image_update_denied', 'users', 'users', null, null, null, null, 'Unauthorized Access');
             return $resp;
         }
 
@@ -792,6 +1536,7 @@ private function normalizeRole(?string $role): array
             ->first();
 
         if (!$user) {
+            $this->activityLog($request, 'image_update_not_found', 'users', 'users', null, null, null, ['uuid' => $uuid], 'User not found');
             return response()->json([
                 'success' => false,
                 'error'   => 'User not found',
@@ -805,6 +1550,18 @@ private function normalizeRole(?string $role): array
         $isHigh = in_array($actor['role'], $highRoles, true);
 
         if (!$isHigh && !$isSelf) {
+            $this->activityLog(
+                $request,
+                'image_update_denied',
+                'users',
+                'users',
+                (int)$user->id,
+                ['image'],
+                ['image' => (string)($user->image ?? null)],
+                null,
+                'Unauthorized Access'
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => 'Unauthorized Access',
@@ -816,6 +1573,18 @@ private function normalizeRole(?string $role): array
         ]);
 
         if ($v->fails()) {
+            $this->activityLog(
+                $request,
+                'image_update_failed_validation',
+                'users',
+                'users',
+                (int)$user->id,
+                ['image'],
+                null,
+                null,
+                'Validation failed'
+            );
+
             return response()->json([
                 'success' => false,
                 'errors'  => $v->errors(),
@@ -823,6 +1592,8 @@ private function normalizeRole(?string $role): array
         }
 
         $data = $v->validated();
+
+        $old = (string)($user->image ?? null);
 
         DB::table('users')
             ->where('id', $user->id)
@@ -835,8 +1606,21 @@ private function normalizeRole(?string $role): array
             'user_id' => $user->id,
         ]);
 
+        // ✅ ACTIVITY LOG
+        $this->activityLog(
+            $request,
+            'update_image',
+            'users',
+            'users',
+            (int)$user->id,
+            ['image'],
+            ['image' => $old],
+            ['image' => (string)$data['image']],
+            'Image updated'
+        );
+
         $fresh = DB::table('users')
-            ->select(self::SELECT_COLUMNS)
+            ->select($this->userSelectColumns())
             ->where('id', $user->id)
             ->first();
 
@@ -848,25 +1632,31 @@ private function normalizeRole(?string $role): array
 
     /**
      * DELETE /api/users/{uuid}
-     * Soft delete a user.
-     * Allowed: director, principal, it_person
+     * Soft delete a user (your code marks inactive)
      */
     public function destroy(Request $request, string $uuid)
     {
-        // if ($resp = $this->requireRole($request, [
-        //     'director',
-        //     'principal',
-        //     'it_person',
-        // ])) {
-        //     return $resp;
-        // }
+        // ✅ APPLY accessControl here (delete)
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac      = $this->accessControl($actorId);
 
-        $user = DB::table('users')
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->activityLog($request, 'delete_denied', 'users', 'users', null, null, null, null, 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $qUser = DB::table('users')
             ->where('uuid', $uuid)
-            ->whereNull('deleted_at')
-            ->first();
+            ->whereNull('deleted_at');
+
+        if ($ac['mode'] === 'department') {
+            $qUser->where('department_id', (int)$ac['department_id']);
+        }
+
+        $user = $qUser->first();
 
         if (!$user) {
+            $this->activityLog($request, 'delete_not_found', 'users', 'users', null, null, null, ['uuid' => $uuid], 'User not found');
             return response()->json([
                 'success' => false,
                 'error'   => 'User not found',
@@ -877,22 +1667,48 @@ private function normalizeRole(?string $role): array
 
         // Don't allow deleting yourself
         if ($actor['id'] === (int) $user->id) {
+            $this->activityLog(
+                $request,
+                'delete_denied',
+                'users',
+                'users',
+                (int)$user->id,
+                ['status'],
+                ['status' => (string)($user->status ?? '')],
+                null,
+                'Tried to delete own account'
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => 'You cannot delete your own account',
             ], 422);
         }
 
+        $oldStatus = (string)($user->status ?? '');
+
         DB::table('users')
             ->where('id', $user->id)
             ->update([
-                // 'deleted_at' => Carbon::now(),
                 'status'     => 'inactive',
             ]);
 
         $this->logWithActor('msit.users.destroy', $request, [
             'user_id' => $user->id,
         ]);
+
+        // ✅ ACTIVITY LOG (delete/inactivate)
+        $this->activityLog(
+            $request,
+            'delete',
+            'users',
+            'users',
+            (int)$user->id,
+            ['status'],
+            ['status' => $oldStatus],
+            ['status' => 'inactive'],
+            'User marked inactive'
+        );
 
         return response()->json([
             'success' => true,
@@ -902,7 +1718,7 @@ private function normalizeRole(?string $role): array
 
     /**
      * GET /api/me
-     * View logged-in user's own profile (for all roles).
+     * View logged-in user's own profile
      */
     public function me(Request $request)
     {
@@ -915,7 +1731,7 @@ private function normalizeRole(?string $role): array
         }
 
         $user = DB::table('users')
-            ->select(self::SELECT_COLUMNS)
+            ->select($this->userSelectColumns())
             ->where('id', $actor['id'])
             ->whereNull('deleted_at')
             ->first();
@@ -942,6 +1758,7 @@ private function normalizeRole(?string $role): array
     {
         $actor = $this->actor($request);
         if (!$actor['id']) {
+            $this->activityLog($request, 'update_me_denied', 'users', 'users', null, null, null, null, 'Unauthenticated');
             return response()->json([
                 'success' => false,
                 'error'   => 'Unauthenticated',
@@ -954,15 +1771,24 @@ private function normalizeRole(?string $role): array
             ->first();
 
         if (!$user) {
+            $this->activityLog($request, 'update_me_not_found', 'users', 'users', (int)$actor['id'], null, null, null, 'User not found');
             return response()->json([
                 'success' => false,
                 'error'   => 'User not found',
             ], 404);
         }
 
+        $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+        $hasEmpId     = Schema::hasColumn('users', 'employee_id');
+
         // Base validation (text fields)
         $v = Validator::make($request->all(), [
             'name'                     => ['sometimes', 'required', 'string', 'max:190'],
+
+            // ✅ NEW optional fields
+            'name_short_form'          => ['sometimes', 'nullable', 'string', 'max:50'],
+            'employee_id'              => ['sometimes', 'nullable', 'string', 'max:50'],
+
             'email'                    => [
                 'sometimes', 'required', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
@@ -984,6 +1810,18 @@ private function normalizeRole(?string $role): array
         ]);
 
         if ($v->fails()) {
+            $this->activityLog(
+                $request,
+                'update_me_failed_validation',
+                'users',
+                'users',
+                (int)$user->id,
+                array_keys($request->all() ?: []),
+                null,
+                null,
+                'Validation failed'
+            );
+
             return response()->json([
                 'success' => false,
                 'errors'  => $v->errors(),
@@ -1001,6 +1839,18 @@ private function normalizeRole(?string $role): array
         if (!empty($fileRules)) {
             $fv = Validator::make($request->all(), $fileRules);
             if ($fv->fails()) {
+                $this->activityLog(
+                    $request,
+                    'update_me_failed_validation',
+                    'users',
+                    'users',
+                    (int)$user->id,
+                    array_keys($fileRules),
+                    null,
+                    null,
+                    'File validation failed'
+                );
+
                 return response()->json([
                     'success' => false,
                     'errors'  => $fv->errors(),
@@ -1043,6 +1893,14 @@ private function normalizeRole(?string $role): array
             $update['slug'] = $this->generateUniqueSlug($data['name'], (int) $user->id);
         }
 
+        // ✅ NEW optional fields
+        if ($hasNameShort && array_key_exists('name_short_form', $data)) {
+            $update['name_short_form'] = $data['name_short_form'] ?? null;
+        }
+        if ($hasEmpId && array_key_exists('employee_id', $data)) {
+            $update['employee_id'] = $data['employee_id'] ?? null;
+        }
+
         // Email
         if (array_key_exists('email', $data)) {
             $update['email'] = $data['email'];
@@ -1065,6 +1923,8 @@ private function normalizeRole(?string $role): array
             $update['address'] = $data['address'] ?? null;
         }
 
+        $oldImage = (string)($user->image ?? null);
+
         // ✅ Image (FILE has priority)
         try {
             if ($request->hasFile('image') || $request->hasFile('image_file')) {
@@ -1082,6 +1942,18 @@ private function normalizeRole(?string $role): array
                 }
             }
         } catch (\Throwable $e) {
+            $this->activityLog(
+                $request,
+                'update_me_failed',
+                'users',
+                'users',
+                (int)$user->id,
+                ['image'],
+                ['image' => $oldImage],
+                null,
+                'Image update failed: ' . $e->getMessage()
+            );
+
             return response()->json([
                 'success' => false,
                 'error'   => $e->getMessage(),
@@ -1094,11 +1966,20 @@ private function normalizeRole(?string $role): array
         }
 
         if (empty($update)) {
-            $fresh = DB::table('users')->select(self::SELECT_COLUMNS)->where('id', $user->id)->first();
+            $fresh = DB::table('users')->select($this->userSelectColumns())->where('id', $user->id)->first();
             return response()->json(['success' => true, 'data' => $fresh]);
         }
 
         $update['updated_at'] = Carbon::now();
+
+        // snapshots for log
+        $changedFields = array_keys($update);
+        $oldVals = [];
+        $newVals = [];
+        foreach ($changedFields as $f) {
+            $oldVals[$f] = $user->{$f} ?? null;
+            $newVals[$f] = $update[$f] ?? null;
+        }
 
         DB::table('users')->where('id', $user->id)->update($update);
 
@@ -1106,8 +1987,21 @@ private function normalizeRole(?string $role): array
             'user_id' => $user->id,
         ]);
 
+        // ✅ ACTIVITY LOG (update_me)
+        $this->activityLog(
+            $request,
+            'update_me',
+            'users',
+            'users',
+            (int)$user->id,
+            $changedFields,
+            $oldVals,
+            $newVals,
+            'Self profile updated'
+        );
+
         $fresh = DB::table('users')
-            ->select(self::SELECT_COLUMNS)
+            ->select($this->userSelectColumns())
             ->where('id', $user->id)
             ->first();
 
@@ -1117,937 +2011,1149 @@ private function normalizeRole(?string $role): array
         ]);
     }
 
- /* ============================================
- | PUBLIC: Faculty Index
- | GET /api/public/faculty
- |============================================ */
-public function facultyindex(Request $request)
+    /* ============================================
+     | PUBLIC: Faculty Index
+     | GET /api/public/faculty
+     |============================================ */
+    public function facultyindex(Request $request)
+    {
+        $page    = max(1, (int)$request->query('page', 1));
+        $perPage = (int)$request->query('per_page', 12);
+        $perPage = max(6, min(60, $perPage));
 
-{
+        $qText    = trim((string)$request->query('q', ''));
+        $status   = trim((string)$request->query('status', 'active')) ?: 'active';
+        $deptUuid = trim((string)$request->query('dept_uuid', ''));
 
-    $page    = max(1, (int)$request->query('page', 1));
+        $sort = (string)$request->query('sort', 'created_at');
+        $dir  = strtolower((string)$request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
 
-    $perPage = (int)$request->query('per_page', 12);
+        $allowedSort = ['created_at','updated_at','name','id'];
+        if (!in_array($sort, $allowedSort, true)) $sort = 'created_at';
 
-    $perPage = max(6, min(60, $perPage));
- 
-    $qText    = trim((string)$request->query('q', ''));
+        // ✅ exclude roles
+        $excludedRoles = ['super_admin', 'admin', 'student', 'students', 'alumni', 'program_topper']; // ✅ added program_topper
 
-    $status   = trim((string)$request->query('status', 'active')) ?: 'active';
+        // ✅ detect where dept mapping exists
+        $upiHasDept  = Schema::hasColumn('user_personal_information', 'department_id');
+        $userHasDept = Schema::hasColumn('users', 'department_id');
 
-    $deptUuid = trim((string)$request->query('dept_uuid', '')); // ✅ new
- 
-    $sort = (string)$request->query('sort', 'created_at');
+        $base = DB::table('users as u')
+            ->leftJoin('user_personal_information as upi', 'upi.user_id', '=', 'u.id')
+            ->whereNull('u.deleted_at')
+            ->whereNotIn('u.role', $excludedRoles)
+            ->where('u.status', $status)
+            ->where(function ($w) {
+                $w->whereNull('upi.id')->orWhereNull('upi.deleted_at');
+            });
 
-    $dir  = strtolower((string)$request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-
-    $allowedSort = ['created_at','updated_at','name','id'];
-
-    if (!in_array($sort, $allowedSort, true)) $sort = 'created_at';
- 
-    // ✅ exclude roles
-
-    $excludedRoles = ['super_admin', 'admin', 'student', 'students'];
- 
-    // ✅ detect where dept mapping exists
-
-    $upiHasDept  = Schema::hasColumn('user_personal_information', 'department_id');
-
-    $userHasDept = Schema::hasColumn('users', 'department_id');
- 
-    $base = DB::table('users as u')
-
-        ->leftJoin('user_personal_information as upi', 'upi.user_id', '=', 'u.id')
-
-        ->whereNull('u.deleted_at')
-
-        ->whereNotIn('u.role', $excludedRoles)
-
-        ->where('u.status', $status)
-
-        ->where(function ($w) {
-
-            $w->whereNull('upi.id')->orWhereNull('upi.deleted_at');
-
-        });
- 
-    // ✅ join departments if possible (so we can return uuid/title)
-
-    // priority: upi.department_id -> else users.department_id
-
-    if ($upiHasDept) {
-
-        $base->leftJoin('departments as d', 'd.id', '=', 'upi.department_id');
-
-    } elseif ($userHasDept) {
-
-        $base->leftJoin('departments as d', 'd.id', '=', 'u.department_id');
-
-    }
- 
-    // ✅ dept filter by dept_uuid (works like announcements deep-link)
-
-    if ($deptUuid !== '') {
-
-        $dept = DB::table('departments')
-
-            ->select(['id','uuid','title'])
-
-            ->where('uuid', $deptUuid)
-
-            ->whereNull('deleted_at')
-
-            ->first();
- 
-        if (!$dept) {
-
-            // no such dept -> return empty but valid payload
-
-            return response()->json([
-
-                'success' => true,
-
-                'data' => [],
-
-                'pagination' => [
-
-                    'page' => $page,
-
-                    'per_page' => $perPage,
-
-                    'total' => 0,
-
-                    'last_page' => 1,
-
-                ],
-
-            ]);
-
+        // ✅ join departments if possible
+        if ($upiHasDept) {
+            $base->leftJoin('departments as d', 'd.id', '=', 'upi.department_id');
+        } elseif ($userHasDept) {
+            $base->leftJoin('departments as d', 'd.id', '=', 'u.department_id');
         }
- 
-        $deptId = (int)$dept->id;
- 
-        // apply filter where mapping exists
 
-        $base->where(function ($w) use ($deptId, $upiHasDept, $userHasDept) {
+        // ✅ dept filter by dept_uuid
+        if ($deptUuid !== '') {
+            $dept = DB::table('departments')
+                ->select(['id','uuid','title'])
+                ->where('uuid', $deptUuid)
+                ->whereNull('deleted_at')
+                ->first();
 
-            // if both exist, accept either
+            if (!$dept) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'pagination' => [
+                        'page' => $page,
+                        'per_page' => $perPage,
+                        'total' => 0,
+                        'last_page' => 1,
+                    ],
+                ]);
+            }
 
-            if ($upiHasDept)  $w->orWhere('upi.department_id', $deptId);
+            $deptId = (int)$dept->id;
 
-            if ($userHasDept) $w->orWhere('u.department_id', $deptId);
+            $base->where(function ($w) use ($deptId, $upiHasDept, $userHasDept) {
+                if ($upiHasDept)  $w->orWhere('upi.department_id', $deptId);
+                if ($userHasDept) $w->orWhere('u.department_id', $deptId);
+            });
+        }
 
-        });
+        if ($qText !== '') {
+            $term = '%' . $qText . '%';
+            $base->where(function ($w) use ($term) {
+                $w->where('u.name', 'like', $term)
+                  ->orWhere('u.name_short_form', 'like', $term)   // ✅ NEW
+                  ->orWhere('u.employee_id', 'like', $term)       // ✅ NEW
+                  ->orWhere('u.email', 'like', $term)
+                  ->orWhere('upi.affiliation', 'like', $term)
+                  ->orWhere('upi.specification', 'like', $term)
+                  ->orWhere('upi.experience', 'like', $term)
+                  ->orWhere('upi.interest', 'like', $term)
+                  ->orWhere('upi.administration', 'like', $term)
+                  ->orWhere('upi.research_project', 'like', $term);
+            });
+        }
 
-    }
- 
-    if ($qText !== '') {
+        $total    = (clone $base)->distinct('u.id')->count('u.id');
+        $lastPage = max(1, (int)ceil($total / $perPage));
 
-        $term = '%' . $qText . '%';
+        $deptIdSelect = $upiHasDept ? 'upi.department_id' : ($userHasDept ? 'u.department_id' : null);
 
-        $base->where(function ($w) use ($term) {
+        // ✅ only add these cols if exist (avoid breaking before migration)
+        $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+        $hasEmpId     = Schema::hasColumn('users', 'employee_id');
 
-            $w->where('u.name', 'like', $term)
+        $rows = (clone $base)
+            ->select(array_filter([
+                'u.id',
+                'u.uuid',
+                'u.slug',
+                'u.name',
+                $hasNameShort ? 'u.name_short_form' : null, // ✅ NEW
+                'u.email',
+                'u.image',
+                'u.role',
+                'u.role_short_form',
+                $hasEmpId ? 'u.employee_id' : null, // ✅ NEW
+                'u.status',
+                'u.created_at',
+                'u.updated_at',
 
-              ->orWhere('u.email', 'like', $term)
+                'upi.uuid as personal_info_uuid',
+                'upi.qualification',
+                'upi.affiliation',
+                'upi.specification',
+                'upi.experience',
+                'upi.interest',
+                'upi.administration',
+                'upi.research_project',
 
-              ->orWhere('upi.affiliation', 'like', $term)
-
-              ->orWhere('upi.specification', 'like', $term)
-
-              ->orWhere('upi.experience', 'like', $term)
-
-              ->orWhere('upi.interest', 'like', $term)
-
-              ->orWhere('upi.administration', 'like', $term)
-
-              ->orWhere('upi.research_project', 'like', $term);
-
-        });
-
-    }
- 
-    $total    = (clone $base)->distinct('u.id')->count('u.id');
-
-    $lastPage = max(1, (int)ceil($total / $perPage));
- 
-    $deptIdSelect = $upiHasDept ? 'upi.department_id' : ($userHasDept ? 'u.department_id' : null);
- 
-    $rows = (clone $base)
-
-        ->select(array_filter([
-
-            'u.id',
-
-            'u.uuid',
-
-            'u.slug',
-
-            'u.name',
-
-            'u.email',
-
-            'u.image',
-
-            'u.role',
-
-            'u.role_short_form',
-
-            'u.status',
-
-            'u.created_at',
-
-            'u.updated_at',
- 
-            'upi.uuid as personal_info_uuid',
-
-            'upi.qualification',
-
-            'upi.affiliation',
-
-            'upi.specification',
-
-            'upi.experience',
-
-            'upi.interest',
-
-            'upi.administration',
-
-            'upi.research_project',
- 
-            // ✅ department fields
-
-            $deptIdSelect ? DB::raw($deptIdSelect . ' as department_id') : null,
-
-            ($upiHasDept || $userHasDept) ? 'd.uuid as department_uuid' : null,
-
-            ($upiHasDept || $userHasDept) ? 'd.title as department_title' : null,
-
-        ]))
-
-        ->orderBy($sort === 'name' ? 'u.name' : 'u.' . $sort, $dir)
-
-        ->orderBy('u.id', 'desc')
-
-        ->forPage($page, $perPage)
-
-        ->get();
- 
-    // socials (same as your code)
-
-    $ids = $rows->pluck('id')->filter()->values()->all();
-
-    $socialsByUserId = [];
- 
-    if (!empty($ids)) {
-
-        $socialRows = DB::table('user_social_media as usm')
-
-            ->select([
-
-                'usm.user_id',
-
-                'usm.platform',
-
-                'usm.icon',
-
-                'usm.link',
-
-                'usm.sort_order',
-
-                'usm.metadata',
-
-            ])
-
-            ->whereIn('usm.user_id', $ids)
-
-            ->whereNull('usm.deleted_at')
-
-            ->where('usm.active', 1)
-
-            ->orderBy('usm.sort_order', 'asc')
-
-            ->orderBy('usm.id', 'asc')
-
+                // ✅ department fields
+                $deptIdSelect ? DB::raw($deptIdSelect . ' as department_id') : null,
+                ($upiHasDept || $userHasDept) ? 'd.uuid as department_uuid' : null,
+                ($upiHasDept || $userHasDept) ? 'd.title as department_title' : null,
+            ]))
+            ->orderBy($sort === 'name' ? 'u.name' : 'u.' . $sort, $dir)
+            ->orderBy('u.id', 'desc')
+            ->forPage($page, $perPage)
             ->get();
- 
-        foreach ($socialRows as $s) {
 
-            $platform = strtolower(trim((string)$s->platform));
-
-            $socialsByUserId[(int)$s->user_id][] = [
-
-                'platform'   => $platform,
-
-                'icon'       => (string)($s->icon ?? ''),
-
-                'url'        => (string)($s->link ?? ''),
-
-                'sort_order' => (int)($s->sort_order ?? 0),
-
-                'metadata'   => $this->maybeJson($s->metadata),
-
-            ];
-
-        }
-
-    }
- 
-    $rows->each(function ($r) use ($socialsByUserId) {
-
-        $r->socials = $socialsByUserId[(int)$r->id] ?? [];
-
-    });
- 
-    $items = $rows->map(fn($r) => $this->normalizeRow($r))->values()->all();
- 
-    return response()->json([
-
-        'success' => true,
-
-        'data' => $items,
-
-        'pagination' => [
-
-            'page'      => $page,
-
-            'per_page'  => $perPage,
-
-            'total'     => $total,
-
-            'last_page' => $lastPage,
-
-        ],
-
-    ]);
-
-}
-
- 
-/* =========================
- | Helpers for Faculty API
- * ========================= */
-
-protected function maybeJson($v)
-{
-    if ($v === null) return null;
-    if (is_array($v) || is_object($v)) return $v;
-    $s = trim((string)$v);
-    if ($s === '') return null;
-    try { return json_decode($s, true, 512, JSON_THROW_ON_ERROR); }
-    catch (\Throwable $e) { return $v; }
-}
-
-protected function toUrl(?string $path): ?string
-{
-    $path = trim((string)$path);
-    if ($path === '') return null;
-
-    // already absolute
-    if (preg_match('~^https?://~i', $path)) return $path;
-
-    // normalize to /...
-    $path = '/' . ltrim($path, '/');
-
-    return rtrim(config('app.url'), '/') . $path;
-}
-protected function normalizeRow($r): array
-{
-    $qualification = $this->maybeJson($r->qualification);
-    if (is_array($qualification)) {
-        // keep array -> frontend can join
-    } elseif ($qualification === null) {
-        $qualification = null;
-    } else {
-        $qualification = (string)$qualification;
-    }
- 
-    // website can also be stored as a "website" platform row (optional)
-    $website = null;
-    $socials = [];
-    $rawSocials = is_array($r->socials ?? null) ? $r->socials : [];
- 
-    foreach ($rawSocials as $s) {
-        $plat = strtolower(trim((string)($s['platform'] ?? '')));
-        $url  = trim((string)($s['url'] ?? ''));
- 
-        if ($plat === 'website' || $plat === 'site' || $plat === 'web' || $plat === 'personal_website') {
-            if ($website === null && $url !== '') $website = $url;
-            continue; // don’t show website as icon
-        }
- 
-        $socials[] = [
-            'platform'   => $plat,
-            'icon'       => (string)($s['icon'] ?? ''),
-            'url'        => $url,
-            'sort_order' => (int)($s['sort_order'] ?? 0),
-        ];
-    }
- 
-    return [
-        'id' => (int)$r->id,
-        'uuid' => (string)$r->uuid,
-        'slug' => (string)($r->slug ?? ''),
-        'name' => (string)($r->name ?? ''),
-        'email' => (string)($r->email ?? ''),
- 
-        'image' => (string)($r->image ?? ''),
-        'image_full_url' => $this->toUrl($r->image),
- 
-        // this line in your screenshot is basically "designation"
-        'designation' => (string)($r->affiliation ?? ''),
- 
-        'qualification' => $qualification,
-        'specification' => (string)($r->specification ?? ''),
-        'experience' => (string)($r->experience ?? ''),
- 
-        'website' => $website,
- 
-        'department_id'    => isset($r->department_id) ? (int)$r->department_id : null,
-'department_uuid'  => (string)($r->department_uuid ?? ''),
-'department_title' => (string)($r->department_title ?? ''),
- 
- 
-        // ✅ socials come from user_social_media
-        'socials' => $socials,
-    ];
-}
- 
-/* ============================================
- | PUBLIC: Placement Officer Index
- | GET /api/public/placement-officers
- |============================================ */
-public function placementOfficerIndex(Request $request)
-{
-    $page    = max(1, (int)$request->query('page', 1));
-    $perPage = (int)$request->query('per_page', 12);
-    $perPage = max(6, min(60, $perPage));
- 
-    $qText   = trim((string)$request->query('q', ''));
-    $status  = trim((string)$request->query('status', 'active')) ?: 'active';
- 
-    // ✅ allow multiple param names (frontend can use any)
-    $deptUuid = trim((string)(
-        $request->query('dept_uuid', '') ?:
-        $request->query('department_uuid', '') ?:
-        $request->query('department', '')
-    ));
- 
-    $sort = (string)$request->query('sort', 'created_at');
-    $dir  = strtolower((string)$request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
- 
-    $allowedSort = ['created_at','updated_at','name','id'];
-    if (!in_array($sort, $allowedSort, true)) $sort = 'created_at';
- 
-    // ✅ keep only placement roles (your normalizeRole stores: placement_officer)
-    $placementRoles = [
-        'placement_officer',
-        'placement_officer_admin',
-        'tpo',
-        'training_placement_officer',
-        'placement',
-        'placement_cell',
-    ];
- 
-    // ✅ detect where dept mapping exists
-    $upiHasDept  = Schema::hasColumn('user_personal_information', 'department_id');
-    $userHasDept = Schema::hasColumn('users', 'department_id');
- 
-    $base = DB::table('users as u')
-        ->leftJoin('user_personal_information as upi', 'upi.user_id', '=', 'u.id')
-        ->whereNull('u.deleted_at')
-        ->where('u.status', $status)
-        ->where(function ($w) use ($placementRoles) {
-            // allow either role match OR short form match
-            $w->whereIn('u.role', $placementRoles)
-              ->orWhere('u.role_short_form', 'TPO');
-        })
-        ->where(function ($w) {
-            $w->whereNull('upi.id')->orWhereNull('upi.deleted_at');
-        });
- 
-    // ✅ join departments (support both storages)
-    if ($upiHasDept) {
-        $base->leftJoin('departments as d_upi', function ($join) {
-            $join->on('d_upi.id', '=', 'upi.department_id')
-                 ->whereNull('d_upi.deleted_at');
-        });
-    }
-    if ($userHasDept) {
-        $base->leftJoin('departments as d_user', function ($join) {
-            $join->on('d_user.id', '=', 'u.department_id')
-                 ->whereNull('d_user.deleted_at');
-        });
-    }
- 
-    // ✅ dept filter by dept_uuid (optional)
-    if ($deptUuid !== '') {
-        if (!($upiHasDept || $userHasDept)) {
-            // mapping not available anywhere -> return empty but valid payload
-            return response()->json([
-                'success' => true,
-                'data' => [],
-                'pagination' => [
-                    'page' => $page,
-                    'per_page' => $perPage,
-                    'total' => 0,
-                    'last_page' => 1,
-                ],
-            ]);
-        }
- 
-        $dept = DB::table('departments')
-            ->select(['id','uuid','title'])
-            ->where('uuid', $deptUuid)
-            ->whereNull('deleted_at')
-            ->first();
- 
-        if (!$dept) {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-                'pagination' => [
-                    'page' => $page,
-                    'per_page' => $perPage,
-                    'total' => 0,
-                    'last_page' => 1,
-                ],
-            ]);
-        }
- 
-        $deptId = (int)$dept->id;
- 
-        $base->where(function ($w) use ($deptId, $upiHasDept, $userHasDept) {
-            if ($upiHasDept)  $w->orWhere('upi.department_id', $deptId);
-            if ($userHasDept) $w->orWhere('u.department_id', $deptId);
-        });
-    }
- 
-    // ✅ search
-    if ($qText !== '') {
-        $term = '%' . $qText . '%';
-        $base->where(function ($w) use ($term) {
-            $w->where('u.name', 'like', $term)
-              ->orWhere('u.email', 'like', $term)
-              ->orWhere('upi.affiliation', 'like', $term)
-              ->orWhere('upi.specification', 'like', $term)
-              ->orWhere('upi.experience', 'like', $term)
-              ->orWhere('upi.interest', 'like', $term)
-              ->orWhere('upi.administration', 'like', $term)
-              ->orWhere('upi.research_project', 'like', $term);
-        });
-    }
- 
-    $total    = (clone $base)->distinct('u.id')->count('u.id');
-    $lastPage = max(1, (int)ceil($total / $perPage));
- 
-    // ✅ select dept fields correctly
-    $deptIdSelect = null;
-    $deptUuidSelect = null;
-    $deptTitleSelect = null;
- 
-    if ($upiHasDept && $userHasDept) {
-        $deptIdSelect    = DB::raw('COALESCE(upi.department_id, u.department_id) as department_id');
-        $deptUuidSelect  = DB::raw('COALESCE(d_upi.uuid, d_user.uuid) as department_uuid');
-        $deptTitleSelect = DB::raw('COALESCE(d_upi.title, d_user.title) as department_title');
-    } elseif ($upiHasDept) {
-        $deptIdSelect    = DB::raw('upi.department_id as department_id');
-        $deptUuidSelect  = DB::raw('d_upi.uuid as department_uuid');
-        $deptTitleSelect = DB::raw('d_upi.title as department_title');
-    } elseif ($userHasDept) {
-        $deptIdSelect    = DB::raw('u.department_id as department_id');
-        $deptUuidSelect  = DB::raw('d_user.uuid as department_uuid');
-        $deptTitleSelect = DB::raw('d_user.title as department_title');
-    }
- 
-    $rows = (clone $base)
-        ->select(array_filter([
-            'u.id',
-            'u.uuid',
-            'u.slug',
-            'u.name',
-            'u.email',
-            'u.image',
-            'u.role',
-            'u.role_short_form',
-            'u.status',
-            'u.created_at',
-            'u.updated_at',
- 
-            'upi.uuid as personal_info_uuid',
-            'upi.qualification',
-            'upi.affiliation',
-            'upi.specification',
-            'upi.experience',
-            'upi.interest',
-            'upi.administration',
-            'upi.research_project',
- 
-            // ✅ dept fields
-            $deptIdSelect,
-            $deptUuidSelect,
-            $deptTitleSelect,
-        ]))
-        ->orderBy($sort === 'name' ? 'u.name' : 'u.' . $sort, $dir)
-        ->orderBy('u.id', 'desc')
-        ->forPage($page, $perPage)
-        ->get();
- 
-    // socials (same as your code)
-    $ids = $rows->pluck('id')->filter()->values()->all();
-    $socialsByUserId = [];
- 
-    if (!empty($ids)) {
-        $socialRows = DB::table('user_social_media as usm')
-            ->select([
-                'usm.user_id',
-                'usm.platform',
-                'usm.icon',
-                'usm.link',
-                'usm.sort_order',
-                'usm.metadata',
-            ])
-            ->whereIn('usm.user_id', $ids)
-            ->whereNull('usm.deleted_at')
-            ->where('usm.active', 1)
-            ->orderBy('usm.sort_order', 'asc')
-            ->orderBy('usm.id', 'asc')
-            ->get();
- 
-        foreach ($socialRows as $s) {
-            $platform = strtolower(trim((string)$s->platform));
-            $socialsByUserId[(int)$s->user_id][] = [
-                'platform'   => $platform,
-                'icon'       => (string)($s->icon ?? ''),
-                'url'        => (string)($s->link ?? ''),
-                'sort_order' => (int)($s->sort_order ?? 0),
-                'metadata'   => $this->maybeJson($s->metadata),
-            ];
-        }
-    }
- 
-    $rows->each(function ($r) use ($socialsByUserId) {
-        $r->socials = $socialsByUserId[(int)$r->id] ?? [];
-    });
- 
-    $items = $rows->map(fn($r) => $this->normalizeRow($r))->values()->all();
- 
-    return response()->json([
-        'success' => true,
-        'data' => $items,
-        'pagination' => [
-            'page'      => $page,
-            'per_page'  => $perPage,
-            'total'     => $total,
-            'last_page' => $lastPage,
-        ],
-    ]);
-}
-public function exportUsersCsv(Request $request)
-{
-    $filename = 'users_export_' . now()->format('Y-m-d_His') . '.csv';
-
-    $query = DB::table('users')
-        ->select(['name', 'email', 'phone_number', 'role'])
-        ->whereNull('deleted_at')
-        ->orderBy('id', 'asc');
-
-    // ✅ optional filter: /api/users/export-csv?role=student
-    if ($request->filled('role')) {
-        $query->where('role', $request->query('role'));
-    }
-
-    $headers = [
-        'Content-Type'        => 'text/csv; charset=UTF-8',
-        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        'Cache-Control'       => 'no-store, no-cache, must-revalidate',
-        'Pragma'              => 'no-cache',
-    ];
-
-    return response()->stream(function () use ($query) {
-        $out = fopen('php://output', 'w');
-
-        // (Optional but helpful for Excel UTF-8)
-        // fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-
-        fputcsv($out, ['name', 'email', 'phno', 'role']);
-
-        $seenEmail = [];
-        $seenPhone = [];
-
-        foreach ($query->cursor() as $u) {
-            $name  = trim((string)($u->name ?? ''));
-            $email = strtolower(trim((string)($u->email ?? '')));
-            $phno  = trim((string)($u->phone_number ?? ''));
-            $role  = trim((string)($u->role ?? ''));
-
-            if ($name === '' && $email === '' && $phno === '' && $role === '') continue;
-
-            if ($email !== '') {
-                if (isset($seenEmail[$email])) continue;
-                $seenEmail[$email] = true;
-            }
-
-            if ($phno !== '') {
-                if (isset($seenPhone[$phno])) continue;
-                $seenPhone[$phno] = true;
-            }
-
-            fputcsv($out, [$name, $email, $phno, $role]);
-        }
-
-        fclose($out);
-    }, 200, $headers);
-}
-
-public function importUsersCsv(Request $request)
-{
-    $request->validate([
-        'file' => 'required|file|mimes:csv,txt',
-        'update_existing' => 'nullable|boolean',
-        'create_missing'  => 'nullable|boolean',
-    ]);
-
-    $updateExisting = (bool) $request->input('update_existing', true);
-    $createMissing  = (bool) $request->input('create_missing', true);
-
-    // ✅ default password if CSV password is missing
-    $DEFAULT_PASSWORD = '12345678';
-
-    $file = $request->file('file');
-    $path = $file->getRealPath();
-
-    $imported = 0;
-    $updated  = 0;
-    $skipped  = 0;
-    $errors   = [];
-
-    $handle = fopen($path, 'r');
-    if (!$handle) {
-        return response()->json(['success' => false, 'error' => 'Failed to read uploaded CSV.'], 422);
-    }
-
-    $header = fgetcsv($handle);
-    if (!$header) {
-        fclose($handle);
-        return response()->json(['success' => false, 'error' => 'CSV header missing.'], 422);
-    }
-
-    // normalize header (remove BOM on first column too)
-    $cols = array_map(function ($h) {
-        $h = trim((string)$h);
-        $h = preg_replace('/^\xEF\xBB\xBF/', '', $h); // BOM
-        return strtolower($h);
-    }, $header);
-
-    $idx = array_flip($cols);
-
-    foreach (['name', 'email'] as $c) {
-        if (!array_key_exists($c, $idx)) {
-            fclose($handle);
-            return response()->json(['success' => false, 'error' => "Missing required column: {$c}"], 422);
-        }
-    }
-
-    // small helpers
-    $get = function(array $row, string $key) use ($idx) {
-        if (!isset($idx[$key])) return null;
-        $v = $row[$idx[$key]] ?? null;
-        $v = is_string($v) ? trim($v) : $v;
-        return ($v === '' ? null : $v);
-    };
-
-    $getAny = function(array $row, array $keys) use ($get) {
-        foreach ($keys as $k) {
-            $v = $get($row, $k);
-            if ($v !== null) return $v;
-        }
-        return null;
-    };
-
-    $makeUniqueSlug = function(string $base, ?int $ignoreId = null) {
-        $base = Str::slug($base) ?: 'user';
-        $try = $base;
-
-        $i = 0;
-        while (true) {
-            $q = DB::table('users')->where('slug', $try);
-            if ($ignoreId) $q->where('id', '!=', $ignoreId);
-            if (!$q->exists()) break;
-
-            $i++;
-            $try = $base . '-' . Str::lower(Str::random(6));
-            if ($i > 30) break;
-        }
-        return $try;
-    };
-
-    $roleShort = function(string $role) {
-        $role = strtolower(trim($role));
-        $map = [
-            'faculty' => 'FAC',
-            'hod' => 'HOD',
-            'tpo' => 'TPO',
-            'placement_officer' => 'TPO',
-            'technical_assistant' => 'TA',
-            'technical_assisstant' => 'TA',
-            'student' => 'STU',
-        ];
-        return $map[$role] ?? strtoupper(substr($role ?: 'FAC', 0, 3));
-    };
-
-    $rowNum = 1;
-
-    DB::beginTransaction();
-    try {
-        while (($row = fgetcsv($handle)) !== false) {
-            $rowNum++;
-
-            // skip blank row
-            if (count(array_filter($row, fn($v) => trim((string)$v) !== '')) === 0) {
-                continue;
-            }
-
-            $name  = $get($row, 'name');
-            $email = $get($row, 'email');
-
-            if (!$email) { $skipped++; $errors[] = ['row' => $rowNum, 'error' => 'Email missing']; continue; }
-            if (!$name)  { $skipped++; $errors[] = ['row' => $rowNum, 'error' => 'Name missing']; continue; }
-
-            $email = strtolower(trim($email));
-
-            // role (no constraints)
-            $role = strtolower((string)($getAny($row, ['role']) ?? 'faculty'));
-
-            // status
-            $stRaw = strtolower((string)($getAny($row, ['status']) ?? 'active'));
-            $status = ($stRaw === 'inactive') ? 'inactive' : 'active';
-
-            // department_id (optional)
-            $dep = $getAny($row, ['department_id', 'dept_id']);
-            $departmentId = null;
-            if ($dep !== null) {
-                $depInt = (int)$dep;
-                $departmentId = $depInt > 0 ? $depInt : null;
-            }
-
-            // uuid/slug from csv if present, else generate
-            $uuid = $getAny($row, ['uuid']);
-            if (!$uuid || strlen((string)$uuid) < 10) $uuid = (string) Str::uuid();
-
-            $slugInCsv = $getAny($row, ['slug']);
-            $slugBase = $slugInCsv ?: $name;
-
-            // password: use CSV password if present, else default 12345678
-            $csvPassword = $getAny($row, ['password', 'pass']);
-            $finalPassword = ($csvPassword !== null && trim((string)$csvPassword) !== '')
-                ? trim((string)$csvPassword)
-                : $DEFAULT_PASSWORD;
-
-            // optional fields (accept common aliases too)
-            $phone = $getAny($row, ['phone_number','phone','mobile']);
-            $altEmail = $getAny($row, ['alternative_email','alt_email']);
-            $altPhone = $getAny($row, ['alternative_phone_number','alt_phone']);
-            $wa = $getAny($row, ['whatsapp_number','whatsapp']);
-            $image = $getAny($row, ['image','image_url']);
-            $address = $getAny($row, ['address']);
-            $meta = $getAny($row, ['metadata']);
-
-            // find existing even if soft deleted
-            $existing = DB::table('users')->where('email', $email)->first();
-
-            $now = now();
-
-            if ($existing) {
-                if (!$updateExisting) { $skipped++; continue; }
-
-                // if slug provided, use it; else keep existing slug
-                $newSlug = $existing->slug;
-                if ($slugInCsv) {
-                    $newSlug = $makeUniqueSlug($slugBase, (int)$existing->id);
-                }
-
-                $updateData = [
-                    'name' => $name,
-                    'email' => $email,
-                    'role' => $role ?: ($existing->role ?? 'faculty'),
-                    'role_short_form' => $roleShort($role ?: ($existing->role ?? 'faculty')),
-                    'status' => $status ?: ($existing->status ?? 'active'),
-                    'department_id' => $departmentId,
-                    'slug' => $newSlug ?: $existing->slug,
-                    'uuid' => $existing->uuid ?: $uuid,
-                    'updated_at' => $now,
-                    'deleted_at' => null, // ✅ restore if was soft deleted
+        // socials (same as your code)
+        $ids = $rows->pluck('id')->filter()->values()->all();
+        $socialsByUserId = [];
+
+        if (!empty($ids)) {
+            $socialRows = DB::table('user_social_media as usm')
+                ->select([
+                    'usm.user_id',
+                    'usm.platform',
+                    'usm.icon',
+                    'usm.link',
+                    'usm.sort_order',
+                    'usm.metadata',
+                ])
+                ->whereIn('usm.user_id', $ids)
+                ->whereNull('usm.deleted_at')
+                ->where('usm.active', 1)
+                ->orderBy('usm.sort_order', 'asc')
+                ->orderBy('usm.id', 'asc')
+                ->get();
+
+            foreach ($socialRows as $s) {
+                $platform = strtolower(trim((string)$s->platform));
+                $socialsByUserId[(int)$s->user_id][] = [
+                    'platform'   => $platform,
+                    'icon'       => (string)($s->icon ?? ''),
+                    'url'        => (string)($s->link ?? ''),
+                    'sort_order' => (int)($s->sort_order ?? 0),
+                    'metadata'   => $this->maybeJson($s->metadata),
                 ];
-
-                if ($phone !== null) $updateData['phone_number'] = $phone;
-                if ($altEmail !== null) $updateData['alternative_email'] = $altEmail;
-                if ($altPhone !== null) $updateData['alternative_phone_number'] = $altPhone;
-                if ($wa !== null) $updateData['whatsapp_number'] = $wa;
-                if ($image !== null) $updateData['image'] = $image;
-                if ($address !== null) $updateData['address'] = $address;
-                if ($meta !== null) $updateData['metadata'] = $meta;
-
-                // ✅ only update password if CSV password column is provided & non-empty
-                if ($csvPassword !== null && trim((string)$csvPassword) !== '') {
-                    $updateData['password'] = Hash::make($finalPassword);
-                }
-
-                DB::table('users')->where('id', $existing->id)->update($updateData);
-                $updated++;
-            } else {
-                if (!$createMissing) { $skipped++; continue; }
-
-                $newSlug = $makeUniqueSlug($slugBase, null);
-
-                $insertData = [
-                    'uuid' => $uuid,
-                    'name' => $name,
-                    'slug' => $newSlug,
-                    'email' => $email,
-                    'password' => Hash::make($finalPassword),
-                    'role' => $role ?: 'faculty',
-                    'role_short_form' => $roleShort($role ?: 'faculty'),
-                    'status' => $status ?: 'active',
-                    'department_id' => $departmentId,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-
-                if ($phone !== null) $insertData['phone_number'] = $phone;
-                if ($altEmail !== null) $insertData['alternative_email'] = $altEmail;
-                if ($altPhone !== null) $insertData['alternative_phone_number'] = $altPhone;
-                if ($wa !== null) $insertData['whatsapp_number'] = $wa;
-                if ($image !== null) $insertData['image'] = $image;
-                if ($address !== null) $insertData['address'] = $address;
-                if ($meta !== null) $insertData['metadata'] = $meta;
-
-                DB::table('users')->insert($insertData);
-                $imported++;
             }
         }
 
-        DB::commit();
-    } catch (\Throwable $e) {
-        DB::rollBack();
-        fclose($handle);
+        $rows->each(function ($r) use ($socialsByUserId) {
+            $r->socials = $socialsByUserId[(int)$r->id] ?? [];
+        });
+
+        $items = $rows->map(fn($r) => $this->normalizeRow($r))->values()->all();
 
         return response()->json([
-            'success' => false,
-            'error' => $e->getMessage(),
-            'row' => $rowNum,
-        ], 500);
+            'success' => true,
+            'data' => $items,
+            'pagination' => [
+                'page'      => $page,
+                'per_page'  => $perPage,
+                'total'     => $total,
+                'last_page' => $lastPage,
+            ],
+        ]);
     }
 
-    fclose($handle);
+    /* =========================
+     | Helpers for Faculty API
+     * ========================= */
 
-    return response()->json([
-        'success' => true,
-        'imported' => $imported,
-        'updated' => $updated,
-        'skipped' => $skipped,
-        'errors' => $errors,
-    ]);
-}
+    protected function maybeJson($v)
+    {
+        if ($v === null) return null;
+        if (is_array($v) || is_object($v)) return $v;
+        $s = trim((string)$v);
+        if ($s === '') return null;
+        try { return json_decode($s, true, 512, JSON_THROW_ON_ERROR); }
+        catch (\Throwable $e) { return $v; }
+    }
 
+    protected function toUrl(?string $path): ?string
+    {
+        $path = trim((string)$path);
+        if ($path === '') return null;
+
+        // already absolute
+        if (preg_match('~^https?://~i', $path)) return $path;
+
+        // normalize to /...
+        $path = '/' . ltrim($path, '/');
+
+        return rtrim(config('app.url'), '/') . $path;
+    }
+
+    protected function normalizeRow($r): array
+    {
+        $qualification = $this->maybeJson($r->qualification);
+        if (is_array($qualification)) {
+            // keep array -> frontend can join
+        } elseif ($qualification === null) {
+            $qualification = null;
+        } else {
+            $qualification = (string)$qualification;
+        }
+
+        // website can also be stored as a "website" platform row (optional)
+        $website = null;
+        $socials = [];
+        $rawSocials = is_array($r->socials ?? null) ? $r->socials : [];
+
+        foreach ($rawSocials as $s) {
+            $plat = strtolower(trim((string)($s['platform'] ?? '')));
+            $url  = trim((string)($s['url'] ?? ''));
+
+            if ($plat === 'website' || $plat === 'site' || $plat === 'web' || $plat === 'personal_website') {
+                if ($website === null && $url !== '') $website = $url;
+                continue; // don’t show website as icon
+            }
+
+            $socials[] = [
+                'platform'   => $plat,
+                'icon'       => (string)($s['icon'] ?? ''),
+                'url'        => $url,
+                'sort_order' => (int)($s['sort_order'] ?? 0),
+            ];
+        }
+
+        return [
+            'id' => (int)$r->id,
+            'uuid' => (string)$r->uuid,
+            'slug' => (string)($r->slug ?? ''),
+            'name' => (string)($r->name ?? ''),
+            'name_short_form' => (string)($r->name_short_form ?? ''), // ✅ NEW
+            'employee_id' => (string)($r->employee_id ?? ''),         // ✅ NEW
+            'email' => (string)($r->email ?? ''),
+
+            'image' => (string)($r->image ?? ''),
+            'image_full_url' => $this->toUrl($r->image),
+
+            // this line in your screenshot is basically "designation"
+            'designation' => (string)($r->affiliation ?? ''),
+
+            'qualification' => $qualification,
+            'specification' => (string)($r->specification ?? ''),
+            'experience' => (string)($r->experience ?? ''),
+
+            'website' => $website,
+
+            'department_id'    => isset($r->department_id) ? (int)$r->department_id : null,
+            'department_uuid'  => (string)($r->department_uuid ?? ''),
+            'department_title' => (string)($r->department_title ?? ''),
+
+            // ✅ socials come from user_social_media
+            'socials' => $socials,
+        ];
+    }
+
+    /* ============================================
+     | PUBLIC: Placement Officer Index
+     | GET /api/public/placement-officers
+     |============================================ */
+    public function placementOfficerIndex(Request $request)
+    {
+        $page    = max(1, (int)$request->query('page', 1));
+        $perPage = (int)$request->query('per_page', 12);
+        $perPage = max(6, min(60, $perPage));
+
+        $qText   = trim((string)$request->query('q', ''));
+        $status  = trim((string)$request->query('status', 'active')) ?: 'active';
+
+        // ✅ allow multiple param names (frontend can use any)
+        $deptUuid = trim((string)(
+            $request->query('dept_uuid', '') ?:
+            $request->query('department_uuid', '') ?:
+            $request->query('department', '')
+        ));
+
+        $sort = (string)$request->query('sort', 'created_at');
+        $dir  = strtolower((string)$request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $allowedSort = ['created_at','updated_at','name','id'];
+        if (!in_array($sort, $allowedSort, true)) $sort = 'created_at';
+
+        // ✅ keep only placement roles (your normalizeRole stores: placement_officer)
+        $placementRoles = [
+            'placement_officer',
+            'placement_officer_admin',
+            'tpo',
+            'training_placement_officer',
+            'placement',
+            'placement_cell',
+        ];
+
+        // ✅ detect where dept mapping exists
+        $upiHasDept  = Schema::hasColumn('user_personal_information', 'department_id');
+        $userHasDept = Schema::hasColumn('users', 'department_id');
+
+        $base = DB::table('users as u')
+            ->leftJoin('user_personal_information as upi', 'upi.user_id', '=', 'u.id')
+            ->whereNull('u.deleted_at')
+            ->where('u.status', $status)
+            ->where(function ($w) use ($placementRoles) {
+                $w->whereIn('u.role', $placementRoles)
+                  ->orWhere('u.role_short_form', 'TPO');
+            })
+            ->where(function ($w) {
+                $w->whereNull('upi.id')->orWhereNull('upi.deleted_at');
+            });
+
+        // ✅ join departments (support both storages)
+        if ($upiHasDept) {
+            $base->leftJoin('departments as d_upi', function ($join) {
+                $join->on('d_upi.id', '=', 'upi.department_id')
+                     ->whereNull('d_upi.deleted_at');
+            });
+        }
+        if ($userHasDept) {
+            $base->leftJoin('departments as d_user', function ($join) {
+                $join->on('d_user.id', '=', 'u.department_id')
+                     ->whereNull('d_user.deleted_at');
+            });
+        }
+
+        // ✅ dept filter by dept_uuid (optional)
+        if ($deptUuid !== '') {
+            if (!($upiHasDept || $userHasDept)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'pagination' => [
+                        'page' => $page,
+                        'per_page' => $perPage,
+                        'total' => 0,
+                        'last_page' => 1,
+                    ],
+                ]);
+            }
+
+            $dept = DB::table('departments')
+                ->select(['id','uuid','title'])
+                ->where('uuid', $deptUuid)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$dept) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'pagination' => [
+                        'page' => $page,
+                        'per_page' => $perPage,
+                        'total' => 0,
+                        'last_page' => 1,
+                    ],
+                ]);
+            }
+
+            $deptId = (int)$dept->id;
+
+            $base->where(function ($w) use ($deptId, $upiHasDept, $userHasDept) {
+                if ($upiHasDept)  $w->orWhere('upi.department_id', $deptId);
+                if ($userHasDept) $w->orWhere('u.department_id', $deptId);
+            });
+        }
+
+        // ✅ search
+        if ($qText !== '') {
+            $term = '%' . $qText . '%';
+            $base->where(function ($w) use ($term) {
+                $w->where('u.name', 'like', $term)
+                  ->orWhere('u.name_short_form', 'like', $term)   // ✅ NEW
+                  ->orWhere('u.employee_id', 'like', $term)       // ✅ NEW
+                  ->orWhere('u.email', 'like', $term)
+                  ->orWhere('upi.affiliation', 'like', $term)
+                  ->orWhere('upi.specification', 'like', $term)
+                  ->orWhere('upi.experience', 'like', $term)
+                  ->orWhere('upi.interest', 'like', $term)
+                  ->orWhere('upi.administration', 'like', $term)
+                  ->orWhere('upi.research_project', 'like', $term);
+            });
+        }
+
+        $total    = (clone $base)->distinct('u.id')->count('u.id');
+        $lastPage = max(1, (int)ceil($total / $perPage));
+
+        // ✅ select dept fields correctly
+        $deptIdSelect = null;
+        $deptUuidSelect = null;
+        $deptTitleSelect = null;
+
+        if ($upiHasDept && $userHasDept) {
+            $deptIdSelect    = DB::raw('COALESCE(upi.department_id, u.department_id) as department_id');
+            $deptUuidSelect  = DB::raw('COALESCE(d_upi.uuid, d_user.uuid) as department_uuid');
+            $deptTitleSelect = DB::raw('COALESCE(d_upi.title, d_user.title) as department_title');
+        } elseif ($upiHasDept) {
+            $deptIdSelect    = DB::raw('upi.department_id as department_id');
+            $deptUuidSelect  = DB::raw('d_upi.uuid as department_uuid');
+            $deptTitleSelect = DB::raw('d_upi.title as department_title');
+        } elseif ($userHasDept) {
+            $deptIdSelect    = DB::raw('u.department_id as department_id');
+            $deptUuidSelect  = DB::raw('d_user.uuid as department_uuid');
+            $deptTitleSelect = DB::raw('d_user.title as department_title');
+        }
+
+        $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+        $hasEmpId     = Schema::hasColumn('users', 'employee_id');
+
+        $rows = (clone $base)
+            ->select(array_filter([
+                'u.id',
+                'u.uuid',
+                'u.slug',
+                'u.name',
+                $hasNameShort ? 'u.name_short_form' : null, // ✅ NEW
+                'u.email',
+                'u.image',
+                'u.role',
+                'u.role_short_form',
+                $hasEmpId ? 'u.employee_id' : null, // ✅ NEW
+                'u.status',
+                'u.created_at',
+                'u.updated_at',
+
+                'upi.uuid as personal_info_uuid',
+                'upi.qualification',
+                'upi.affiliation',
+                'upi.specification',
+                'upi.experience',
+                'upi.interest',
+                'upi.administration',
+                'upi.research_project',
+
+                // ✅ dept fields
+                $deptIdSelect,
+                $deptUuidSelect,
+                $deptTitleSelect,
+            ]))
+            ->orderBy($sort === 'name' ? 'u.name' : 'u.' . $sort, $dir)
+            ->orderBy('u.id', 'desc')
+            ->forPage($page, $perPage)
+            ->get();
+
+        // socials (same as your code)
+        $ids = $rows->pluck('id')->filter()->values()->all();
+        $socialsByUserId = [];
+
+        if (!empty($ids)) {
+            $socialRows = DB::table('user_social_media as usm')
+                ->select([
+                    'usm.user_id',
+                    'usm.platform',
+                    'usm.icon',
+                    'usm.link',
+                    'usm.sort_order',
+                    'usm.metadata',
+                ])
+                ->whereIn('usm.user_id', $ids)
+                ->whereNull('usm.deleted_at')
+                ->where('usm.active', 1)
+                ->orderBy('usm.sort_order', 'asc')
+                ->orderBy('usm.id', 'asc')
+                ->get();
+
+            foreach ($socialRows as $s) {
+                $platform = strtolower(trim((string)$s->platform));
+                $socialsByUserId[(int)$s->user_id][] = [
+                    'platform'   => $platform,
+                    'icon'       => (string)($s->icon ?? ''),
+                    'url'        => (string)($s->link ?? ''),
+                    'sort_order' => (int)($s->sort_order ?? 0),
+                    'metadata'   => $this->maybeJson($s->metadata),
+                ];
+            }
+        }
+
+        $rows->each(function ($r) use ($socialsByUserId) {
+            $r->socials = $socialsByUserId[(int)$r->id] ?? [];
+        });
+
+        $items = $rows->map(fn($r) => $this->normalizeRow($r))->values()->all();
+
+        return response()->json([
+            'success' => true,
+            'data' => $items,
+            'pagination' => [
+                'page'      => $page,
+                'per_page'  => $perPage,
+                'total'     => $total,
+                'last_page' => $lastPage,
+            ],
+        ]);
+    }
+
+    public function exportUsersCsv(Request $request)
+    {
+        // ✅ APPLY accessControl here (export)
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac      = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+
+        $filename = 'users_export_' . now()->format('Y-m-d_His') . '.csv';
+
+        $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+        $hasEmpId     = Schema::hasColumn('users', 'employee_id');
+        $hasDept      = Schema::hasColumn('users', 'department_id'); // ✅ NEW
+
+        // ✅ keep original first columns, append new ones at end (won't break simple consumers)
+        $selectCols = array_filter([
+            'name',
+            'email',
+            'phone_number',
+            'role',
+            $hasNameShort ? 'name_short_form' : null,
+            $hasEmpId ? 'employee_id' : null,
+            $hasDept ? 'department_id' : null, // ✅ NEW
+        ]);
+
+        $query = DB::table('users')
+            ->select($selectCols)
+            ->whereNull('deleted_at')
+            ->orderBy('id', 'asc');
+
+        // ✅ department scoping
+        if ($ac['mode'] === 'none') {
+            $query->whereRaw('1=0'); // empty export
+        } elseif ($ac['mode'] === 'department' && $hasDept) {
+            $query->where('department_id', (int)$ac['department_id']);
+        }
+
+        // ✅ optional filter: /api/users/export-csv?role=student
+        if ($request->filled('role')) {
+            $query->where('role', $request->query('role'));
+        }
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control'       => 'no-store, no-cache, must-revalidate',
+            'Pragma'              => 'no-cache',
+        ];
+
+        return response()->stream(function () use ($query, $hasNameShort, $hasEmpId, $hasDept) {
+            $out = fopen('php://output', 'w');
+
+            // header (original + optional new)
+            $header = ['name', 'email', 'phno', 'role'];
+            if ($hasNameShort) $header[] = 'name_short_form';
+            if ($hasEmpId)     $header[] = 'employee_id';
+            if ($hasDept)      $header[] = 'department_id';
+            fputcsv($out, $header);
+
+            $seenEmail = [];
+            $seenPhone = [];
+
+            foreach ($query->cursor() as $u) {
+                $name  = trim((string)($u->name ?? ''));
+                $email = strtolower(trim((string)($u->email ?? '')));
+                $phno  = trim((string)($u->phone_number ?? ''));
+                $role  = trim((string)($u->role ?? ''));
+
+                if ($name === '' && $email === '' && $phno === '' && $role === '') continue;
+
+                if ($email !== '') {
+                    if (isset($seenEmail[$email])) continue;
+                    $seenEmail[$email] = true;
+                }
+
+                if ($phno !== '') {
+                    if (isset($seenPhone[$phno])) continue;
+                    $seenPhone[$phno] = true;
+                }
+
+                $row = [$name, $email, $phno, $role];
+                if ($hasNameShort) $row[] = trim((string)($u->name_short_form ?? ''));
+                if ($hasEmpId)     $row[] = trim((string)($u->employee_id ?? ''));
+                if ($hasDept)      $row[] = (string)($u->department_id ?? '');
+                fputcsv($out, $row);
+            }
+
+            fclose($out);
+        }, 200, $headers);
+    }
+
+    public function importUsersCsv(Request $request)
+    {
+        // ✅ APPLY accessControl here (import)
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac      = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->activityLog($request, 'import_denied', 'users', 'users', null, null, null, null, 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $forcedDeptId = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        // keep same behavior, but log validation error too
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt',
+                'update_existing' => 'nullable|boolean',
+                'create_missing'  => 'nullable|boolean',
+            ]);
+        } catch (ValidationException $ve) {
+            $this->activityLog(
+                $request,
+                'import_failed_validation',
+                'users',
+                'users',
+                null,
+                ['file','update_existing','create_missing'],
+                null,
+                null,
+                'Validation failed'
+            );
+            throw $ve;
+        }
+
+        $updateExisting = (bool) $request->input('update_existing', true);
+        $createMissing  = (bool) $request->input('create_missing', true);
+
+        // ✅ default password if CSV password is missing
+        $DEFAULT_PASSWORD = '12345678';
+
+        $file = $request->file('file');
+        $path = $file->getRealPath();
+
+        $imported = 0;
+        $updated  = 0;
+        $skipped  = 0;
+
+        // ✅ NEW: academic counters
+        $academicCreated = 0;
+        $academicUpdated = 0;
+        $academicSkipped = 0;
+
+        $errors   = [];
+
+        $handle = fopen($path, 'r');
+        if (!$handle) {
+            $this->activityLog($request, 'import_failed', 'users', 'users', null, null, null, null, 'Failed to read uploaded CSV');
+            return response()->json(['success' => false, 'error' => 'Failed to read uploaded CSV.'], 422);
+        }
+
+        $header = fgetcsv($handle);
+        if (!$header) {
+            fclose($handle);
+            $this->activityLog($request, 'import_failed', 'users', 'users', null, null, null, null, 'CSV header missing');
+            return response()->json(['success' => false, 'error' => 'CSV header missing.'], 422);
+        }
+
+        // ✅ normalize header (remove BOM on first column too)
+        $cols = array_map(function ($h) {
+            $h = trim((string)$h);
+            $h = preg_replace('/^\xEF\xBB\xBF/', '', $h); // BOM
+            return strtolower($h);
+        }, $header);
+
+        $idx = array_flip($cols);
+
+        foreach (['name', 'email'] as $c) {
+            if (!array_key_exists($c, $idx)) {
+                fclose($handle);
+                $this->activityLog($request, 'import_failed', 'users', 'users', null, null, null, ['missing' => $c], "Missing required column: {$c}");
+                return response()->json(['success' => false, 'error' => "Missing required column: {$c}"], 422);
+            }
+        }
+
+        $hasNameShort = Schema::hasColumn('users', 'name_short_form');
+        $hasEmpId     = Schema::hasColumn('users', 'employee_id');
+        $hasDept      = Schema::hasColumn('users', 'department_id'); // ✅ NEW safety
+
+        // ✅ if dept scoping is required, but users.dept is missing => block (matches accessControl safety)
+        if ($forcedDeptId !== null && !$hasDept) {
+            fclose($handle);
+            $this->activityLog($request, 'import_denied', 'users', 'users', null, ['department_id'], null, ['forced_department_id' => $forcedDeptId], 'Dept column missing');
+            return response()->json(['success' => false, 'error' => 'Not allowed'], 403);
+        }
+
+        // ✅ tiny helpers
+        $get = function(array $row, string $key) use ($idx) {
+            if (!isset($idx[$key])) return null;
+            $v = $row[$idx[$key]] ?? null;
+            $v = is_string($v) ? trim($v) : $v;
+            return ($v === '' ? null : $v);
+        };
+
+        $getAny = function(array $row, array $keys) use ($get) {
+            foreach ($keys as $k) {
+                $v = $get($row, $k);
+                if ($v !== null) return $v;
+            }
+            return null;
+        };
+
+        $makeUniqueSlug = function(string $base, ?int $ignoreId = null) {
+            $base = Str::slug($base) ?: 'user';
+            $try = $base;
+
+            $i = 0;
+            while (true) {
+                $q = DB::table('users')->where('slug', $try);
+                if ($ignoreId) $q->where('id', '!=', $ignoreId);
+                if (!$q->exists()) break;
+
+                $i++;
+                $try = $base . '-' . Str::lower(Str::random(6));
+                if ($i > 30) break;
+            }
+            return $try;
+        };
+
+        // ✅ always student short form
+        $roleShort = function() {
+            return 'STD';
+        };
+
+        // ✅ resolve id from uuid helper
+        $idFromUuid = function(string $table, ?string $uuid): ?int {
+            if (!$uuid) return null;
+            if (!Schema::hasTable($table)) return null;
+            if (!Schema::hasColumn($table, 'uuid')) return null;
+            $id = DB::table($table)->where('uuid', $uuid)->value('id');
+            return $id ? (int) $id : null;
+        };
+
+        // ✅ academic mode: if header contains academic columns
+        $hasAcademicHeader = (
+            isset($idx['course_uuid']) || isset($idx['course_id']) ||
+            isset($idx['semester_uuid']) || isset($idx['semester_id']) ||
+            isset($idx['section_uuid']) || isset($idx['section_id']) ||
+            isset($idx['roll_no']) || isset($idx['registration_no']) ||
+            isset($idx['admission_no'])
+        );
+
+        $rowNum = 1;
+
+        DB::beginTransaction();
+        try {
+
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowNum++;
+
+                // skip blank row
+                if (count(array_filter($row, fn($v) => trim((string)$v) !== '')) === 0) {
+                    continue;
+                }
+
+                $name  = $get($row, 'name');
+                $email = $get($row, 'email');
+
+                if (!$email) { $skipped++; $errors[] = ['row' => $rowNum, 'error' => 'Email missing']; continue; }
+                if (!$name)  { $skipped++; $errors[] = ['row' => $rowNum, 'error' => 'Name missing']; continue; }
+
+                $email = strtolower(trim($email));
+
+                // ✅ NEW optional CSV fields
+                $nameShort = $getAny($row, ['name_short_form', 'short_name', 'name_short', 'initials']);
+                $empId     = $getAny($row, ['employee_id', 'emp_id', 'employeeid']);
+
+                // ✅ FORCE role student (because this import page is only for students)
+                $role  = 'student';
+                $short = $roleShort();
+
+                // status
+                $stRaw  = strtolower((string)($getAny($row, ['status']) ?? 'active'));
+                $status = ($stRaw === 'inactive') ? 'inactive' : 'active';
+
+                // department_id (optional)
+                $dep = $getAny($row, ['department_id', 'dept_id', 'department']);
+                $departmentId = null;
+                if ($dep !== null) {
+                    $depInt = (int)$dep;
+                    $departmentId = $depInt > 0 ? $depInt : null;
+                }
+
+                // ✅ FORCE department_id if actor is department-scoped
+                if ($forcedDeptId !== null) {
+                    $departmentId = $forcedDeptId;
+                }
+
+                // uuid/slug from csv if present, else generate
+                $uuid = $getAny($row, ['uuid']);
+                if (!$uuid || strlen((string)$uuid) < 10) $uuid = (string) Str::uuid();
+
+                $slugInCsv = $getAny($row, ['slug']);
+                $slugBase  = $slugInCsv ?: $name;
+
+                // password: use CSV password if present, else default
+                $csvPassword   = $getAny($row, ['password', 'pass']);
+                $finalPassword = ($csvPassword !== null && trim((string)$csvPassword) !== '')
+                    ? trim((string)$csvPassword)
+                    : $DEFAULT_PASSWORD;
+
+                // optional fields
+                $phone    = $getAny($row, ['phone_number','phone','mobile','phno']);
+                $altEmail = $getAny($row, ['alternative_email','alt_email']);
+                $altPhone = $getAny($row, ['alternative_phone_number','alt_phone']);
+                $wa       = $getAny($row, ['whatsapp_number','whatsapp']);
+                $image    = $getAny($row, ['image','image_url']);
+                $address  = $getAny($row, ['address']);
+
+                // ✅ normalize phone (remove spaces)
+                if (is_string($phone)) {
+                    $phone = trim($phone);
+                    $phone = preg_replace('/\s+/', '', $phone);
+                    if ($phone === '') $phone = null;
+                }
+
+                // find existing even if soft deleted
+                $existing = DB::table('users')->where('email', $email)->first();
+
+                // ✅ dept scoping: do not update users from other departments
+                if ($forcedDeptId !== null && $existing && $hasDept) {
+                    $exDept = (int)($existing->department_id ?? 0);
+                    if ($exDept > 0 && $exDept !== (int)$forcedDeptId) {
+                        $skipped++;
+                        $errors[] = ['row' => $rowNum, 'error' => 'Not allowed: user belongs to another department'];
+                        continue;
+                    }
+                }
+
+                // ✅ phone duplicate check
+                if ($phone !== null) {
+                    $phoneOwnerId = DB::table('users')
+                        ->where('phone_number', $phone)
+                        ->value('id');
+
+                    if ($phoneOwnerId && (!$existing || (int)$phoneOwnerId !== (int)$existing->id)) {
+                        $skipped++;
+                        $errors[] = [
+                            'row' => $rowNum,
+                            'error' => 'This number already exists',
+                            'phone_number' => $phone,
+                        ];
+                        continue;
+                    }
+                }
+
+                $now = now();
+                $userId = null;
+
+                try {
+
+                    if ($existing) {
+                        if (!$updateExisting) { $skipped++; continue; }
+
+                        $newSlug = $existing->slug;
+                        if ($slugInCsv) {
+                            $newSlug = $makeUniqueSlug($slugBase, (int)$existing->id);
+                        }
+
+                        $updateData = [
+                            'name'            => $name,
+                            'email'           => $email,
+                            'role'            => $role,
+                            'role_short_form' => $short,
+                            'status'          => $status,
+                            'slug'            => $newSlug ?: $existing->slug,
+                            'uuid'            => $existing->uuid ?: $uuid,
+                            'updated_at'      => $now,
+                            'deleted_at'      => null, // ✅ restore if soft deleted
+                        ];
+
+                        if ($hasDept) {
+                            $updateData['department_id'] = $departmentId ?? ($existing->department_id ?? null);
+                        }
+
+                        // ✅ NEW optional fields
+                        if ($hasNameShort && $nameShort !== null) $updateData['name_short_form'] = $nameShort;
+                        if ($hasEmpId && $empId !== null)         $updateData['employee_id']     = $empId;
+
+                        if ($phone !== null)    $updateData['phone_number'] = $phone;
+                        if ($altEmail !== null) $updateData['alternative_email'] = $altEmail;
+                        if ($altPhone !== null) $updateData['alternative_phone_number'] = $altPhone;
+                        if ($wa !== null)       $updateData['whatsapp_number'] = $wa;
+                        if ($image !== null)    $updateData['image'] = $image;
+                        if ($address !== null)  $updateData['address'] = $address;
+
+                        // ✅ update password only if provided explicitly in CSV
+                        if ($csvPassword !== null && trim((string)$csvPassword) !== '') {
+                            $updateData['password'] = Hash::make($finalPassword);
+                        }
+
+                        DB::table('users')->where('id', $existing->id)->update($updateData);
+                        $updated++;
+
+                        $userId = (int)$existing->id;
+
+                    } else {
+                        if (!$createMissing) { $skipped++; continue; }
+
+                        $newSlug = $makeUniqueSlug($slugBase, null);
+
+                        $insertData = [
+                            'uuid'            => $uuid,
+                            'name'            => $name,
+                            'slug'            => $newSlug,
+                            'email'           => $email,
+                            'password'        => Hash::make($finalPassword),
+                            'role'            => $role,
+                            'role_short_form' => $short,
+                            'status'          => $status,
+                            'created_at'      => $now,
+                            'updated_at'      => $now,
+                        ];
+
+                        if ($hasDept) {
+                            $insertData['department_id'] = $departmentId;
+                        }
+
+                        // ✅ NEW optional fields
+                        if ($hasNameShort && $nameShort !== null) $insertData['name_short_form'] = $nameShort;
+                        if ($hasEmpId && $empId !== null)         $insertData['employee_id']     = $empId;
+
+                        if ($phone !== null)    $insertData['phone_number'] = $phone;
+                        if ($altEmail !== null) $insertData['alternative_email'] = $altEmail;
+                        if ($altPhone !== null) $insertData['alternative_phone_number'] = $altPhone;
+                        if ($wa !== null)       $insertData['whatsapp_number'] = $wa;
+                        if ($image !== null)    $insertData['image'] = $image;
+                        if ($address !== null)  $insertData['address'] = $address;
+
+                        $userId = (int) DB::table('users')->insertGetId($insertData);
+                        $imported++;
+                    }
+
+                } catch (\Illuminate\Database\QueryException $qe) {
+                    $skipped++;
+
+                    $msg = $qe->getMessage();
+                    if (Str::contains($msg, 'users_phone_number_unique')) {
+                        $errors[] = ['row' => $rowNum, 'error' => 'This number already exists', 'phone_number' => $phone];
+                        continue;
+                    }
+
+                    $errors[] = ['row' => $rowNum, 'error' => 'User row error: ' . $qe->getMessage()];
+                    continue;
+                }
+
+                // =========================================================
+                // ✅ ACADEMIC DETAILS IMPORT (same API)
+                // =========================================================
+                if ($hasAcademicHeader && $userId > 0 && Schema::hasTable('student_academic_details')) {
+
+                    $courseUuid = $getAny($row, ['course_uuid']);
+                    $courseIdRaw = $getAny($row, ['course_id']);
+
+                    $hasCourseInput = ($courseUuid !== null && $courseUuid !== '') || ($courseIdRaw !== null && (int)$courseIdRaw > 0);
+
+                    if (!$hasCourseInput) {
+                        $academicSkipped++;
+                        continue;
+                    }
+
+                    try {
+                        // ✅ department id: from CSV OR users.department_id (if exists)
+                        $finalDeptId = $departmentId ?: ($hasDept ? (int) (DB::table('users')->where('id', $userId)->value('department_id') ?? 0) : 0);
+                        if ($finalDeptId <= 0) {
+                            $academicSkipped++;
+                            $errors[] = ['row' => $rowNum, 'error' => 'Academic skipped: department_id missing'];
+                            continue;
+                        }
+
+                        // ✅ course: UUID -> ID (preferred)
+                        $finalCourseId = null;
+                        if ($courseUuid) {
+                            $finalCourseId = $idFromUuid('courses', $courseUuid);
+                        }
+                        if (!$finalCourseId && $courseIdRaw) {
+                            $finalCourseId = (int) $courseIdRaw;
+                        }
+                        if (!$finalCourseId || $finalCourseId <= 0) {
+                            $academicSkipped++;
+                            $errors[] = ['row' => $rowNum, 'error' => 'Academic skipped: invalid course_uuid/course_id'];
+                            continue;
+                        }
+
+                        // ✅ optional semester/section (uuid preferred)
+                        $semUuid = $getAny($row, ['semester_uuid']);
+                        $secUuid = $getAny($row, ['section_uuid']);
+
+                        $semIdRaw = $getAny($row, ['semester_id']);
+                        $secIdRaw = $getAny($row, ['section_id']);
+
+                        $finalSemId = $semUuid ? $idFromUuid('course_semesters', $semUuid) : null;
+                        if (!$finalSemId && $semIdRaw) $finalSemId = (int)$semIdRaw;
+
+                        $finalSecId = $secUuid ? $idFromUuid('course_semester_sections', $secUuid) : null;
+                        if (!$finalSecId && $secIdRaw) $finalSecId = (int)$secIdRaw;
+
+                        $acadStatus = strtolower((string)($getAny($row, ['acad_status','academic_status']) ?? 'active'));
+                        if (!in_array($acadStatus, ['active','inactive','passed-out'], true)) $acadStatus = 'active';
+
+                        // optional academic columns
+                        $acadYear   = $getAny($row, ['academic_year']);
+                        $year       = $getAny($row, ['year']);
+                        $rollNo     = $getAny($row, ['roll_no']);
+                        $regNo      = $getAny($row, ['registration_no']);
+                        $admNo      = $getAny($row, ['admission_no']);
+                        $admDate    = $getAny($row, ['admission_date']);
+                        $batch      = $getAny($row, ['batch']);
+                        $session    = $getAny($row, ['session']);
+                        $attendance = $getAny($row, ['attendance_percentage']);
+
+                        // upsert by user_id (one academic record per user)
+                        $existingAcad = DB::table('student_academic_details')
+                            ->where('user_id', $userId)
+                            ->first();
+
+                        $acadPayload = [
+                            'department_id' => $finalDeptId,
+                            'course_id'     => $finalCourseId,
+                            'semester_id'   => ($finalSemId && $finalSemId > 0) ? $finalSemId : null,
+                            'section_id'    => ($finalSecId && $finalSecId > 0) ? $finalSecId : null,
+
+                            'academic_year' => $acadYear,
+                            'year'          => ($year !== null && is_numeric($year)) ? (int)$year : null,
+                            'roll_no'       => $rollNo,
+                            'registration_no' => $regNo,
+                            'admission_no'  => $admNo,
+                            'admission_date'=> $admDate,
+                            'batch'         => $batch,
+                            'session'       => $session,
+                            'attendance_percentage' => ($attendance !== null && is_numeric($attendance)) ? (float)$attendance : null,
+
+                            'status'        => $acadStatus,
+                            'updated_at'    => $now,
+                        ];
+
+                        // ✅ keep user department synced (only if users.department_id exists)
+                        if ($hasDept) {
+                            DB::table('users')->where('id', $userId)->update([
+                                'department_id' => $finalDeptId,
+                                'updated_at'    => $now,
+                            ]);
+                        }
+
+                        if ($existingAcad) {
+                            DB::table('student_academic_details')
+                                ->where('id', $existingAcad->id)
+                                ->update($acadPayload);
+
+                            $academicUpdated++;
+                        } else {
+                            $acadPayload['user_id']    = $userId;
+                            $acadPayload['uuid']       = (string) Str::uuid();
+                            $acadPayload['created_at'] = $now;
+
+                            // optionally created_by
+                            if (Schema::hasColumn('student_academic_details', 'created_by')) {
+                                $actor = $this->actor($request);
+                                $acadPayload['created_by'] = $actor['id'] ?: null;
+                            }
+
+                            DB::table('student_academic_details')->insert($acadPayload);
+                            $academicCreated++;
+                        }
+
+                    } catch (\Throwable $e) {
+                        $academicSkipped++;
+                        $errors[] = ['row' => $rowNum, 'error' => 'Academic error: ' . $e->getMessage()];
+                    }
+                }
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            fclose($handle);
+
+            $this->activityLog(
+                $request,
+                'import_failed',
+                'users',
+                'users',
+                null,
+                null,
+                null,
+                ['row' => $rowNum],
+                'Import failed: ' . $e->getMessage()
+            );
+
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+                'row'     => $rowNum,
+            ], 500);
+        }
+
+        fclose($handle);
+
+        // ✅ ACTIVITY LOG (import summary)
+        $this->activityLog(
+            $request,
+            'import',
+            'users',
+            'users',
+            null,
+            ['imported','updated','skipped','academic_created','academic_updated','academic_skipped'],
+            null,
+            [
+                'imported' => $imported,
+                'updated'  => $updated,
+                'skipped'  => $skipped,
+                'academic_created' => $academicCreated,
+                'academic_updated' => $academicUpdated,
+                'academic_skipped' => $academicSkipped,
+                'errors_count' => is_array($errors) ? count($errors) : 0,
+            ],
+            'CSV import finished'
+        );
+
+        return response()->json([
+            'success' => true,
+            'imported' => $imported,
+            'updated'  => $updated,
+            'skipped'  => $skipped,
+
+            // ✅ new academic report
+            'academic_created' => $academicCreated,
+            'academic_updated' => $academicUpdated,
+            'academic_skipped' => $academicSkipped,
+
+            'errors' => $errors,
+        ]);
+    }
 }

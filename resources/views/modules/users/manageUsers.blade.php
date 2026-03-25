@@ -6,80 +6,31 @@
 <link rel="stylesheet" href="{{ asset('assets/css/common/main.css') }}">
 
 <style>
-/* =========================
- * Manage Users – UI polish + fixes
- * - Better toolbar + tabs + counts
- * - Inactive tab gets same filtering (toolbar is global)
- * - Fix: setSpin undefined
- * - Fix: results info (was always —)
- * - Keep your table/dropdown behavior intact
- * ========================= */
-
 .musers-wrap{padding:14px 4px}
 
 /* Toolbar panel */
-.musers-toolbar.panel{
-  background:var(--surface);
-  border:1px solid var(--line-strong);
-  border-radius:16px;
-  box-shadow:var(--shadow-2);
-  padding:12px;
-}
+.musers-toolbar.panel{background:var(--surface);border:1px solid var(--line-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:12px;}
 
 /* Dropdowns inside table */
 .table-wrap .dropdown{position:relative}
 .dropdown [data-bs-toggle="dropdown"]{border-radius:10px}
-.dropdown-menu{
-  border-radius:12px;
-  border:1px solid var(--line-strong);
-  box-shadow:var(--shadow-2);
-  min-width:220px;
-  z-index:1085
-}
+.dropdown-menu{border-radius:12px;border:1px solid var(--line-strong);box-shadow:var(--shadow-2);min-width:220px;z-index:1085}
 .dropdown-item{display:flex;align-items:center;gap:.6rem}
 .dropdown-item i{width:16px;text-align:center}
 .dropdown-item.text-danger{color:var(--danger-color) !important}
 
 /* Tabs */
 .nav.nav-tabs{border-color:var(--line-strong)}
-.nav-tabs .nav-link{
-  color:var(--ink);
-  border-top-left-radius:12px;
-  border-top-right-radius:12px;
-}
-.nav-tabs .nav-link.active{
-  background:var(--surface);
-  border-color:var(--line-strong) var(--line-strong) var(--surface)
-}
+.nav-tabs .nav-link{color:var(--ink);border-top-left-radius:12px;border-top-right-radius:12px;}
+.nav-tabs .nav-link.active{background:var(--surface);border-color:var(--line-strong) var(--line-strong) var(--surface)}
 .tab-content,.tab-pane{overflow:visible}
-.tab-badge{
-  margin-left:.45rem;
-  font-size:12px;
-  padding:.25rem .5rem;
-  border-radius:999px;
-  border:1px solid var(--line-strong);
-  background:color-mix(in oklab, var(--surface) 70%, transparent);
-  color:var(--muted-color);
-}
+.tab-badge{margin-left:.45rem;font-size:12px;padding:.25rem .5rem;border-radius:999px;border:1px solid var(--line-strong);background:color-mix(in oklab, var(--surface) 70%, transparent);color:var(--muted-color);}
 
 /* Table Card */
-.table-wrap.card{
-  position:relative;
-  border:1px solid var(--line-strong);
-  border-radius:16px;
-  background:var(--surface);
-  box-shadow:var(--shadow-2);
-  overflow:visible;
-}
+.table-wrap.card{position:relative;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-2);overflow:visible;}
 .table-wrap .card-body{overflow:visible}
 .table{--bs-table-bg:transparent}
-.table thead th{
-  font-weight:600;
-  color:var(--muted-color);
-  font-size:13px;
-  border-bottom:1px solid var(--line-strong);
-  background:var(--surface)
-}
+.table thead th{font-weight:600;color:var(--muted-color);font-size:13px;border-bottom:1px solid var(--line-strong);background:var(--surface)}
 .table thead.sticky-top{z-index:3}
 .table tbody tr{border-top:1px solid var(--line-soft)}
 .table tbody tr:hover{background:var(--page-hover)}
@@ -87,84 +38,37 @@ td .fw-semibold{color:var(--ink)}
 .small{font-size:12.5px}
 
 /* Badges */
-.badge-soft-primary{
-  background:color-mix(in oklab, var(--primary-color) 12%, transparent);
-  color:var(--primary-color)
-}
-.badge-soft-success{
-  background:color-mix(in oklab, var(--success-color) 12%, transparent);
-  color:var(--success-color)
-}
-.badge-soft-danger{
-  background:color-mix(in oklab, var(--danger-color) 12%, transparent);
-  color:var(--danger-color)
-}
+.badge-soft-primary{background:color-mix(in oklab, var(--primary-color) 12%, transparent);color:var(--primary-color)}
+.badge-soft-success{background:color-mix(in oklab, var(--success-color) 12%, transparent);color:var(--success-color)}
+.badge-soft-danger{background:color-mix(in oklab, var(--danger-color) 12%, transparent);color:var(--danger-color)}
 
 /* Empty */
-.empty{
-  border-top:1px solid var(--line-soft);
-  color:var(--muted-color);
-}
+.empty{border-top:1px solid var(--line-soft);color:var(--muted-color);}
 
 /* Loading overlay */
-.loading-overlay{
-  position:fixed;
-  top:0;left:0;width:100%;height:100%;
-  background:rgba(0,0,0,0.45);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-  backdrop-filter:blur(2px)
-}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);display:flex;justify-content:center;align-items:center;z-index:9999;backdrop-filter:blur(2px)}
 
 /* Button loading state */
 .btn-loading{position:relative;color:transparent !important}
-.btn-loading::after{
-  content:'';
-  position:absolute;
-  width:16px;height:16px;
-  top:50%;left:50%;
-  margin:-8px 0 0 -8px;
-  border:2px solid transparent;
-  border-top:2px solid currentColor;
-  border-radius:50%;
-  animation:spin 1s linear infinite
-}
+.btn-loading::after{content:'';position:absolute;width:16px;height:16px;top:50%;left:50%;margin:-8px 0 0 -8px;border:2px solid transparent;border-top:2px solid currentColor;border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
 
 /* Responsive toolbar */
 @media (max-width: 768px){
   .musers-toolbar .d-flex{flex-direction:column;gap:12px !important}
   .musers-toolbar .position-relative{min-width:100% !important}
-  .toolbar-buttons{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap
-  }
-  .toolbar-buttons .btn{
-    flex:1;
-    min-width:120px
-  }
+  .toolbar-buttons{display:flex;gap:8px;flex-wrap:wrap}
+  .toolbar-buttons .btn{flex:1;min-width:120px}
 }
 
 /* ✅ Horizontal scroll (X) on small screens */
-.table-responsive{
-  display:block;
-  width:100%;
-  max-width:100%;
-  overflow-x:auto !important;
-  overflow-y:visible !important;
-  -webkit-overflow-scrolling:touch;
-}
-.table-responsive > .table{
-  width:max-content;
-  min-width:980px;
-}
+.table-responsive{display:block;width:100%;max-width:100%;overflow-x:auto !important;overflow-y:visible !important;-webkit-overflow-scrolling:touch;}
+/* updated min-width due to added Department column */
+.table-responsive > .table{width:max-content;min-width:1120px;}
 .table-responsive th,
 .table-responsive td{white-space:nowrap}
 @media (max-width: 576px){
-  .table-responsive > .table{ min-width:920px; }
+  .table-responsive > .table{ min-width:1040px; }
 }
 </style>
 @endpush
@@ -256,11 +160,13 @@ td .fw-semibold{color:var(--ink)}
                   <th>Email</th>
                   <th>Phone</th>
                   <th style="width:200px;">Role</th>
+                  {{-- ✅ NEW: Department column --}}
+                  <th style="width:220px;">Department</th>
                   <th style="width:108px;" class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usersTbody-active">
-                <tr><td colspan="7" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>
+                <tr><td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -292,11 +198,13 @@ td .fw-semibold{color:var(--ink)}
                   <th>Email</th>
                   <th>Phone</th>
                   <th style="width:200px;">Role</th>
+                  {{-- ✅ NEW: Department column --}}
+                  <th style="width:220px;">Department</th>
                   <th style="width:108px;" class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usersTbody-inactive">
-                <tr><td colspan="7" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>
+                <tr><td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -341,6 +249,16 @@ td .fw-semibold{color:var(--ink)}
               <option value="student">Student</option>
             </select>
           </div>
+
+          {{-- ✅ NEW: Department filter --}}
+          <div class="col-12">
+            <label class="form-label">Department</label>
+            <select id="modal_department" class="form-select">
+              <option value="">All Departments</option>
+            </select>
+            <div class="form-text">Loaded from <code>/api/departments</code></div>
+          </div>
+
           <div class="col-12">
             <label class="form-label">Sort By</label>
             <select id="modal_sort" class="form-select">
@@ -598,6 +516,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnReset = document.getElementById('btnReset');
   const modalRole = document.getElementById('modal_role');
   const modalSort = document.getElementById('modal_sort');
+  const modalDepartment = document.getElementById('modal_department'); // ✅ NEW
   const filterModalEl = document.getElementById('filterModal');
   const filterModal = new bootstrap.Modal(filterModalEl);
   const writeControls = document.getElementById('writeControls');
@@ -648,6 +567,7 @@ document.addEventListener('DOMContentLoaded', function () {
     inactiveItems: [],
     q: '',
     roleFilter: '',
+    departmentFilter: '', // ✅ NEW
     sort: '-created_at',
     perPage: 10,
     page: { active: 1, inactive: 1 },
@@ -710,6 +630,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function deptName(d) {
     return d?.name || d?.title || d?.department_name || d?.dept_name || d?.slug || (d?.id ? `Department #${d.id}` : 'Department');
   }
+
   function renderDepartmentsOptions() {
     if (!deptInput) return;
     const current = (deptInput.value || '').toString();
@@ -722,6 +643,21 @@ document.addEventListener('DOMContentLoaded', function () {
     deptInput.innerHTML = html;
     if (current) deptInput.value = current;
   }
+
+  // ✅ NEW: render filter modal department options
+  function renderDepartmentsFilterOptions() {
+    if (!modalDepartment) return;
+    const current = (modalDepartment.value || '').toString();
+    let html = `<option value="">All Departments</option>`;
+    (state.departments || []).forEach(d => {
+      const id = d?.id ?? d?.value ?? d?.department_id;
+      if (id === undefined || id === null || id === '') return;
+      html += `<option value="${escapeHtml(String(id))}">${escapeHtml(deptName(d))}</option>`;
+    });
+    modalDepartment.innerHTML = html;
+    if (current) modalDepartment.value = current;
+  }
+
   async function loadDepartments(showOverlay = false) {
     try {
       if (showOverlay) showGlobalLoading(true);
@@ -739,12 +675,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
       state.departments = arr;
       state.departmentsLoaded = true;
+
       renderDepartmentsOptions();
+      renderDepartmentsFilterOptions(); // ✅ NEW
     } catch (e) {
       console.error('Failed to load departments', e);
       state.departments = [];
       state.departmentsLoaded = false;
+
       renderDepartmentsOptions();
+      renderDepartmentsFilterOptions(); // ✅ NEW
     } finally {
       if (showOverlay) showGlobalLoading(false);
     }
@@ -777,6 +717,50 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   function isActive(u) { return !isInactive(u); }
 
+  // ✅ NEW: Department helpers for list/table/filtering
+  function getDeptId(u) {
+    if (!u) return null;
+    let v =
+      u.department_id ??
+      u.dept_id ??
+      u.departmentId ??
+      u.departmentID ??
+      u.department;
+
+    // if department is object
+    if (v && typeof v === 'object') {
+      v = v.id ?? v.value ?? v.department_id ?? null;
+    }
+    if (v === undefined || v === null || v === '') return null;
+    return v;
+  }
+
+  function getDeptLabel(u) {
+    if (!u) return '';
+    const direct =
+      u.department_name ??
+      u.department_title ??
+      u.dept_name ??
+      u.departmentLabel ??
+      u.department_text;
+
+    if (typeof direct === 'string' && direct.trim()) return direct.trim();
+
+    // if department is object
+    if (u.department && typeof u.department === 'object') {
+      const nm = u.department.name || u.department.title || u.department.department_name || u.department.dept_name || u.department.slug;
+      if (nm) return String(nm);
+    }
+
+    const id = getDeptId(u);
+    if (id !== null) {
+      const found = (state.departments || []).find(d => String(d?.id ?? d?.value ?? d?.department_id ?? '') === String(id));
+      if (found) return deptName(found);
+      return `Department #${id}`;
+    }
+    return '';
+  }
+
   function sortUsers(arr) {
     const sortKey = state.sort.startsWith('-') ? state.sort.slice(1) : state.sort;
     const dir = state.sort.startsWith('-') ? -1 : 1;
@@ -804,6 +788,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const base = new URLSearchParams();
       if (state.q) base.set('q', state.q);
       if (state.roleFilter) base.set('role', state.roleFilter);
+
+      // ✅ NEW: pass department filter to backend (safe even if backend ignores)
+      if (state.departmentFilter) base.set('department_id', state.departmentFilter);
 
       const activeParams = new URLSearchParams(base);
       activeParams.set('status', 'active');
@@ -921,6 +908,7 @@ document.addEventListener('DOMContentLoaded', function () {
       actionHtml += `</ul></div>`;
 
       const phoneVal = row.phone_number || row.phone || row.mobile || '';
+      const deptLabel = getDeptLabel(row);
 
       return `
         <tr data-uuid="${escapeHtml(row.uuid)}" data-id="${escapeHtml(row.id)}">
@@ -938,6 +926,8 @@ document.addEventListener('DOMContentLoaded', function () {
               <i class="fa fa-user-shield me-1"></i>${escapeHtml(roleLabel(role))}
             </span>
           </td>
+          {{-- ✅ NEW: Department cell --}}
+          <td>${deptLabel ? escapeHtml(deptLabel) : '<span class="text-muted">—</span>'}</td>
           <td class="text-end">${actionHtml}</td>
         </tr>`;
     }).join('');
@@ -971,6 +961,13 @@ document.addEventListener('DOMContentLoaded', function () {
       active: Array.isArray(state.activeItems) ? state.activeItems.slice() : [],
       inactive: Array.isArray(state.inactiveItems) ? state.inactiveItems.slice() : []
     };
+
+    // ✅ NEW: client-side dept filtering (works even if backend ignores department_id)
+    const dep = (state.departmentFilter || '').toString();
+    if (dep) {
+      lists.active = lists.active.filter(u => String(getDeptId(u) ?? '') === dep);
+      lists.inactive = lists.inactive.filter(u => String(getDeptId(u) ?? '') === dep);
+    }
 
     const activeSorted = sortUsers(lists.active);
     const inactiveSorted = sortUsers(lists.inactive);
@@ -1036,11 +1033,13 @@ document.addEventListener('DOMContentLoaded', function () {
   filterModalEl.addEventListener('show.bs.modal', () => {
     modalRole.value = state.roleFilter || '';
     modalSort.value = state.sort || '-created_at';
+    if (modalDepartment) modalDepartment.value = state.departmentFilter || ''; // ✅ NEW
   });
 
   // Apply filters
   btnApplyFilters.addEventListener('click', () => {
     state.roleFilter = modalRole.value || '';
+    state.departmentFilter = modalDepartment ? (modalDepartment.value || '') : ''; // ✅ NEW
     state.sort = modalSort.value || '-created_at';
     state.page.active = 1;
     state.page.inactive = 1;
@@ -1052,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', function () {
   btnReset.addEventListener('click', () => {
     state.q = '';
     state.roleFilter = '';
+    state.departmentFilter = ''; // ✅ NEW
     state.sort = '-created_at';
     state.perPage = 10;
     state.page.active = 1;
@@ -1060,6 +1060,7 @@ document.addEventListener('DOMContentLoaded', function () {
     searchInput.value = '';
     perPageSel.value = '10';
     modalRole.value = '';
+    if (modalDepartment) modalDepartment.value = ''; // ✅ NEW
     modalSort.value = '-created_at';
 
     loadUsers();
@@ -1290,6 +1291,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const q = (searchInput?.value || '').trim();
       if (q) params.set('q', q);
       if (state.roleFilter) params.set('role', state.roleFilter);
+      // ✅ NEW: include department filter in export too (safe if backend ignores)
+      if (state.departmentFilter) params.set('department_id', state.departmentFilter);
 
       const url = '/api/users/export-csv' + (params.toString() ? ('?' + params.toString()) : '');
       const res = await fetch(url, { headers: authHeaders() });

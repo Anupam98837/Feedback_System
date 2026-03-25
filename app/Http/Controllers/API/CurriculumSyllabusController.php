@@ -9,9 +9,77 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 
 class CurriculumSyllabusController extends Controller
 {
+    /** Activity log table name */
+    private const ACTIVITY_LOG_TABLE = 'user_data_activity_log';
+
+    /**
+     * accessControl (ONLY users table)
+     *
+     * Returns ONLY:
+     *  - ['mode' => 'all',         'department_id' => null]
+     *  - ['mode' => 'department',  'department_id' => <int>]
+     *  - ['mode' => 'none',        'department_id' => null]
+     *  - ['mode' => 'not_allowed', 'department_id' => null]
+     */
+    private function accessControl(int $userId): array
+    {
+        if ($userId <= 0) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // Safety (if some env doesn't have dept column yet)
+        if (!Schema::hasColumn('users', 'department_id')) {
+            return ['mode' => 'not_allowed', 'department_id' => null];
+        }
+
+        $q = DB::table('users')->select(['id', 'role', 'department_id', 'status']);
+
+        // your schema has deleted_at; keep it safe
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        $u = $q->where('id', $userId)->first();
+
+        if (!$u) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // optional: inactive users => none
+        if (isset($u->status) && (string)$u->status !== 'active') {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // normalize role from users table
+        $role = strtolower(trim((string)($u->role ?? '')));
+        $role = str_replace([' ', '-'], '_', $role);
+        $role = preg_replace('/_+/', '_', $role) ?? $role;
+
+        $deptId = $u->department_id !== null ? (int)$u->department_id : null;
+        if ($deptId !== null && $deptId <= 0) $deptId = null;
+
+        // ✅ CONFIG: decide access by role + department_id
+        $allRoles  = ['admin', 'director', 'principal']; // gets ALL even if dept null
+        $deptRoles = ['hod', 'faculty', 'technical_assistant', 'it_person', 'placement_officer', 'student']; // needs dept
+
+        if (in_array($role, $allRoles, true)) {
+            return ['mode' => 'all', 'department_id' => null];
+        }
+
+        if (in_array($role, $deptRoles, true)) {
+            // none is based on role + dept id (your rule)
+            if (!$deptId) return ['mode' => 'none', 'department_id' => null];
+            return ['mode' => 'department', 'department_id' => $deptId];
+        }
+
+        return ['mode' => 'not_allowed', 'department_id' => null];
+    }
+
     /**
      * Normalize actor information from request (compatible with your pattern)
      */
@@ -23,6 +91,109 @@ class CurriculumSyllabusController extends Controller
             'type' => (string) ($r->attributes->get('auth_tokenable_type') ?? ($r->user() ? get_class($r->user()) : '')),
             'uuid' => (string) ($r->attributes->get('auth_user_uuid') ?? ($r->user()->uuid ?? '')),
         ];
+    }
+
+    /* =========================================================
+     * Activity Log Helpers (safe: never breaks main functionality)
+     * ========================================================= */
+
+    private function jsonOrNull($value): ?string
+    {
+        if ($value === null) return null;
+
+        // already JSON string?
+        if (is_string($value)) {
+            $t = trim($value);
+            if ($t === '') return null;
+            json_decode($t, true);
+            if (json_last_error() === JSON_ERROR_NONE) return $t;
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Compute changed_fields, old_values, new_values for given keys
+     */
+    private function diffForLog(array $old, array $new, array $keys): array
+    {
+        $changed = [];
+        $oldOut  = [];
+        $newOut  = [];
+
+        foreach ($keys as $k) {
+            $ov = $old[$k] ?? null;
+            $nv = $new[$k] ?? null;
+
+            // normalize booleans/ints as strings? keep raw, but compare strictly-ish
+            if ($ov !== $nv) {
+                $changed[] = $k;
+                $oldOut[$k] = $ov;
+                $newOut[$k] = $nv;
+            }
+        }
+
+        return [$changed, $oldOut, $newOut];
+    }
+
+    /**
+     * Insert into user_data_activity_log (ignore failures)
+     */
+    private function logActivity(
+        Request $r,
+        string $activity,
+        string $module,
+        string $tableName,
+        ?int $recordId = null,
+        $changedFields = null,
+        $oldValues = null,
+        $newValues = null,
+        ?string $note = null
+    ): void {
+        static $hasTable = null;
+
+        try {
+            if ($hasTable === null) {
+                $hasTable = Schema::hasTable(self::ACTIVITY_LOG_TABLE);
+            }
+            if (!$hasTable) return;
+
+            $a = $this->actor($r);
+
+            // build payload
+            DB::table(self::ACTIVITY_LOG_TABLE)->insert([
+                'performed_by'      => max(0, (int)($a['id'] ?? 0)),
+                'performed_by_role' => ($a['role'] ?? null) !== '' ? (string)$a['role'] : null,
+                'ip'                => $r->ip(),
+                'user_agent'        => substr((string) $r->userAgent(), 0, 512),
+
+                'activity'          => $activity,
+                'module'            => $module,
+
+                'table_name'        => $tableName,
+                'record_id'         => $recordId,
+
+                'changed_fields'    => $this->jsonOrNull($changedFields),
+                'old_values'        => $this->jsonOrNull($oldValues),
+                'new_values'        => $this->jsonOrNull($newValues),
+
+                'log_note'          => $note,
+
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Never break real flow
+            try {
+                Log::warning('ActivityLog insert failed: ' . $e->getMessage(), [
+                    'module' => $module,
+                    'activity' => $activity,
+                    'table' => $tableName,
+                    'record_id' => $recordId,
+                ]);
+            } catch (\Throwable $ignore) {}
+        }
     }
 
     /**
@@ -179,12 +350,51 @@ class CurriculumSyllabusController extends Controller
      */
     public function index(Request $request)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => max(1, min(200, (int) $request->query('per_page', 20))),
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
         $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
         $onlyDeleted    = filter_var($request->query('only_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
         $query = $this->baseQuery($request, $includeDeleted || $onlyDeleted);
+
+        // ✅ Access filter
+        if ($ac['mode'] === 'department') {
+            $deptId = (int) $ac['department_id'];
+
+            // if caller also passed ?department= and it's different -> no results
+            if ($request->filled('department')) {
+                $dept = $this->resolveDepartment($request->query('department'), true);
+                if ($dept && (int)$dept->id !== $deptId) {
+                    return response()->json([
+                        'data' => [],
+                        'pagination' => [
+                            'page'      => 1,
+                            'per_page'  => $perPage,
+                            'total'     => 0,
+                            'last_page' => 1,
+                        ],
+                    ], 200);
+                }
+            }
+
+            $query->where('cs.department_id', $deptId);
+        }
 
         if ($onlyDeleted) {
             $query->whereNotNull('cs.deleted_at');
@@ -210,9 +420,30 @@ class CurriculumSyllabusController extends Controller
      */
     public function indexByDepartment(Request $request, $department)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => max(1, min(200, (int) $request->query('per_page', 20))),
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
         $dept = $this->resolveDepartment($department, false);
         if (! $dept) {
             return response()->json(['message' => 'Department not found'], 404);
+        }
+
+        // ✅ Enforce department match for dept-scoped roles
+        if ($ac['mode'] === 'department' && (int)$ac['department_id'] !== (int)$dept->id) {
+            return response()->json(['error' => 'Not allowed'], 403);
         }
 
         // inject department filter
@@ -235,9 +466,17 @@ class CurriculumSyllabusController extends Controller
      */
     public function show(Request $request, $identifier)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Curriculum & Syllabus not found'], 404);
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveSyllabus($request, $identifier, $includeDeleted);
+        $deptScope = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        $row = $this->resolveSyllabus($request, $identifier, $includeDeleted, $deptScope);
         if (! $row) {
             return response()->json(['message' => 'Curriculum & Syllabus not found'], 404);
         }
@@ -253,14 +492,31 @@ class CurriculumSyllabusController extends Controller
      */
     public function showByDepartment(Request $request, $department, $identifier)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Curriculum & Syllabus not found'], 404);
+
         $dept = $this->resolveDepartment($department, true);
         if (! $dept) {
             return response()->json(['message' => 'Department not found'], 404);
         }
 
+        // ✅ Enforce department match for dept-scoped roles
+        if ($ac['mode'] === 'department' && (int)$ac['department_id'] !== (int)$dept->id) {
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveSyllabus($request, $identifier, $includeDeleted, $dept->id);
+        $row = $this->resolveSyllabus(
+            $request,
+            $identifier,
+            $includeDeleted,
+            ($ac['mode'] === 'department') ? (int)$ac['department_id'] : (int)$dept->id
+        );
+
         if (! $row) {
             return response()->json(['message' => 'Curriculum & Syllabus not found'], 404);
         }
@@ -281,169 +537,31 @@ class CurriculumSyllabusController extends Controller
      * - sort_order, active, metadata
      */
     public function store(Request $request)
-{
-    $validated = $request->validate([
-        'department_id' => ['required','integer','exists:departments,id'],
-        'title'         => ['required','string','max:180'],
-        'slug'          => ['nullable','string','max:200'],
-        'active'        => ['nullable','in:0,1','boolean'],
-        'sort_order'    => ['nullable','integer','min:0'],
-
-        'pdf'           => ['required','file','mimes:pdf','max:20480'], // 20MB
-    ]);
-
-    if (!$request->hasFile('pdf')) {
-        return response()->json(['success' => false, 'message' => 'PDF file is required'], 422);
-    }
-
-    $pdf = $request->file('pdf');
-    if (!$pdf || !$pdf->isValid()) {
-        $code = $pdf ? $pdf->getError() : null;
-        return response()->json([
-            'success' => false,
-            'message' => 'Upload failed' . ($code !== null ? " (code: {$code})" : ''),
-        ], 422);
-    }
-
-    // ✅ Read meta BEFORE move (prevents SplFileInfo::getSize stat failed)
-    $originalName = $pdf->getClientOriginalName();
-    $mimeType     = $pdf->getClientMimeType() ?: $pdf->getMimeType();
-    $fileSize     = (int) $pdf->getSize();
-    $ext          = strtolower($pdf->getClientOriginalExtension() ?: 'pdf');
-
-    // slug
-    $slug = trim((string)($validated['slug'] ?? ''));
-    $slug = $slug !== '' ? Str::slug($slug) : Str::slug($validated['title']);
-
-    // ✅ ensure unique slug per department (ignoring soft-deleted rows)
-    $baseSlug = $slug;
-    $i = 2;
-    while (DB::table('curriculum_syllabuses')
-        ->where('department_id', (int)$validated['department_id'])
-        ->where('slug', $slug)
-        ->whereNull('deleted_at')
-        ->exists()
-    ) {
-        $slug = $baseSlug . '-' . $i++;
-    }
-
-    // destination (public/)
-    $dirRel = 'depy_uploads/curriculum_syllabuses/' . (int)$validated['department_id'];
-    $dirAbs = public_path($dirRel);
-    if (!is_dir($dirAbs)) {
-        @mkdir($dirAbs, 0775, true);
-    }
-
-    $filename = $slug . '-' . Str::random(6) . '.' . $ext;
-
-    // ✅ Move file (tmp disappears after this)
-    $pdf->move($dirAbs, $filename);
-
-    $pdfPathRel = $dirRel . '/' . $filename; // store in DB
-
-    $uuid = (string) Str::uuid();
-    $now  = now();
-
-    $id = DB::table('curriculum_syllabuses')->insertGetId([
-        'uuid'          => $uuid,
-        'department_id' => (int)$validated['department_id'],
-        'title'         => $validated['title'],
-        'slug'          => $slug,
-        'active'        => (int)($validated['active'] ?? 1),
-        'sort_order'    => (int)($validated['sort_order'] ?? 0),
-
-        'pdf_path'      => $pdfPathRel,
-        'original_name' => $originalName,
-        'mime_type'     => $mimeType,
-        'file_size'     => $fileSize,
-
-        'created_at'    => $now,
-        'updated_at'    => $now,
-    ]);
-
-    $row = DB::table('curriculum_syllabuses')->where('id', $id)->first();
-
-    return response()->json([
-        'success' => true,
-        'data'    => $row ? $this->normalizeRow($row) : null,
-    ]);
-}
-
-
-    /**
-     * STORE under department (nested)
-     * POST /departments/{department}/curriculum-syllabuses
-     */
-    public function storeForDepartment(Request $request, $department)
     {
-        $dept = $this->resolveDepartment($department, false);
-        if (! $dept) return response()->json(['message' => 'Department not found'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
 
-        // force department_id in request
-        $request->merge(['department_id' => (int) $dept->id]);
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
 
-        return $this->store($request);
-    }
+        $validated = $request->validate([
+            'department_id' => ['required','integer','exists:departments,id'],
+            'title'         => ['required','string','max:180'],
+            'slug'          => ['nullable','string','max:200'],
+            'active'        => ['nullable','in:0,1','boolean'],
+            'sort_order'    => ['nullable','integer','min:0'],
+            'pdf'           => ['required','file','mimes:pdf','max:20480'], // 20MB
+        ]);
 
-    /**
-     * UPDATE (partial) + optional PDF replace
-     */
-    public function update(Request $request, string $uuid)
-{
-    $row = DB::table('curriculum_syllabuses')->where('uuid', $uuid)->first();
-    if (!$row) {
-        return response()->json(['success' => false, 'message' => 'Not found'], 404);
-    }
-
-    $validated = $request->validate([
-        'department_id' => ['nullable','integer','exists:departments,id'],
-        'title'         => ['nullable','string','max:180'],
-        'slug'          => ['nullable','string','max:200'],
-        'active'        => ['nullable','in:0,1','boolean'],
-        'sort_order'    => ['nullable','integer','min:0'],
-
-        'pdf'           => ['nullable','file','mimes:pdf','max:20480'],
-    ]);
-
-    $update = ['updated_at' => now()];
-
-    // normal fields
-    foreach (['department_id','title','active','sort_order'] as $k) {
-        if (array_key_exists($k, $validated)) {
-            $update[$k] = ($k === 'department_id' || $k === 'sort_order')
-                ? (int) $validated[$k]
-                : ($k === 'active' ? (int) $validated[$k] : $validated[$k]);
-        }
-    }
-
-    // slug update (if provided)
-    $newSlug = null;
-    if (array_key_exists('slug', $validated) && trim((string)$validated['slug']) !== '') {
-        $newSlug = Str::slug($validated['slug']);
-    }
-
-    // if title changed but slug not provided, keep existing slug (your current behavior)
-    if ($newSlug !== null) {
-        // ensure unique slug per department (current/updated department)
-        $depId = array_key_exists('department_id', $update) ? (int)$update['department_id'] : (int)$row->department_id;
-
-        $base = $newSlug;
-        $i = 2;
-        while (DB::table('curriculum_syllabuses')
-            ->where('department_id', $depId)
-            ->where('slug', $newSlug)
-            ->whereNull('deleted_at')
-            ->where('uuid', '!=', $uuid)
-            ->exists()
-        ) {
-            $newSlug = $base . '-' . $i++;
+        // ✅ Enforce department scope for dept-scoped roles
+        if ($ac['mode'] === 'department' && (int)$ac['department_id'] !== (int)$validated['department_id']) {
+            return response()->json(['error' => 'Not allowed'], 403);
         }
 
-        $update['slug'] = $newSlug;
-    }
+        if (!$request->hasFile('pdf')) {
+            return response()->json(['success' => false, 'message' => 'PDF file is required'], 422);
+        }
 
-    // ✅ Replace PDF if provided
-    if ($request->hasFile('pdf')) {
         $pdf = $request->file('pdf');
         if (!$pdf || !$pdf->isValid()) {
             $code = $pdf ? $pdf->getError() : null;
@@ -453,58 +571,306 @@ class CurriculumSyllabusController extends Controller
             ], 422);
         }
 
-        // meta BEFORE move
+        // ✅ Read meta BEFORE move (prevents SplFileInfo::getSize stat failed)
         $originalName = $pdf->getClientOriginalName();
         $mimeType     = $pdf->getClientMimeType() ?: $pdf->getMimeType();
         $fileSize     = (int) $pdf->getSize();
         $ext          = strtolower($pdf->getClientOriginalExtension() ?: 'pdf');
 
-        $depId = array_key_exists('department_id', $update) ? (int)$update['department_id'] : (int)$row->department_id;
+        // slug
+        $slug = trim((string)($validated['slug'] ?? ''));
+        $slug = $slug !== '' ? Str::slug($slug) : Str::slug($validated['title']);
 
-        // destination
-        $dirRel = 'depy_uploads/curriculum_syllabuses/' . $depId;
-        $dirAbs = public_path($dirRel);
-        if (!is_dir($dirAbs)) @mkdir($dirAbs, 0775, true);
-
-        $useSlug = $update['slug'] ?? $row->slug ?? 'syllabus';
-        $filename = $useSlug . '-' . Str::random(6) . '.' . $ext;
-
-        // delete old file (if exists)
-        if (!empty($row->pdf_path)) {
-            $oldAbs = public_path(ltrim((string)$row->pdf_path, '/'));
-            if (is_file($oldAbs)) @unlink($oldAbs);
+        // ✅ ensure unique slug per department (ignoring soft-deleted rows)
+        $baseSlug = $slug;
+        $i = 2;
+        while (DB::table('curriculum_syllabuses')
+            ->where('department_id', (int)$validated['department_id'])
+            ->where('slug', $slug)
+            ->whereNull('deleted_at')
+            ->exists()
+        ) {
+            $slug = $baseSlug . '-' . $i++;
         }
 
+        // destination (public/)
+        $dirRel = 'depy_uploads/curriculum_syllabuses/' . (int)$validated['department_id'];
+        $dirAbs = public_path($dirRel);
+        if (!is_dir($dirAbs)) {
+            @mkdir($dirAbs, 0775, true);
+        }
+
+        $filename = $slug . '-' . Str::random(6) . '.' . $ext;
+
+        // ✅ Move file (tmp disappears after this)
         $pdf->move($dirAbs, $filename);
 
-        $pdfPathRel = $dirRel . '/' . $filename;
+        $pdfPathRel = $dirRel . '/' . $filename; // store in DB
 
-        $update['pdf_path']      = $pdfPathRel;
-        $update['original_name'] = $originalName;
-        $update['mime_type']     = $mimeType;
-        $update['file_size']     = $fileSize;
+        $uuid = (string) Str::uuid();
+        $now  = now();
+
+        $id = DB::table('curriculum_syllabuses')->insertGetId([
+            'uuid'          => $uuid,
+            'department_id' => (int)$validated['department_id'],
+            'title'         => $validated['title'],
+            'slug'          => $slug,
+            'active'        => (int)($validated['active'] ?? 1),
+            'sort_order'    => (int)($validated['sort_order'] ?? 0),
+
+            'pdf_path'      => $pdfPathRel,
+            'original_name' => $originalName,
+            'mime_type'     => $mimeType,
+            'file_size'     => $fileSize,
+
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ]);
+
+        $row = DB::table('curriculum_syllabuses')->where('id', $id)->first();
+
+        // ✅ LOG (CREATE) - only after successful insert
+        $newVals = [
+            'id'            => (int)$id,
+            'uuid'          => $uuid,
+            'department_id' => (int)$validated['department_id'],
+            'title'         => $validated['title'],
+            'slug'          => $slug,
+            'active'        => (int)($validated['active'] ?? 1),
+            'sort_order'    => (int)($validated['sort_order'] ?? 0),
+            'pdf_path'      => $pdfPathRel,
+            'original_name' => $originalName,
+            'mime_type'     => $mimeType,
+            'file_size'     => $fileSize,
+        ];
+        $this->logActivity(
+            $request,
+            'create',
+            'curriculum_syllabuses',
+            'curriculum_syllabuses',
+            (int)$id,
+            array_keys($newVals),
+            null,
+            $newVals,
+            'Curriculum & Syllabus created'
+        );
+
+        return response()->json([
+            'success' => true,
+            'data'    => $row ? $this->normalizeRow($row) : null,
+        ]);
     }
 
-    DB::table('curriculum_syllabuses')->where('uuid', $uuid)->update($update);
+    /**
+     * STORE under department (nested)
+     * POST /departments/{department}/curriculum-syllabuses
+     */
+    public function storeForDepartment(Request $request, $department)
+    {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
 
-    $fresh = DB::table('curriculum_syllabuses')->where('uuid', $uuid)->first();
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
 
-    return response()->json([
-        'success' => true,
-        'data'    => $fresh ? $this->normalizeRow($fresh) : null,
-    ]);
-}
+        $dept = $this->resolveDepartment($department, false);
+        if (! $dept) return response()->json(['message' => 'Department not found'], 404);
 
+        // ✅ Enforce department match for dept-scoped roles
+        if ($ac['mode'] === 'department' && (int)$ac['department_id'] !== (int)$dept->id) {
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        // force department_id in request
+        $request->merge(['department_id' => (int) $dept->id]);
+
+        // NOTE: log happens inside store() after successful insert (avoids double logs)
+        return $this->store($request);
+    }
+
+    /**
+     * UPDATE (partial) + optional PDF replace
+     */
+    public function update(Request $request, string $uuid)
+    {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $row = DB::table('curriculum_syllabuses')->where('uuid', $uuid)->first();
+        if (!$row) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+
+        $oldRowArr = (array) $row;
+
+        // ✅ Enforce current row department for dept-scoped roles
+        if ($ac['mode'] === 'department' && (int)$ac['department_id'] !== (int)$row->department_id) {
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $validated = $request->validate([
+            'department_id' => ['nullable','integer','exists:departments,id'],
+            'title'         => ['nullable','string','max:180'],
+            'slug'          => ['nullable','string','max:200'],
+            'active'        => ['nullable','in:0,1','boolean'],
+            'sort_order'    => ['nullable','integer','min:0'],
+            'pdf'           => ['nullable','file','mimes:pdf','max:20480'],
+        ]);
+
+        // ✅ If trying to change department, enforce scope
+        if ($ac['mode'] === 'department' && array_key_exists('department_id', $validated)) {
+            if ((int)$validated['department_id'] !== (int)$ac['department_id']) {
+                return response()->json(['error' => 'Not allowed'], 403);
+            }
+        }
+
+        $update = ['updated_at' => now()];
+
+        // normal fields
+        foreach (['department_id','title','active','sort_order'] as $k) {
+            if (array_key_exists($k, $validated)) {
+                $update[$k] = ($k === 'department_id' || $k === 'sort_order')
+                    ? (int) $validated[$k]
+                    : ($k === 'active' ? (int) $validated[$k] : $validated[$k]);
+            }
+        }
+
+        // slug update (if provided)
+        $newSlug = null;
+        if (array_key_exists('slug', $validated) && trim((string)$validated['slug']) !== '') {
+            $newSlug = Str::slug($validated['slug']);
+        }
+
+        // if title changed but slug not provided, keep existing slug (your current behavior)
+        if ($newSlug !== null) {
+            // ensure unique slug per department (current/updated department)
+            $depId = array_key_exists('department_id', $update) ? (int)$update['department_id'] : (int)$row->department_id;
+
+            $base = $newSlug;
+            $i = 2;
+            while (DB::table('curriculum_syllabuses')
+                ->where('department_id', $depId)
+                ->where('slug', $newSlug)
+                ->whereNull('deleted_at')
+                ->where('uuid', '!=', $uuid)
+                ->exists()
+            ) {
+                $newSlug = $base . '-' . $i++;
+            }
+
+            $update['slug'] = $newSlug;
+        }
+
+        // ✅ Replace PDF if provided
+        if ($request->hasFile('pdf')) {
+            $pdf = $request->file('pdf');
+            if (!$pdf || !$pdf->isValid()) {
+                $code = $pdf ? $pdf->getError() : null;
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Upload failed' . ($code !== null ? " (code: {$code})" : ''),
+                ], 422);
+            }
+
+            // meta BEFORE move
+            $originalName = $pdf->getClientOriginalName();
+            $mimeType     = $pdf->getClientMimeType() ?: $pdf->getMimeType();
+            $fileSize     = (int) $pdf->getSize();
+            $ext          = strtolower($pdf->getClientOriginalExtension() ?: 'pdf');
+
+            $depId = array_key_exists('department_id', $update) ? (int)$update['department_id'] : (int)$row->department_id;
+
+            // destination
+            $dirRel = 'depy_uploads/curriculum_syllabuses/' . $depId;
+            $dirAbs = public_path($dirRel);
+            if (!is_dir($dirAbs)) @mkdir($dirAbs, 0775, true);
+
+            $useSlug = $update['slug'] ?? $row->slug ?? 'syllabus';
+            $filename = $useSlug . '-' . Str::random(6) . '.' . $ext;
+
+            // delete old file (if exists)
+            if (!empty($row->pdf_path)) {
+                $oldAbs = public_path(ltrim((string)$row->pdf_path, '/'));
+                if (is_file($oldAbs)) @unlink($oldAbs);
+            }
+
+            $pdf->move($dirAbs, $filename);
+
+            $pdfPathRel = $dirRel . '/' . $filename;
+
+            $update['pdf_path']      = $pdfPathRel;
+            $update['original_name'] = $originalName;
+            $update['mime_type']     = $mimeType;
+            $update['file_size']     = $fileSize;
+        }
+
+        DB::table('curriculum_syllabuses')->where('uuid', $uuid)->update($update);
+
+        $fresh = DB::table('curriculum_syllabuses')->where('uuid', $uuid)->first();
+
+        // ✅ LOG (UPDATE) - only after successful update
+        if ($fresh) {
+            $newRowArr = (array) $fresh;
+
+            $keys = array_values(array_unique(array_merge(
+                array_keys($update),
+                ['uuid','id','department_id','title','slug','active','sort_order','pdf_path','original_name','mime_type','file_size','deleted_at']
+            )));
+
+            [$changed, $oldVals, $newVals] = $this->diffForLog($oldRowArr, $newRowArr, $keys);
+
+            // log only if something actually changed (besides updated_at)
+            $meaningfulChanged = array_values(array_filter($changed, fn($f) => $f !== 'updated_at'));
+            if (count($meaningfulChanged) > 0) {
+                // keep only meaningful ones
+                $oldKeep = [];
+                $newKeep = [];
+                foreach ($meaningfulChanged as $f) {
+                    $oldKeep[$f] = $oldVals[$f] ?? null;
+                    $newKeep[$f] = $newVals[$f] ?? null;
+                }
+
+                $this->logActivity(
+                    $request,
+                    'update',
+                    'curriculum_syllabuses',
+                    'curriculum_syllabuses',
+                    (int)($fresh->id ?? $row->id),
+                    $meaningfulChanged,
+                    $oldKeep,
+                    $newKeep,
+                    'Curriculum & Syllabus updated'
+                );
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => $fresh ? $this->normalizeRow($fresh) : null,
+        ]);
+    }
 
     /**
      * Toggle active
      */
     public function toggleActive(Request $request, $identifier)
     {
-        $row = $this->resolveSyllabus($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        $row = $this->resolveSyllabus($request, $identifier, true, $deptScope);
         if (! $row) return response()->json(['message' => 'Curriculum & Syllabus not found'], 404);
 
-        $newActive = ! (bool) $row->active;
+        $oldActive = (bool) $row->active;
+        $newActive = ! $oldActive;
 
         DB::table('curriculum_syllabuses')
             ->where('id', (int) $row->id)
@@ -513,7 +879,20 @@ class CurriculumSyllabusController extends Controller
                 'updated_at' => now(),
             ]);
 
-        $fresh = $this->resolveSyllabus($request, (string) $row->id, true);
+        $fresh = $this->resolveSyllabus($request, (string) $row->id, true, $deptScope);
+
+        // ✅ LOG (TOGGLE ACTIVE)
+        $this->logActivity(
+            $request,
+            'update',
+            'curriculum_syllabuses',
+            'curriculum_syllabuses',
+            (int) $row->id,
+            ['active'],
+            ['active' => $oldActive],
+            ['active' => $newActive],
+            'Toggled active status'
+        );
 
         return response()->json([
             'success' => true,
@@ -526,15 +905,40 @@ class CurriculumSyllabusController extends Controller
      */
     public function destroy(Request $request, $identifier)
     {
-        $row = $this->resolveSyllabus($request, $identifier, false);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        $row = $this->resolveSyllabus($request, $identifier, false, $deptScope);
         if (! $row) return response()->json(['message' => 'Not found or already deleted'], 404);
+
+        $oldDeletedAt = $row->deleted_at;
+
+        $now = now();
 
         DB::table('curriculum_syllabuses')
             ->where('id', (int) $row->id)
             ->update([
-                'deleted_at' => now(),
-                'updated_at' => now(),
+                'deleted_at' => $now,
+                'updated_at' => $now,
             ]);
+
+        // ✅ LOG (SOFT DELETE)
+        $this->logActivity(
+            $request,
+            'delete',
+            'curriculum_syllabuses',
+            'curriculum_syllabuses',
+            (int) $row->id,
+            ['deleted_at'],
+            ['deleted_at' => $oldDeletedAt],
+            ['deleted_at' => (string)$now],
+            'Moved to bin (soft delete)'
+        );
 
         return response()->json(['success' => true]);
     }
@@ -544,10 +948,20 @@ class CurriculumSyllabusController extends Controller
      */
     public function restore(Request $request, $identifier)
     {
-        $row = $this->resolveSyllabus($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        $row = $this->resolveSyllabus($request, $identifier, true, $deptScope);
         if (! $row || $row->deleted_at === null) {
             return response()->json(['message' => 'Not found in bin'], 404);
         }
+
+        $oldDeletedAt = $row->deleted_at;
 
         DB::table('curriculum_syllabuses')
             ->where('id', (int) $row->id)
@@ -556,7 +970,20 @@ class CurriculumSyllabusController extends Controller
                 'updated_at' => now(),
             ]);
 
-        $fresh = $this->resolveSyllabus($request, (string) $row->id, true);
+        $fresh = $this->resolveSyllabus($request, (string) $row->id, true, $deptScope);
+
+        // ✅ LOG (RESTORE)
+        $this->logActivity(
+            $request,
+            'restore',
+            'curriculum_syllabuses',
+            'curriculum_syllabuses',
+            (int) $row->id,
+            ['deleted_at'],
+            ['deleted_at' => $oldDeletedAt],
+            ['deleted_at' => null],
+            'Restored from bin'
+        );
 
         return response()->json([
             'success' => true,
@@ -569,8 +996,18 @@ class CurriculumSyllabusController extends Controller
      */
     public function forceDelete(Request $request, $identifier)
     {
-        $row = $this->resolveSyllabus($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        $row = $this->resolveSyllabus($request, $identifier, true, $deptScope);
         if (! $row) return response()->json(['message' => 'Not found'], 404);
+
+        $oldRow = (array) $row;
 
         // delete file from public if exists
         $path = (string) ($row->pdf_path ?? '');
@@ -583,6 +1020,19 @@ class CurriculumSyllabusController extends Controller
 
         DB::table('curriculum_syllabuses')->where('id', (int) $row->id)->delete();
 
+        // ✅ LOG (FORCE DELETE)
+        $this->logActivity(
+            $request,
+            'force_delete',
+            'curriculum_syllabuses',
+            'curriculum_syllabuses',
+            (int) $row->id,
+            ['__deleted__'],
+            $oldRow,
+            null,
+            'Permanently deleted record (and file if existed)'
+        );
+
         return response()->json(['success' => true]);
     }
 
@@ -591,7 +1041,15 @@ class CurriculumSyllabusController extends Controller
      */
     public function stream(Request $request, $identifier)
     {
-        $row = $this->resolveSyllabus($request, $identifier, false);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Not found'], 404);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        $row = $this->resolveSyllabus($request, $identifier, false, $deptScope);
         if (! $row) return response()->json(['message' => 'Not found'], 404);
 
         $abs = public_path(ltrim((string) $row->pdf_path, '/'));
@@ -608,7 +1066,15 @@ class CurriculumSyllabusController extends Controller
      */
     public function download(Request $request, $identifier)
     {
-        $row = $this->resolveSyllabus($request, $identifier, false);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Not found'], 404);
+
+        $deptScope = ($ac['mode'] === 'department') ? (int)$ac['department_id'] : null;
+
+        $row = $this->resolveSyllabus($request, $identifier, false, $deptScope);
         if (! $row) return response()->json(['message' => 'Not found'], 404);
 
         $abs = public_path(ltrim((string) $row->pdf_path, '/'));

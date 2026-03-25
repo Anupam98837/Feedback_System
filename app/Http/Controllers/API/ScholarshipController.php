@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class ScholarshipController extends Controller
@@ -23,6 +24,69 @@ class ScholarshipController extends Controller
             'type' => (string) ($r->attributes->get('auth_tokenable_type') ?? ($r->user() ? get_class($r->user()) : '')),
             'uuid' => (string) ($r->attributes->get('auth_user_uuid') ?? ($r->user()->uuid ?? '')),
         ];
+    }
+
+    /**
+     * accessControl (ONLY users table)
+     *
+     * Returns ONLY:
+     *  - ['mode' => 'all',         'department_id' => null]
+     *  - ['mode' => 'department',  'department_id' => <int>]
+     *  - ['mode' => 'none',        'department_id' => null]
+     *  - ['mode' => 'not_allowed', 'department_id' => null]
+     */
+    private function accessControl(int $userId): array
+    {
+        if ($userId <= 0) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // Safety (if some env doesn't have dept column yet)
+        if (!Schema::hasColumn('users', 'department_id')) {
+            return ['mode' => 'not_allowed', 'department_id' => null];
+        }
+
+        $q = DB::table('users')->select(['id', 'role', 'department_id', 'status']);
+
+        // your schema has deleted_at; keep it safe
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        $u = $q->where('id', $userId)->first();
+
+        if (!$u) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // optional: inactive users => none
+        if (isset($u->status) && (string)$u->status !== 'active') {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // normalize role from users table
+        $role = strtolower(trim((string)($u->role ?? '')));
+        $role = str_replace([' ', '-'], '_', $role);
+        $role = preg_replace('/_+/', '_', $role) ?? $role;
+
+        $deptId = $u->department_id !== null ? (int)$u->department_id : null;
+        if ($deptId !== null && $deptId <= 0) $deptId = null;
+
+        // ✅ CONFIG: decide access by role + department_id
+        $allRoles  = ['admin', 'director', 'principal']; // gets ALL even if dept null
+        $deptRoles = ['hod', 'faculty', 'technical_assistant', 'it_person', 'placement_officer', 'student']; // needs dept
+
+        if (in_array($role, $allRoles, true)) {
+            return ['mode' => 'all', 'department_id' => null];
+        }
+
+        if (in_array($role, $deptRoles, true)) {
+            // none is based on role + dept id (your rule)
+            if (!$deptId) return ['mode' => 'none', 'department_id' => null];
+            return ['mode' => 'department', 'department_id' => $deptId];
+        }
+
+        return ['mode' => 'not_allowed', 'department_id' => null];
     }
 
     private function normSlug(?string $s): string
@@ -294,17 +358,142 @@ class ScholarshipController extends Controller
     }
 
     /* ============================================
+     | Activity Log Helpers (POST/PUT/PATCH/DELETE)
+     |============================================ */
+
+    private function logSnapshotScholarship($row): array
+    {
+        $a = (array) $row;
+
+        // keep logs small & safe: DO NOT store full body
+        $snapshot = [
+            'id'                   => $a['id'] ?? null,
+            'uuid'                 => $a['uuid'] ?? null,
+            'department_id'        => $a['department_id'] ?? null,
+            'title'                => $a['title'] ?? null,
+            'slug'                 => $a['slug'] ?? null,
+            'status'               => $a['status'] ?? null,
+            'is_featured_home'     => $a['is_featured_home'] ?? null,
+            'request_for_approval' => $a['request_for_approval'] ?? null,
+            'publish_at'           => $a['publish_at'] ?? null,
+            'expire_at'            => $a['expire_at'] ?? null,
+            'views_count'          => $a['views_count'] ?? null,
+            'cover_image'          => $a['cover_image'] ?? null,
+            'attachments_json'     => $a['attachments_json'] ?? null,
+            'metadata'             => $a['metadata'] ?? null,
+            'created_by'           => $a['created_by'] ?? null,
+            'created_at'           => $a['created_at'] ?? null,
+            'updated_at'           => $a['updated_at'] ?? null,
+            'deleted_at'           => $a['deleted_at'] ?? null,
+        ];
+
+        return $snapshot;
+    }
+
+    private function computeDiff(array $old, array $new): array
+    {
+        $changed = [];
+        $oldOut  = [];
+        $newOut  = [];
+
+        $keys = array_unique(array_merge(array_keys($old), array_keys($new)));
+
+        foreach ($keys as $k) {
+            $ov = $old[$k] ?? null;
+            $nv = $new[$k] ?? null;
+
+            // normalize arrays/objects for comparison
+            $ovCmp = (is_array($ov) || is_object($ov)) ? json_encode($ov) : $ov;
+            $nvCmp = (is_array($nv) || is_object($nv)) ? json_encode($nv) : $nv;
+
+            if ($ovCmp != $nvCmp) {
+                $changed[] = $k;
+                $oldOut[$k] = $ov;
+                $newOut[$k] = $nv;
+            }
+        }
+
+        return [$changed, $oldOut, $newOut];
+    }
+
+    private function safeLogActivity(
+        Request $request,
+        string $activity,
+        string $module,
+        string $tableName,
+        ?int $recordId = null,
+        ?array $changedFields = null,
+        $oldValues = null,
+        $newValues = null,
+        ?string $note = null
+    ): void {
+        try {
+            if (!Schema::hasTable('user_data_activity_log')) return;
+
+            $actor = $this->actor($request);
+
+            $ua = (string) ($request->header('User-Agent') ?? '');
+            if (strlen($ua) > 512) $ua = substr($ua, 0, 512);
+
+            DB::table('user_data_activity_log')->insert([
+                'performed_by'      => (int) ($actor['id'] ?? 0),
+                'performed_by_role' => (string) ($actor['role'] ?? ''),
+                'ip'                => (string) ($request->ip() ?? ''),
+                'user_agent'        => $ua,
+
+                'activity'          => substr((string) $activity, 0, 50),
+                'module'            => substr((string) $module, 0, 100),
+
+                'table_name'        => substr((string) $tableName, 0, 128),
+                'record_id'         => $recordId !== null ? (int) $recordId : null,
+
+                'changed_fields'    => $changedFields !== null ? json_encode(array_values($changedFields)) : null,
+                'old_values'        => $oldValues !== null ? json_encode($oldValues) : null,
+                'new_values'        => $newValues !== null ? json_encode($newValues) : null,
+
+                'log_note'          => $note,
+
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Never break API functionality due to logging errors.
+        }
+    }
+
+    /* ============================================
      | CRUD (Authenticated)
      |============================================ */
 
     public function index(Request $request)
     {
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => (int) $request->query('per_page', 20),
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
         $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
         $onlyDeleted    = filter_var($request->query('only_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
         $query = $this->baseQuery($request, $includeDeleted || $onlyDeleted);
+
+        // ✅ apply dept filter (department-mode)
+        if ($ac['mode'] === 'department') {
+            $query->where('s.department_id', (int) $ac['department_id']);
+        }
 
         if ($onlyDeleted) {
             $query->whereNotNull('s.deleted_at');
@@ -326,8 +515,37 @@ class ScholarshipController extends Controller
 
     public function indexByDepartment(Request $request, $department)
     {
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => (int) $request->query('per_page', 20),
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
+
         $dept = $this->resolveDepartment($department, false);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
+
+        // ✅ if dept-mode, block other department route
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => (int) $request->query('per_page', 20),
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ], 200);
+        }
 
         $request->query->set('department', $dept->id);
         return $this->index($request);
@@ -341,9 +559,17 @@ class ScholarshipController extends Controller
 
     public function show(Request $request, $identifier)
     {
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['message' => 'Scholarship not found'], 404);
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveScholarship($request, $identifier, $includeDeleted);
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveScholarship($request, $identifier, $includeDeleted, $deptId);
         if (! $row) return response()->json(['message' => 'Scholarship not found'], 404);
 
         // optional: ?inc_view=1
@@ -360,8 +586,19 @@ class ScholarshipController extends Controller
 
     public function showByDepartment(Request $request, $department, $identifier)
     {
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['message' => 'Scholarship not found'], 404);
+
         $dept = $this->resolveDepartment($department, true);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
+
+        // ✅ if dept-mode, block other department route
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['message' => 'Scholarship not found'], 404);
+        }
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -377,6 +614,10 @@ class ScholarshipController extends Controller
     public function store(Request $request)
     {
         $actor = $this->actor($request);
+
+        $ac = $this->accessControl((int) $actor['id']);
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
 
         $validated = $request->validate([
             'department_id'     => ['nullable', 'integer', 'exists:departments,id'],
@@ -394,6 +635,11 @@ class ScholarshipController extends Controller
             'attachments.*'     => ['file', 'max:20480'],
             'attachments_json'  => ['nullable'],
         ]);
+
+        // ✅ force department for department-mode users
+        if ($ac['mode'] === 'department') {
+            $validated['department_id'] = (int) $ac['department_id'];
+        }
 
         $slug = $this->normSlug($validated['slug'] ?? '');
         if ($slug === '') $slug = Str::slug($validated['title'], '-');
@@ -448,28 +694,54 @@ class ScholarshipController extends Controller
             if (json_last_error() === JSON_ERROR_NONE) $metadata = $decoded;
         }
 
+        // ✅ AUTHORITY CONTROL SYNC (FEATURED -> REQUEST FOR APPROVAL)
+        $isFeatured = (int) ($validated['is_featured_home'] ?? 0);
+        $requestForApproval = $isFeatured === 1 ? 1 : 0;
+
         $id = DB::table('scholarships')->insertGetId([
-            'uuid'             => $uuid,
-            'department_id'    => $validated['department_id'] ?? null,
-            'title'            => $validated['title'],
-            'slug'             => $slug,
-            'body'             => $validated['body'],
-            'cover_image'      => $coverPath,
-            'attachments_json' => !empty($attachments) ? json_encode($attachments) : null,
-            'is_featured_home' => (int) ($validated['is_featured_home'] ?? 0),
-            'status'           => (string) ($validated['status'] ?? 'draft'),
-            'publish_at'       => !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null,
-            'expire_at'        => !empty($validated['expire_at']) ? Carbon::parse($validated['expire_at']) : null,
-            'views_count'      => 0,
-            'created_by'       => $actor['id'] ?: null,
-            'created_at'       => $now,
-            'updated_at'       => $now,
-            'created_at_ip'    => $request->ip(),
-            'updated_at_ip'    => $request->ip(),
-            'metadata'         => $metadata !== null ? json_encode($metadata) : null,
+            'uuid'                 => $uuid,
+            'department_id'        => $validated['department_id'] ?? null,
+            'title'                => $validated['title'],
+            'slug'                 => $slug,
+            'body'                 => $validated['body'],
+            'cover_image'          => $coverPath,
+            'attachments_json'     => !empty($attachments) ? json_encode($attachments) : null,
+            'is_featured_home'     => $isFeatured,
+
+            // ✅ NEW: auto-sync
+            'request_for_approval' => $requestForApproval,
+
+            'status'               => (string) ($validated['status'] ?? 'draft'),
+            'publish_at'           => !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null,
+            'expire_at'            => !empty($validated['expire_at']) ? Carbon::parse($validated['expire_at']) : null,
+            'views_count'          => 0,
+            'created_by'           => $actor['id'] ?: null,
+            'created_at'           => $now,
+            'updated_at'           => $now,
+            'created_at_ip'        => $request->ip(),
+            'updated_at_ip'        => $request->ip(),
+            'metadata'             => $metadata !== null ? json_encode($metadata) : null,
         ]);
 
         $row = DB::table('scholarships')->where('id', $id)->first();
+
+        // ✅ LOG (POST)
+        if ($row) {
+            $newSnap = $this->logSnapshotScholarship($row);
+            $notePrefix = (string) ($request->attributes->get('_log_note_prefix') ?? '');
+            $note = $notePrefix !== '' ? ("Created scholarship via " . $notePrefix) : "Created scholarship";
+            $this->safeLogActivity(
+                $request,
+                'create',
+                'scholarships',
+                'scholarships',
+                (int) $id,
+                array_keys($newSnap),
+                null,
+                $newSnap,
+                $note
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -479,8 +751,22 @@ class ScholarshipController extends Controller
 
     public function storeForDepartment(Request $request, $department)
     {
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
         $dept = $this->resolveDepartment($department, false);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
+
+        // ✅ if dept-mode, block other department route
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        // mark source endpoint for single log entry (inside store)
+        $request->attributes->set('_log_note_prefix', 'storeForDepartment');
 
         $request->merge(['department_id' => (int) $dept->id]);
         return $this->store($request);
@@ -488,8 +774,18 @@ class ScholarshipController extends Controller
 
     public function update(Request $request, $identifier)
     {
-        $row = $this->resolveScholarship($request, $identifier, true);
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveScholarship($request, $identifier, true, $deptId);
         if (! $row) return response()->json(['message' => 'Scholarship not found'], 404);
+
+        $oldSnap = $this->logSnapshotScholarship($row);
 
         $validated = $request->validate([
             'department_id'      => ['nullable', 'integer', 'exists:departments,id'],
@@ -516,21 +812,36 @@ class ScholarshipController extends Controller
             'updated_at_ip' => $request->ip(),
         ];
 
-        // dept id for directory
-        $newDeptId = array_key_exists('department_id', $validated)
-            ? ($validated['department_id'] !== null ? (int) $validated['department_id'] : null)
-            : ($row->department_id !== null ? (int) $row->department_id : null);
-
         // normal fields
         foreach (['title','body','status'] as $k) {
             if (array_key_exists($k, $validated)) $update[$k] = $validated[$k];
         }
-        if (array_key_exists('department_id', $validated)) {
-            $update['department_id'] = $validated['department_id'] !== null ? (int) $validated['department_id'] : null;
+
+        // ✅ department rules
+        if ($ac['mode'] === 'department') {
+            // force department_id to actor dept
+            $update['department_id'] = (int) $ac['department_id'];
+        } else {
+            // all-mode can change department_id (nullable)
+            if (array_key_exists('department_id', $validated)) {
+                $update['department_id'] = $validated['department_id'] !== null ? (int) $validated['department_id'] : null;
+            }
         }
+
+        // dept id for directory (based on final department)
+        $newDeptId = array_key_exists('department_id', $update)
+            ? ($update['department_id'] !== null ? (int) $update['department_id'] : null)
+            : ($row->department_id !== null ? (int) $row->department_id : null);
+
+        // ✅ AUTHORITY CONTROL SYNC (when is_featured_home is updated)
         if (array_key_exists('is_featured_home', $validated)) {
-            $update['is_featured_home'] = (int) $validated['is_featured_home'];
+            $isFeatured = (int) $validated['is_featured_home'];
+            $update['is_featured_home'] = $isFeatured;
+
+            // ✅ auto-sync request_for_approval
+            $update['request_for_approval'] = $isFeatured === 1 ? 1 : 0;
         }
+
         if (array_key_exists('publish_at', $validated)) {
             $update['publish_at'] = !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null;
         }
@@ -632,6 +943,24 @@ class ScholarshipController extends Controller
 
         $fresh = DB::table('scholarships')->where('id', (int) $row->id)->first();
 
+        // ✅ LOG (PUT/PATCH)
+        if ($fresh) {
+            $newSnap = $this->logSnapshotScholarship($fresh);
+            [$changed, $oldVals, $newVals] = $this->computeDiff($oldSnap, $newSnap);
+
+            $this->safeLogActivity(
+                $request,
+                'update',
+                'scholarships',
+                'scholarships',
+                (int) $row->id,
+                $changed,
+                $oldVals,
+                $newVals,
+                'Updated scholarship'
+            );
+        }
+
         return response()->json([
             'success' => true,
             'data'    => $fresh ? $this->normalizeRow($fresh) : null,
@@ -640,18 +969,50 @@ class ScholarshipController extends Controller
 
     public function toggleFeatured(Request $request, $identifier)
     {
-        $row = $this->resolveScholarship($request, $identifier, true);
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveScholarship($request, $identifier, true, $deptId);
         if (! $row) return response()->json(['message' => 'Scholarship not found'], 404);
+
+        $oldSnap = $this->logSnapshotScholarship($row);
 
         $new = ((int) ($row->is_featured_home ?? 0)) ? 0 : 1;
 
         DB::table('scholarships')->where('id', (int) $row->id)->update([
-            'is_featured_home' => $new,
-            'updated_at'       => now(),
-            'updated_at_ip'    => $request->ip(),
+            'is_featured_home'       => $new,
+
+            // ✅ AUTHORITY CONTROL SYNC
+            'request_for_approval'   => $new,
+
+            'updated_at'             => now(),
+            'updated_at_ip'          => $request->ip(),
         ]);
 
         $fresh = DB::table('scholarships')->where('id', (int) $row->id)->first();
+
+        // ✅ LOG (PATCH)
+        if ($fresh) {
+            $newSnap = $this->logSnapshotScholarship($fresh);
+            [$changed, $oldVals, $newVals] = $this->computeDiff($oldSnap, $newSnap);
+
+            $this->safeLogActivity(
+                $request,
+                'toggle_featured',
+                'scholarships',
+                'scholarships',
+                (int) $row->id,
+                $changed,
+                $oldVals,
+                $newVals,
+                'Toggled featured flag'
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -661,8 +1022,18 @@ class ScholarshipController extends Controller
 
     public function destroy(Request $request, $identifier)
     {
-        $row = $this->resolveScholarship($request, $identifier, false);
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveScholarship($request, $identifier, false, $deptId);
         if (! $row) return response()->json(['message' => 'Not found or already deleted'], 404);
+
+        $oldSnap = $this->logSnapshotScholarship($row);
 
         DB::table('scholarships')->where('id', (int) $row->id)->update([
             'deleted_at'    => now(),
@@ -670,15 +1041,45 @@ class ScholarshipController extends Controller
             'updated_at_ip' => $request->ip(),
         ]);
 
+        $fresh = DB::table('scholarships')->where('id', (int) $row->id)->first();
+
+        // ✅ LOG (DELETE - soft)
+        if ($fresh) {
+            $newSnap = $this->logSnapshotScholarship($fresh);
+            [$changed, $oldVals, $newVals] = $this->computeDiff($oldSnap, $newSnap);
+
+            $this->safeLogActivity(
+                $request,
+                'delete',
+                'scholarships',
+                'scholarships',
+                (int) $row->id,
+                $changed,
+                $oldVals,
+                $newVals,
+                'Soft deleted scholarship'
+            );
+        }
+
         return response()->json(['success' => true]);
     }
 
     public function restore(Request $request, $identifier)
     {
-        $row = $this->resolveScholarship($request, $identifier, true);
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveScholarship($request, $identifier, true, $deptId);
         if (! $row || $row->deleted_at === null) {
             return response()->json(['message' => 'Not found in bin'], 404);
         }
+
+        $oldSnap = $this->logSnapshotScholarship($row);
 
         DB::table('scholarships')->where('id', (int) $row->id)->update([
             'deleted_at'    => null,
@@ -688,6 +1089,24 @@ class ScholarshipController extends Controller
 
         $fresh = DB::table('scholarships')->where('id', (int) $row->id)->first();
 
+        // ✅ LOG (POST)
+        if ($fresh) {
+            $newSnap = $this->logSnapshotScholarship($fresh);
+            [$changed, $oldVals, $newVals] = $this->computeDiff($oldSnap, $newSnap);
+
+            $this->safeLogActivity(
+                $request,
+                'restore',
+                'scholarships',
+                'scholarships',
+                (int) $row->id,
+                $changed,
+                $oldVals,
+                $newVals,
+                'Restored scholarship'
+            );
+        }
+
         return response()->json([
             'success' => true,
             'data'    => $fresh ? $this->normalizeRow($fresh) : null,
@@ -696,8 +1115,18 @@ class ScholarshipController extends Controller
 
     public function forceDelete(Request $request, $identifier)
     {
-        $row = $this->resolveScholarship($request, $identifier, true);
+        $actorId = (int) ($request->attributes->get('auth_tokenable_id') ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveScholarship($request, $identifier, true, $deptId);
         if (! $row) return response()->json(['message' => 'Scholarship not found'], 404);
+
+        $oldSnap = $this->logSnapshotScholarship($row);
 
         // delete cover
         $this->deletePublicPath($row->cover_image ?? null);
@@ -714,6 +1143,19 @@ class ScholarshipController extends Controller
         }
 
         DB::table('scholarships')->where('id', (int) $row->id)->delete();
+
+        // ✅ LOG (DELETE - force)
+        $this->safeLogActivity(
+            $request,
+            'force_delete',
+            'scholarships',
+            'scholarships',
+            (int) $row->id,
+            array_keys($oldSnap),
+            $oldSnap,
+            null,
+            'Force deleted scholarship'
+        );
 
         return response()->json(['success' => true]);
     }

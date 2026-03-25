@@ -36,6 +36,52 @@ class FeedbackSubmissionController extends Controller
         return $ip ? (string) $ip : null;
     }
 
+    /**
+     * ✅ ACTIVITY LOGGING (non-blocking)
+     * Writes to user_data_activity_log table.
+     */
+    private function logActivity(
+        Request $r,
+        string $activity,
+        string $module,
+        string $tableName,
+        ?int $recordId = null,
+        ?array $changedFields = null,
+        $oldValues = null,
+        $newValues = null,
+        ?string $note = null
+    ): void {
+        try {
+            if (!Schema::hasTable('user_data_activity_log')) return;
+
+            $a = $this->actor($r);
+
+            $payload = [
+                'performed_by'      => (int) ($a['id'] ?? 0),
+                'performed_by_role' => ($a['role'] ?? '') !== '' ? (string) $a['role'] : null,
+                'ip'                => $this->ip($r),
+                'user_agent'        => $r->userAgent() ? mb_substr((string) $r->userAgent(), 0, 512) : null,
+
+                'activity'   => mb_substr($activity, 0, 50),
+                'module'     => mb_substr($module, 0, 100),
+                'table_name' => mb_substr($tableName, 0, 128),
+                'record_id'  => $recordId,
+
+                'changed_fields' => $changedFields ? json_encode(array_values($changedFields), JSON_UNESCAPED_UNICODE) : null,
+                'old_values'     => $oldValues !== null ? json_encode($oldValues, JSON_UNESCAPED_UNICODE) : null,
+                'new_values'     => $newValues !== null ? json_encode($newValues, JSON_UNESCAPED_UNICODE) : null,
+
+                'log_note'   => $note,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            DB::table('user_data_activity_log')->insert($payload);
+        } catch (\Throwable $e) {
+            // do nothing (must not affect any controller functionality)
+        }
+    }
+
     private function hasCol(string $table, string $col): bool
     {
         $k = $table . '.' . $col;
@@ -115,32 +161,61 @@ class FeedbackSubmissionController extends Controller
             'fp.deleted_at',
         ]);
 
-        // -------- Optional joins for names/number (SAFE) --------
-        // Semesters table: try to join if exists
-        if (Schema::hasTable('semesters')) {
-            $q->leftJoin('semesters as sem', 'sem.id', '=', 'fp.semester_id');
+        /* =========================================================
+         | ✅ SEMESTER JOIN (AUTO DETECT TABLE + COLUMN)
+         |========================================================= */
 
-            // semester_name
-            if ($this->hasCol('semesters', 'name')) {
-                $q->addSelect(DB::raw('sem.name as semester_name'));
-            } elseif ($this->hasCol('semesters', 'title')) {
-                $q->addSelect(DB::raw('sem.title as semester_name'));
-            }
-
-            // semester_number (prefer these columns)
-            if ($this->hasCol('semesters', 'semester_no')) {
-                $q->addSelect(DB::raw('sem.semester_no as semester_no'));
-            } elseif ($this->hasCol('semesters', 'number')) {
-                $q->addSelect(DB::raw('sem.number as semester_no'));
-            } elseif ($this->hasCol('semesters', 'sem_no')) {
-                $q->addSelect(DB::raw('sem.sem_no as semester_no'));
-            }
+        // Try possible semester table names
+        $semTable = null;
+        foreach (['semesters', 'academic_semesters', 'course_semesters'] as $t) {
+            if (Schema::hasTable($t)) { $semTable = $t; break; }
         }
 
-        // Subjects table: try to join if exists
+        if ($semTable) {
+            // ✅ detect join column in semester table
+            $semJoinCol = null;
+            foreach (['id', 'semester_id', 'sem_id'] as $candidate) {
+                if ($this->hasCol($semTable, $candidate)) {
+                    $semJoinCol = $candidate;
+                    break;
+                }
+            }
+            if (!$semJoinCol) $semJoinCol = 'id';
+
+            $q->leftJoin($semTable . ' as sem', "sem.$semJoinCol", '=', 'fp.semester_id');
+
+            // ✅ Add semester_name
+            if ($this->hasCol($semTable, 'name')) {
+                $q->addSelect(DB::raw('sem.name as semester_name'));
+            } elseif ($this->hasCol($semTable, 'title')) {
+                $q->addSelect(DB::raw('sem.title as semester_name'));
+            } elseif ($this->hasCol($semTable, 'semester_name')) {
+                $q->addSelect(DB::raw('sem.semester_name as semester_name'));
+            }
+
+            // ✅ Add semester_no
+            if ($this->hasCol($semTable, 'semester_no')) {
+                $q->addSelect(DB::raw('sem.semester_no as semester_no'));
+            } elseif ($this->hasCol($semTable, 'number')) {
+                $q->addSelect(DB::raw('sem.number as semester_no'));
+            } elseif ($this->hasCol($semTable, 'sem_no')) {
+                $q->addSelect(DB::raw('sem.sem_no as semester_no'));
+            } elseif ($this->hasCol($semTable, 'semester_number')) {
+                $q->addSelect(DB::raw('sem.semester_number as semester_no'));
+            }
+
+            // ✅ debug field (optional)
+            $q->addSelect(DB::raw("sem.$semJoinCol as joined_semester_id"));
+        }
+
+        /* =========================================================
+         | ✅ SUBJECT JOIN (SAFE + CODE + TYPE + OPTIONAL)
+         |========================================================= */
+
         if (Schema::hasTable('subjects')) {
             $q->leftJoin('subjects as sub', 'sub.id', '=', 'fp.subject_id');
 
+            // ✅ subject_name
             if ($this->hasCol('subjects', 'name')) {
                 $q->addSelect(DB::raw('sub.name as subject_name'));
             } elseif ($this->hasCol('subjects', 'title')) {
@@ -148,9 +223,113 @@ class FeedbackSubmissionController extends Controller
             } elseif ($this->hasCol('subjects', 'subject_name')) {
                 $q->addSelect(DB::raw('sub.subject_name as subject_name'));
             }
+
+            // ✅ subject_code
+            if ($this->hasCol('subjects', 'subject_code')) {
+                $q->addSelect(DB::raw('sub.subject_code as subject_code'));
+            } elseif ($this->hasCol('subjects', 'code')) {
+                $q->addSelect(DB::raw('sub.code as subject_code'));
+            } elseif ($this->hasCol('subjects', 'paper_code')) {
+                $q->addSelect(DB::raw('sub.paper_code as subject_code'));
+            }
+
+            // ✅ subject_type
+            if ($this->hasCol('subjects', 'subject_type')) {
+                $q->addSelect(DB::raw('sub.subject_type as subject_type'));
+            } elseif ($this->hasCol('subjects', 'type')) {
+                $q->addSelect(DB::raw('sub.type as subject_type'));
+            }
+
+            // ✅ Optional/Compulsory support
+            if ($this->hasCol('subjects', 'is_optional')) {
+                $q->addSelect(DB::raw('sub.is_optional as is_optional'));
+            } elseif ($this->hasCol('subjects', 'optional')) {
+                $q->addSelect(DB::raw('sub.optional as is_optional'));
+            } elseif ($this->hasCol('subjects', 'is_compulsory')) {
+                // compulsory=1 => optional=0
+                $q->addSelect(DB::raw('(CASE WHEN sub.is_compulsory = 1 THEN 0 ELSE 1 END) as is_optional'));
+            }
+        }
+
+        /* =========================================================
+         | ✅ COURSE + DEPARTMENT JOIN
+         | Adds:
+         | - course_title (from courses table)
+         | - department_id + department_title (from departments table)
+         |========================================================= */
+        if (Schema::hasTable('courses')) {
+            // detect join column in courses table for fp.course_id
+            $courseJoinCol = null;
+            foreach (['id', 'course_id'] as $candidate) {
+                if ($this->hasCol('courses', $candidate)) { $courseJoinCol = $candidate; break; }
+            }
+            if (!$courseJoinCol) $courseJoinCol = 'id';
+
+            $q->leftJoin('courses as c', "c.$courseJoinCol", '=', 'fp.course_id');
+
+            // ✅ course_title
+            if ($this->hasCol('courses', 'title')) {
+                $q->addSelect(DB::raw('c.title as course_title'));
+            } elseif ($this->hasCol('courses', 'name')) {
+                $q->addSelect(DB::raw('c.name as course_title'));
+            } elseif ($this->hasCol('courses', 'course_title')) {
+                $q->addSelect(DB::raw('c.course_title as course_title'));
+            } elseif ($this->hasCol('courses', 'course_name')) {
+                $q->addSelect(DB::raw('c.course_name as course_title'));
+            }
+
+            // ✅ departments join (prefer via courses.department_id)
+            if (Schema::hasTable('departments')) {
+                // detect PK in departments table
+                $depPk = null;
+                foreach (['id', 'department_id', 'dept_id'] as $candidate) {
+                    if ($this->hasCol('departments', $candidate)) { $depPk = $candidate; break; }
+                }
+                if (!$depPk) $depPk = 'id';
+
+                // detect FK in courses table
+                $courseDeptFk = null;
+                foreach (['department_id', 'dept_id', 'depart_id', 'department', 'dept'] as $candidate) {
+                    if ($this->hasCol('courses', $candidate)) { $courseDeptFk = $candidate; break; }
+                }
+
+                // fallback: some schemas store department on feedback_posts
+                $postDeptFk = null;
+                if (!$courseDeptFk) {
+                    foreach (['department_id', 'dept_id', 'depart_id'] as $candidate) {
+                        if ($this->hasCol(self::POSTS, $candidate)) { $postDeptFk = $candidate; break; }
+                    }
+                }
+
+                $depJoined = false;
+                if ($courseDeptFk) {
+                    $q->leftJoin('departments as dep', "dep.$depPk", '=', "c.$courseDeptFk");
+                    $depJoined = true;
+                } elseif ($postDeptFk) {
+                    $q->leftJoin('departments as dep', "dep.$depPk", '=', "fp.$postDeptFk");
+                    $depJoined = true;
+                }
+
+                if ($depJoined) {
+                    // ✅ department_id (from departments PK)
+                    $q->addSelect(DB::raw("dep.$depPk as department_id"));
+
+                    // ✅ department_title
+                    if ($this->hasCol('departments', 'title')) {
+                        $q->addSelect(DB::raw('dep.title as department_title'));
+                    } elseif ($this->hasCol('departments', 'name')) {
+                        $q->addSelect(DB::raw('dep.name as department_title'));
+                    } elseif ($this->hasCol('departments', 'department_name')) {
+                        $q->addSelect(DB::raw('dep.department_name as department_title'));
+                    } elseif ($this->hasCol('departments', 'dept_name')) {
+                        $q->addSelect(DB::raw('dep.dept_name as department_title'));
+                    }
+                }
+            }
         }
 
         if (!$includeDeleted) $q->whereNull('fp.deleted_at');
+
         return $q;
     }
 
@@ -207,10 +386,21 @@ class FeedbackSubmissionController extends Controller
             'subject_id'  => $row->subject_id !== null ? (int)$row->subject_id : null,
             'section_id'  => $row->section_id !== null ? (int)$row->section_id : null,
 
+            // ✅ NEW: course title + department details
+            'course_title' => property_exists($row, 'course_title') ? ($row->course_title !== null ? (string)$row->course_title : null) : null,
+            'department_id' => property_exists($row, 'department_id') ? ($row->department_id !== null ? (int)$row->department_id : null) : null,
+            'department_title' => property_exists($row, 'department_title') ? ($row->department_title !== null ? (string)$row->department_title : null) : null,
+
             // ✅ extra display fields
             'semester_name' => property_exists($row, 'semester_name') ? ($row->semester_name !== null ? (string)$row->semester_name : null) : null,
             'semester_no'   => $semesterNo,
+
             'subject_name'  => property_exists($row, 'subject_name') ? ($row->subject_name !== null ? (string)$row->subject_name : null) : null,
+
+            // ✅ subject_code + type + optional
+            'subject_code'  => property_exists($row, 'subject_code') ? ($row->subject_code !== null ? (string)$row->subject_code : null) : null,
+            'subject_type'  => property_exists($row, 'subject_type') ? ($row->subject_type !== null ? (string)$row->subject_type : null) : null,
+            'is_optional'   => property_exists($row, 'is_optional') ? ((int)$row->is_optional === 1) : null,
 
             'academic_year' => $row->academic_year !== null ? (string)$row->academic_year : null,
             'year'          => $row->year !== null ? (int)$row->year : null,
@@ -324,76 +514,106 @@ class FeedbackSubmissionController extends Controller
     /* =========================================================
      | 1) LIST available posts for current user
      | GET /api/feedback-posts/available
-     | includes:
-     | - is_submitted
-     | - submission (if submitted): answers + submitted_at
      |========================================================= */
-    public function available(Request $r)
-    {
-        if ($resp = $this->requireAuth($r)) return $resp;
-
-        $a = $this->actor($r);
-
-        $q = $this->basePostsQuery(false);
-        $this->applyCurrentWindow($q);
-        $this->applyStudentScope($r, $q);
-
-        // optional filters
-        if ($r->filled('course_id'))   $q->where('fp.course_id', (int)$r->query('course_id'));
-        if ($r->filled('semester_id')) $q->where('fp.semester_id', (int)$r->query('semester_id'));
-        if ($r->filled('subject_id'))  $q->where('fp.subject_id', (int)$r->query('subject_id'));
-        if ($r->filled('section_id'))  $q->where('fp.section_id', (int)$r->query('section_id'));
-        if ($r->filled('year'))        $q->where('fp.year', (int)$r->query('year'));
-        if ($r->filled('academic_year')) $q->where('fp.academic_year', (string)$r->query('academic_year'));
-
-        $q->orderBy('fp.sort_order', 'asc')->orderBy('fp.id', 'asc');
-        $posts = $q->get();
-
-        $postIds = $posts->pluck('id')->map(fn($x)=>(int)$x)->values()->all();
-
-        $subByPost = [];
-        if (!empty($postIds)) {
-            // Student: include their submission
-            if ($this->isStudent($r)) {
-                $rows = DB::table(self::SUBS)
-                    ->whereIn('feedback_post_id', $postIds)
-                    ->where('student_id', (int)$a['id'])
-                    ->whereNull('deleted_at')
-                    ->select(['id','uuid','feedback_post_id','student_id','status','submitted_at','answers','metadata','created_at','updated_at'])
-                    ->get();
-
-                foreach ($rows as $s) {
-                    $subByPost[(int)$s->feedback_post_id] = [
-                        'id' => (int)$s->id,
-                        'uuid' => (string)$s->uuid,
-                        'feedback_post_id' => (int)$s->feedback_post_id,
-                        'student_id' => (int)$s->student_id,
-                        'status' => (string)($s->status ?? 'submitted'),
-                        'submitted_at' => $s->submitted_at,
-                        'answers' => $this->normalizeJson($s->answers),
-                        'metadata' => $this->normalizeJson($s->metadata),
-                        'updated_at' => $s->updated_at,
-                        'created_at' => $s->created_at,
-                    ];
-                }
-            }
-        }
-
-        $data = $posts->map(function ($row) use ($subByPost) {
-            $arr = $this->postToArray($row);
-            $pid = (int)$arr['id'];
-            $arr['is_submitted'] = isset($subByPost[$pid]);
-            $arr['submission'] = $subByPost[$pid] ?? null;
-            return $arr;
-        })->values();
-
-        return response()->json(['success' => true, 'data' => $data]);
-    }
+     public function available(Request $r)
+     {
+         if ($resp = $this->requireAuth($r)) return $resp;
+     
+         $a = $this->actor($r);
+     
+         $q = $this->basePostsQuery(false);
+         $this->applyCurrentWindow($q);
+         $this->applyStudentScope($r, $q);
+     
+         // optional filters
+         if ($r->filled('course_id'))     $q->where('fp.course_id', (int)$r->query('course_id'));
+         if ($r->filled('semester_id'))   $q->where('fp.semester_id', (int)$r->query('semester_id'));
+         if ($r->filled('subject_id'))    $q->where('fp.subject_id', (int)$r->query('subject_id'));
+         if ($r->filled('section_id'))    $q->where('fp.section_id', (int)$r->query('section_id'));
+         if ($r->filled('year'))          $q->where('fp.year', (int)$r->query('year'));
+         if ($r->filled('academic_year')) $q->where('fp.academic_year', (string)$r->query('academic_year'));
+     
+         $q->orderBy('fp.sort_order', 'asc')->orderBy('fp.id', 'asc');
+         $posts = $q->get();
+     
+         $postIds = $posts->pluck('id')->map(fn($x)=>(int)$x)->values()->all();
+     
+         // submissions (same as before)
+         $subByPost = [];
+         if (!empty($postIds) && $this->isStudent($r)) {
+             $rows = DB::table(self::SUBS)
+                 ->whereIn('feedback_post_id', $postIds)
+                 ->where('student_id', (int)$a['id'])
+                 ->whereNull('deleted_at')
+                 ->select(['id','uuid','feedback_post_id','student_id','status','submitted_at','answers','metadata','created_at','updated_at'])
+                 ->get();
+     
+             foreach ($rows as $s) {
+                 $subByPost[(int)$s->feedback_post_id] = [
+                     'id' => (int)$s->id,
+                     'uuid' => (string)$s->uuid,
+                     'feedback_post_id' => (int)$s->feedback_post_id,
+                     'student_id' => (int)$s->student_id,
+                     'status' => (string)($s->status ?? 'submitted'),
+                     'submitted_at' => $s->submitted_at,
+                     'answers' => $this->normalizeJson($s->answers),
+                     'metadata' => $this->normalizeJson($s->metadata),
+                     'updated_at' => $s->updated_at,
+                     'created_at' => $s->created_at,
+                 ];
+             }
+         }
+     
+         // 1) convert rows -> arrays (same shape)
+         $dataArr = $posts->map(function ($row) use ($subByPost) {
+             $arr = $this->postToArray($row);
+             $pid = (int)$arr['id'];
+             $arr['is_submitted'] = isset($subByPost[$pid]);
+             $arr['submission']   = $subByPost[$pid] ?? null;
+             return $arr;
+         })->values()->all();
+     
+         // 2) collect faculty ids from ALL posts
+         $allFacultyIds = [];
+         foreach ($dataArr as $p) {
+             $allFacultyIds = array_merge($allFacultyIds, $this->extractFacultyIdsFromPost($p));
+         }
+         $allFacultyIds = array_values(array_unique($allFacultyIds));
+     
+         // 3) fetch faculty map once
+         $facultyMap = $this->fetchFacultyMap($allFacultyIds);
+     
+         // 4) attach faculty_users into each post
+         foreach ($dataArr as &$p) {
+             $fids = (isset($p['faculty_ids']) && is_array($p['faculty_ids'])) ? $p['faculty_ids'] : [];
+             $out = [];
+             foreach ($fids as $fid) {
+                 $id = is_numeric($fid) ? (int)$fid : 0;
+                 if ($id <= 0) continue;
+     
+                 $out[] = $facultyMap[$id] ?? [
+                     'id' => $id,
+                     'uuid' => null,
+                     'name' => 'Faculty #' . $id,
+                     'name_short_form' => null,
+                     'employee_id' => null,
+                 ];
+             }
+             $p['faculty_users'] = $out; // ✅ NEW
+         }
+         unset($p);
+     
+         // ✅ return faculty_map too (so frontend can map ids from question_faculty too)
+         return response()->json([
+             'success' => true,
+             'data' => $dataArr,
+             'faculty_map' => $facultyMap,
+         ]);
+     }
 
     /* =========================================================
      | 2) SUBMIT / UPDATE feedback (UPSERT)
      | POST /api/feedback-posts/{id|uuid}/submit
-     | - If already submitted => update answers (editable)
      |========================================================= */
     public function submit(Request $r, string $idOrUuid)
     {
@@ -429,13 +649,14 @@ class FeedbackSubmissionController extends Controller
         }
 
         $meta = $this->normalizeJson($r->input('metadata'));
+        $metaArr = is_array($meta) ? $meta : null;
         $metaStr = is_array($meta) ? json_encode($meta) : null;
 
         $postId = (int)$post['id'];
         $userId = (int)$a['id'];
 
         try {
-            return DB::transaction(function () use ($r, $postId, $userId, $answers, $metaStr) {
+            return DB::transaction(function () use ($r, $a, $postId, $userId, $answers, $metaStr, $metaArr) {
 
                 $existing = DB::table(self::SUBS)
                     ->where('feedback_post_id', $postId)
@@ -446,13 +667,44 @@ class FeedbackSubmissionController extends Controller
 
                 // UPDATE
                 if ($existing) {
+                    $old = [
+                        'answers'       => $this->normalizeJson($existing->answers),
+                        'metadata'      => $this->normalizeJson($existing->metadata),
+                        'status'        => $existing->status ?? null,
+                        'submitted_at'  => $existing->submitted_at ?? null,
+                        'updated_at'    => $existing->updated_at ?? null,
+                        'deleted_at'    => $existing->deleted_at ?? null,
+                    ];
+
+                    $now = now();
+
                     DB::table(self::SUBS)->where('id', (int)$existing->id)->update([
                         'answers'       => json_encode($answers),
                         'metadata'      => $metaStr,
                         'status'        => 'submitted',
-                        'updated_at'    => now(),
+                        'updated_at'    => $now,
                         'updated_at_ip' => $this->ip($r),
                     ]);
+
+                    $new = [
+                        'answers'       => $answers,
+                        'metadata'      => $metaArr,
+                        'status'        => 'submitted',
+                        'updated_at'    => $now,
+                        'updated_at_ip' => $this->ip($r),
+                    ];
+
+                    $this->logActivity(
+                        $r,
+                        'update',
+                        'feedback_submissions',
+                        self::SUBS,
+                        (int) $existing->id,
+                        ['answers','metadata','status','updated_at','updated_at_ip'],
+                        $old,
+                        $new,
+                        'Feedback submission updated (post_id='.$postId.', student_id='.$userId.', actor_uuid='.(string)($a['uuid'] ?? '').')'
+                    );
 
                     return response()->json([
                         'success' => true,
@@ -466,21 +718,52 @@ class FeedbackSubmissionController extends Controller
                 }
 
                 // INSERT (first time)
+                $now  = now();
+                $uuid = (string) Str::uuid();
+
                 $id = DB::table(self::SUBS)->insertGetId([
-                    'uuid' => (string) Str::uuid(),
+                    'uuid' => $uuid,
                     'feedback_post_id' => $postId,
                     'student_id'   => $userId,
                     'answers'      => json_encode($answers),
                     'status'       => 'submitted',
-                    'submitted_at' => now(),
+                    'submitted_at' => $now,
                     'metadata'     => $metaStr,
                     'created_by'       => $userId,
                     'created_at_ip'    => $this->ip($r),
                     'updated_at_ip'    => $this->ip($r),
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
+                    'created_at'       => $now,
+                    'updated_at'       => $now,
                     'deleted_at'       => null,
                 ]);
+
+                $new = [
+                    'id'             => (int) $id,
+                    'uuid'           => $uuid,
+                    'feedback_post_id' => $postId,
+                    'student_id'     => $userId,
+                    'answers'        => $answers,
+                    'metadata'       => $metaArr,
+                    'status'         => 'submitted',
+                    'submitted_at'   => $now,
+                    'created_by'     => $userId,
+                    'created_at_ip'  => $this->ip($r),
+                    'updated_at_ip'  => $this->ip($r),
+                    'created_at'     => $now,
+                    'updated_at'     => $now,
+                ];
+
+                $this->logActivity(
+                    $r,
+                    'create',
+                    'feedback_submissions',
+                    self::SUBS,
+                    (int) $id,
+                    ['uuid','feedback_post_id','student_id','answers','metadata','status','submitted_at','created_by','created_at_ip','updated_at_ip'],
+                    null,
+                    $new,
+                    'Feedback submission created (post_id='.$postId.', student_id='.$userId.', actor_uuid='.(string)($a['uuid'] ?? '').')'
+                );
 
                 return response()->json([
                     'success' => true,
@@ -493,6 +776,19 @@ class FeedbackSubmissionController extends Controller
                 ], 201);
             });
         } catch (\Throwable $e) {
+            // ✅ log error (non-blocking)
+            $this->logActivity(
+                $r,
+                'error',
+                'feedback_submissions',
+                self::SUBS,
+                null,
+                null,
+                null,
+                null,
+                'Submit failed for post_identifier='.$idOrUuid.' (post_id_guess='.$postId.')'
+            );
+
             return response()->json(['success' => false, 'message' => 'Submit failed'], 500);
         }
     }
@@ -616,6 +912,19 @@ class FeedbackSubmissionController extends Controller
     {
         if ($resp = $this->requireAuth($r)) return $resp;
         if (!$this->isAdminish($r)) {
+            // ✅ log unauthorized delete attempt (non-blocking)
+            $this->logActivity(
+                $r,
+                'unauthorized',
+                'feedback_submissions',
+                self::SUBS,
+                null,
+                null,
+                null,
+                null,
+                'Unauthorized delete attempt for submission_identifier='.$idOrUuid
+            );
+
             return response()->json(['success'=>false,'message'=>'Unauthorized Access'], 403);
         }
 
@@ -624,14 +933,141 @@ class FeedbackSubmissionController extends Controller
         $row = DB::table(self::SUBS)->where($w['raw_col'], $w['val'])->first();
         if (!$row) return response()->json(['success'=>false,'message'=>'Not found'], 404);
 
-        if ($row->deleted_at) return response()->json(['success'=>true,'message'=>'Already deleted']);
+        if ($row->deleted_at) {
+            // ✅ optional: log "already deleted" delete action (non-blocking)
+            $this->logActivity(
+                $r,
+                'delete',
+                'feedback_submissions',
+                self::SUBS,
+                (int) $row->id,
+                ['deleted_at'],
+                ['deleted_at' => $row->deleted_at],
+                ['deleted_at' => $row->deleted_at],
+                'Delete requested but record already deleted (id='.(int)$row->id.')'
+            );
+
+            return response()->json(['success'=>true,'message'=>'Already deleted']);
+        }
+
+        $old = [
+            'deleted_at'    => $row->deleted_at ?? null,
+            'updated_at'    => $row->updated_at ?? null,
+            'updated_at_ip' => $row->updated_at_ip ?? null,
+        ];
+
+        $now = now();
 
         DB::table(self::SUBS)->where('id', $row->id)->update([
-            'deleted_at'    => now(),
-            'updated_at'    => now(),
+            'deleted_at'    => $now,
+            'updated_at'    => $now,
             'updated_at_ip' => $this->ip($r),
         ]);
 
+        $new = [
+            'deleted_at'    => $now,
+            'updated_at'    => $now,
+            'updated_at_ip' => $this->ip($r),
+        ];
+
+        $this->logActivity(
+            $r,
+            'delete',
+            'feedback_submissions',
+            self::SUBS,
+            (int) $row->id,
+            ['deleted_at','updated_at','updated_at_ip'],
+            $old,
+            $new,
+            'Feedback submission soft-deleted (id='.(int)$row->id.')'
+        );
+
         return response()->json(['success'=>true,'message'=>'Deleted']);
     }
+
+    /**
+ * Collect faculty ids from a single post array:
+ * - post.faculty_ids
+ * - post.question_faculty[*].faculty_ids
+ */
+private function extractFacultyIdsFromPost(array $post): array
+{
+    $ids = [];
+
+    // from faculty_ids
+    if (!empty($post['faculty_ids']) && is_array($post['faculty_ids'])) {
+        foreach ($post['faculty_ids'] as $x) {
+            $n = is_numeric($x) ? (int)$x : 0;
+            if ($n > 0) $ids[] = $n;
+        }
+    }
+
+    // from question_faculty rules
+    $qf = $post['question_faculty'] ?? null;
+    if (is_array($qf)) {
+        foreach ($qf as $rule) {
+            if ($rule === null) continue;
+            if (!is_array($rule)) continue;
+
+            // if faculty_ids === null => means "use global" (already covered above)
+            if (!array_key_exists('faculty_ids', $rule)) continue;
+            if ($rule['faculty_ids'] === null) continue;
+
+            if (is_array($rule['faculty_ids'])) {
+                foreach ($rule['faculty_ids'] as $fid) {
+                    $n = is_numeric($fid) ? (int)$fid : 0;
+                    if ($n > 0) $ids[] = $n;
+                }
+            }
+        }
+    }
+
+    $ids = array_values(array_unique($ids));
+    sort($ids);
+    return $ids;
+}
+
+/**
+ * Fetch faculty details for ids (single query).
+ * Returns map: [id => ['id'=>..,'uuid'=>..,'name'=>..,'name_short_form'=>..,'employee_id'=>..]]
+ */
+private function fetchFacultyMap(array $ids): array
+{
+    $ids = array_values(array_unique(array_filter(array_map(function ($v) {
+        $n = is_numeric($v) ? (int)$v : 0;
+        return $n > 0 ? $n : null;
+    }, $ids))));
+
+    if (empty($ids)) return [];
+    if (!Schema::hasTable('users')) return [];
+
+    $q = DB::table('users')->whereIn('id', $ids);
+
+    if (Schema::hasColumn('users', 'deleted_at')) $q->whereNull('deleted_at');
+    if (Schema::hasColumn('users', 'role'))       $q->where('role', 'faculty');
+    if (Schema::hasColumn('users', 'status'))     $q->where('status', 'active');
+
+    $select = ['id', 'name'];
+    if (Schema::hasColumn('users', 'uuid'))            $select[] = 'uuid';
+    if (Schema::hasColumn('users', 'name_short_form')) $select[] = 'name_short_form';
+    if (Schema::hasColumn('users', 'employee_id'))     $select[] = 'employee_id';
+
+    $rows = $q->select($select)->get();
+
+    $map = [];
+    foreach ($rows as $u) {
+        $id = (int)($u->id ?? 0);
+        if ($id <= 0) continue;
+
+        $map[$id] = [
+            'id'              => $id,
+            'uuid'            => property_exists($u, 'uuid') ? (string)($u->uuid ?? '') : null,
+            'name'            => (string)($u->name ?? ''),
+            'name_short_form' => property_exists($u, 'name_short_form') ? (string)($u->name_short_form ?? '') : null,
+            'employee_id'     => property_exists($u, 'employee_id') ? (string)($u->employee_id ?? '') : null,
+        ];
+    }
+
+    return $map;
+}
 }

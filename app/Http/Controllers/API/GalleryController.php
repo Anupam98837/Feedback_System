@@ -5,8 +5,10 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class GalleryController extends Controller
 {
@@ -22,6 +24,162 @@ class GalleryController extends Controller
             'type' => (string) ($r->attributes->get('auth_tokenable_type') ?? ($r->user() ? get_class($r->user()) : '')),
             'uuid' => (string) ($r->attributes->get('auth_user_uuid') ?? ($r->user()->uuid ?? '')),
         ];
+    }
+
+    private function safeJson($value): ?string
+    {
+        if ($value === null) return null;
+
+        // If already string and looks like json, keep as-is? (still store as json string)
+        // But safest: always encode arrays/objects.
+        if (is_string($value)) {
+            $t = trim($value);
+            if ($t === '') return null;
+
+            // if it's valid JSON already, keep it
+            json_decode($t, true);
+            if (json_last_error() === JSON_ERROR_NONE) return $t;
+
+            // else wrap it
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function clip(?string $s, int $max): ?string
+    {
+        $s = $s === null ? null : (string) $s;
+        if ($s === null) return null;
+        if (mb_strlen($s) <= $max) return $s;
+        return mb_substr($s, 0, $max);
+    }
+
+    private function diffKeys(array $before, array $after, array $keys): array
+    {
+        $changed = [];
+        $old = [];
+        $new = [];
+
+        foreach ($keys as $k) {
+            $b = $before[$k] ?? null;
+            $a = $after[$k] ?? null;
+
+            // loose compare is fine for DB scalar strings/ints
+            if ($b != $a) {
+                $changed[] = $k;
+                $old[$k] = $b;
+                $new[$k] = $a;
+            }
+        }
+
+        return [$changed, $old, $new];
+    }
+
+    private function logActivity(
+        Request $r,
+        string $activity,
+        string $module,
+        string $tableName,
+        $recordId = null,
+        ?array $changedFields = null,
+        $oldValues = null,
+        $newValues = null,
+        ?string $note = null
+    ): void {
+        try {
+            // safety if migration not run in some env
+            if (!Schema::hasTable('user_data_activity_log')) return;
+
+            $actor = $this->actor($r);
+
+            DB::table('user_data_activity_log')->insert([
+                'performed_by'      => (int) ($actor['id'] ?? 0),
+                'performed_by_role' => $this->clip((string) ($actor['role'] ?? ''), 50),
+                'ip'                => $this->clip($r->ip(), 45),
+                'user_agent'        => $this->clip($r->userAgent(), 512),
+
+                'activity'          => $this->clip($activity, 50),
+                'module'            => $this->clip($module, 100),
+
+                'table_name'        => $this->clip($tableName, 128),
+                'record_id'         => $recordId !== null ? (int) $recordId : null,
+
+                'changed_fields'    => $this->safeJson($changedFields),
+                'old_values'        => $this->safeJson($oldValues),
+                'new_values'        => $this->safeJson($newValues),
+
+                'log_note'          => $note,
+
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // never break core functionality because of logging
+        }
+    }
+
+    /**
+     * accessControl (ONLY users table)
+     *
+     * Returns ONLY:
+     *  - ['mode' => 'all',         'department_id' => null]
+     *  - ['mode' => 'department',  'department_id' => <int>]
+     *  - ['mode' => 'none',        'department_id' => null]
+     *  - ['mode' => 'not_allowed', 'department_id' => null]
+     */
+    private function accessControl(int $userId): array
+    {
+        if ($userId <= 0) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // Safety (if some env doesn't have dept column yet)
+        if (!Schema::hasColumn('users', 'department_id')) {
+            return ['mode' => 'not_allowed', 'department_id' => null];
+        }
+
+        $q = DB::table('users')->select(['id', 'role', 'department_id', 'status']);
+
+        // your schema has deleted_at; keep it safe
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        $u = $q->where('id', $userId)->first();
+
+        if (!$u) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // optional: inactive users => none
+        if (isset($u->status) && (string)$u->status !== 'active') {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // normalize role from users table
+        $role = strtolower(trim((string)($u->role ?? '')));
+        $role = str_replace([' ', '-'], '_', $role);
+        $role = preg_replace('/_+/', '_', $role) ?? $role;
+
+        $deptId = $u->department_id !== null ? (int)$u->department_id : null;
+        if ($deptId !== null && $deptId <= 0) $deptId = null;
+
+        // ✅ CONFIG: decide access by role + department_id
+        $allRoles  = ['admin', 'director', 'principal']; // gets ALL even if dept null
+        $deptRoles = ['hod', 'faculty', 'technical_assistant', 'it_person', 'placement_officer', 'student']; // needs dept
+
+        if (in_array($role, $allRoles, true)) {
+            return ['mode' => 'all', 'department_id' => null];
+        }
+
+        if (in_array($role, $deptRoles, true)) {
+            // none is based on role + dept id (your rule)
+            if (!$deptId) return ['mode' => 'none', 'department_id' => null];
+            return ['mode' => 'department', 'department_id' => $deptId];
+        }
+
+        return ['mode' => 'not_allowed', 'department_id' => null];
     }
 
     protected function resolveDepartment($identifier, bool $includeDeleted = false)
@@ -277,7 +435,31 @@ class GalleryController extends Controller
 
     public function index(Request $request)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+
         $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
+
+        // silent empty list for "none"
+        if ($ac['mode'] === 'none') {
+            $page = max(1, (int) $request->query('page', 1));
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => $page,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
+        // force department scope for dept roles
+        if ($ac['mode'] === 'department') {
+            $request->query->set('department', (string) ((int) $ac['department_id']));
+        }
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
         $onlyDeleted    = filter_var($request->query('only_trashed', false), FILTER_VALIDATE_BOOLEAN);
@@ -302,10 +484,35 @@ class GalleryController extends Controller
 
     public function indexByDepartment(Request $request, $department)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+
+        // "none" => empty list
+        if ($ac['mode'] === 'none') {
+            $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
+            $page = max(1, (int) $request->query('page', 1));
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => $page,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
         $dept = $this->resolveDepartment($department, false);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
 
-        $request->query->set('department', $dept->id);
+        // dept roles can ONLY access their own department
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['message' => 'Department not found'], 404);
+        }
+
+        $request->query->set('department', (string) $dept->id);
         return $this->index($request);
     }
 
@@ -317,9 +524,17 @@ class GalleryController extends Controller
 
     public function show(Request $request, $identifier)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Gallery item not found'], 404);
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveGallery($request, $identifier, $includeDeleted);
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveGallery($request, $identifier, $includeDeleted, $deptId);
         if (! $row) return response()->json(['message' => 'Gallery item not found'], 404);
 
         // optional: ?inc_view=1
@@ -336,12 +551,23 @@ class GalleryController extends Controller
 
     public function showByDepartment(Request $request, $department, $identifier)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none') return response()->json(['message' => 'Gallery item not found'], 404);
+
         $dept = $this->resolveDepartment($department, true);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
 
+        // dept roles can ONLY access their own department
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['message' => 'Department not found'], 404);
+        }
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveGallery($request, $identifier, $includeDeleted, $dept->id);
+        $row = $this->resolveGallery($request, $identifier, $includeDeleted, (int) $dept->id);
         if (! $row) return response()->json(['message' => 'Gallery item not found'], 404);
 
         return response()->json([
@@ -352,26 +578,54 @@ class GalleryController extends Controller
 
     public function store(Request $request)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'create', 'gallery', 'gallery', null, null, null, null, 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
         $actor = $this->actor($request);
 
-        $validated = $request->validate([
-            'department_id'     => ['nullable', 'integer', 'exists:departments,id'],
+        try {
+            $validated = $request->validate([
+                'department_id'     => ['nullable', 'integer', 'exists:departments,id'],
 
-            // either upload OR provide existing path/url
-            'image_file'        => ['required_without:image', 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            'image'             => ['required_without:image_file', 'nullable', 'string', 'max:255'],
+                // either upload OR provide existing path/url
+                'image_file'        => ['required_without:image', 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+                'image'             => ['required_without:image_file', 'nullable', 'string', 'max:255'],
 
-            'title'             => ['nullable', 'string', 'max:255'],
-            'description'       => ['nullable', 'string', 'max:500'],
-            'tags_json'         => ['nullable'], // array or json string or comma string accepted
+                'title'             => ['nullable', 'string', 'max:255'],
+                'description'       => ['nullable', 'string', 'max:500'],
+                'tags_json'         => ['nullable'], // array or json string or comma string accepted
 
-            'is_featured_home'  => ['nullable', 'in:0,1', 'boolean'],
-            'sort_order'        => ['nullable', 'integer', 'min:0'],
-            'status'            => ['nullable', 'in:draft,published,archived'],
-            'publish_at'        => ['nullable', 'date'],
-            'expire_at'         => ['nullable', 'date'],
-            'metadata'          => ['nullable'],
-        ]);
+                'is_featured_home'  => ['nullable', 'in:0,1', 'boolean'],
+                'sort_order'        => ['nullable', 'integer', 'min:0'],
+                'status'            => ['nullable', 'in:draft,published,archived'],
+                'publish_at'        => ['nullable', 'date'],
+                'expire_at'         => ['nullable', 'date'],
+                'metadata'          => ['nullable'],
+            ]);
+        } catch (ValidationException $e) {
+            $this->logActivity(
+                $request,
+                'create',
+                'gallery',
+                'gallery',
+                null,
+                array_keys($e->errors()),
+                null,
+                ['input' => $request->except(['image_file'])],
+                'Validation failed'
+            );
+            throw $e;
+        }
+
+        // force department for dept roles (ignore incoming department_id)
+        if ($ac['mode'] === 'department') {
+            $validated['department_id'] = (int) $ac['department_id'];
+        }
 
         $uuid = (string) Str::uuid();
         $now  = now();
@@ -393,6 +647,7 @@ class GalleryController extends Controller
         if ($request->hasFile('image_file')) {
             $f = $request->file('image_file');
             if (!$f || !$f->isValid()) {
+                $this->logActivity($request, 'create', 'gallery', 'gallery', null, ['image_file'], null, null, 'Image upload failed');
                 return response()->json(['success' => false, 'message' => 'Image upload failed'], 422);
             }
 
@@ -406,10 +661,11 @@ class GalleryController extends Controller
         }
 
         if ($imagePath === '') {
+            $this->logActivity($request, 'create', 'gallery', 'gallery', null, ['image'], null, null, 'Image is required');
             return response()->json(['success' => false, 'message' => 'Image is required'], 422);
         }
 
-        $id = DB::table('gallery')->insertGetId([
+        $insert = [
             'uuid'             => $uuid,
             'department_id'    => $validated['department_id'] ?? null,
             'image'            => $imagePath,
@@ -428,9 +684,23 @@ class GalleryController extends Controller
             'created_at_ip'    => $request->ip(),
             'updated_at_ip'    => $request->ip(),
             'metadata'         => $metadata !== null ? json_encode($metadata) : null,
-        ]);
+        ];
+
+        $id = DB::table('gallery')->insertGetId($insert);
 
         $row = DB::table('gallery')->where('id', $id)->first();
+
+        $this->logActivity(
+            $request,
+            'create',
+            'gallery',
+            'gallery',
+            $id,
+            array_keys($insert),
+            null,
+            $row ? (array) $row : $insert,
+            'Created gallery item'
+        );
 
         return response()->json([
             'success' => true,
@@ -440,8 +710,25 @@ class GalleryController extends Controller
 
     public function storeForDepartment(Request $request, $department)
     {
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'create', 'gallery', 'gallery', null, null, null, null, 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
         $dept = $this->resolveDepartment($department, false);
-        if (! $dept) return response()->json(['message' => 'Department not found'], 404);
+        if (! $dept) {
+            $this->logActivity($request, 'create', 'gallery', 'gallery', null, ['department'], null, ['department' => $department], 'Department not found');
+            return response()->json(['message' => 'Department not found'], 404);
+        }
+
+        // dept roles can ONLY create in their own department
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            $this->logActivity($request, 'create', 'gallery', 'gallery', null, ['department_id'], null, ['department_id' => (int)$dept->id], 'Not allowed (department mismatch)');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
 
         $request->merge(['department_id' => (int) $dept->id]);
         return $this->store($request);
@@ -449,36 +736,71 @@ class GalleryController extends Controller
 
     public function update(Request $request, $identifier)
     {
-        $row = $this->resolveGallery($request, $identifier, true);
-        if (! $row) return response()->json(['message' => 'Gallery item not found'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
 
-        $validated = $request->validate([
-            'department_id'     => ['nullable', 'integer', 'exists:departments,id'],
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'update', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
 
-            'image_file'        => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            'image'             => ['nullable', 'string', 'max:255'],
-            'image_remove'      => ['nullable', 'in:0,1', 'boolean'], // only removes if you provide new image or image path after
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
 
-            'title'             => ['nullable', 'string', 'max:255'],
-            'description'       => ['nullable', 'string', 'max:500'],
-            'tags_json'         => ['nullable'],
+        $row = $this->resolveGallery($request, $identifier, true, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'update', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Gallery item not found');
+            return response()->json(['message' => 'Gallery item not found'], 404);
+        }
 
-            'is_featured_home'  => ['nullable', 'in:0,1', 'boolean'],
-            'sort_order'        => ['nullable', 'integer', 'min:0'],
-            'status'            => ['nullable', 'in:draft,published,archived'],
-            'publish_at'        => ['nullable', 'date'],
-            'expire_at'         => ['nullable', 'date'],
-            'metadata'          => ['nullable'],
-        ]);
+        $beforeRawObj = DB::table('gallery')->where('id', (int) $row->id)->first();
+        $beforeRaw = $beforeRawObj ? (array) $beforeRawObj : [];
+
+        try {
+            $validated = $request->validate([
+                'department_id'     => ['nullable', 'integer', 'exists:departments,id'],
+
+                'image_file'        => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+                'image'             => ['nullable', 'string', 'max:255'],
+                'image_remove'      => ['nullable', 'in:0,1', 'boolean'], // only removes if you provide new image or image path after
+
+                'title'             => ['nullable', 'string', 'max:255'],
+                'description'       => ['nullable', 'string', 'max:500'],
+                'tags_json'         => ['nullable'],
+
+                'is_featured_home'  => ['nullable', 'in:0,1', 'boolean'],
+                'sort_order'        => ['nullable', 'integer', 'min:0'],
+                'status'            => ['nullable', 'in:draft,published,archived'],
+                'publish_at'        => ['nullable', 'date'],
+                'expire_at'         => ['nullable', 'date'],
+                'metadata'          => ['nullable'],
+            ]);
+        } catch (ValidationException $e) {
+            $this->logActivity(
+                $request,
+                'update',
+                'gallery',
+                'gallery',
+                (int) $row->id,
+                array_keys($e->errors()),
+                $beforeRaw,
+                ['input' => $request->except(['image_file'])],
+                'Validation failed'
+            );
+            throw $e;
+        }
 
         $update = [
             'updated_at'    => now(),
             'updated_at_ip' => $request->ip(),
         ];
 
-        // department
-        if (array_key_exists('department_id', $validated)) {
-            $update['department_id'] = $validated['department_id'] !== null ? (int) $validated['department_id'] : null;
+        // department (admins can change; dept roles are forced to their own)
+        if ($ac['mode'] === 'department') {
+            $update['department_id'] = (int) $ac['department_id'];
+        } else {
+            if (array_key_exists('department_id', $validated)) {
+                $update['department_id'] = $validated['department_id'] !== null ? (int) $validated['department_id'] : null;
+            }
         }
 
         // simple fields
@@ -513,6 +835,7 @@ class GalleryController extends Controller
         if ($request->hasFile('image_file')) {
             $f = $request->file('image_file');
             if (!$f || !$f->isValid()) {
+                $this->logActivity($request, 'update', 'gallery', 'gallery', (int)$row->id, ['image_file'], $beforeRaw, null, 'Image upload failed');
                 return response()->json(['success' => false, 'message' => 'Image upload failed'], 422);
             }
 
@@ -538,6 +861,18 @@ class GalleryController extends Controller
         }
         // remove without replacement is not allowed because image is NOT NULL
         elseif ($wantRemove) {
+            $this->logActivity(
+                $request,
+                'update',
+                'gallery',
+                'gallery',
+                (int) $row->id,
+                ['image_remove'],
+                $beforeRaw,
+                ['image_remove' => 1],
+                'image_remove=1 requires providing a new image_file or image path (image is NOT NULL).'
+            );
+
             return response()->json([
                 'success' => false,
                 'message' => 'image_remove=1 requires providing a new image_file or image path (image is NOT NULL).'
@@ -547,6 +882,25 @@ class GalleryController extends Controller
         DB::table('gallery')->where('id', (int) $row->id)->update($update);
 
         $fresh = DB::table('gallery')->where('id', (int) $row->id)->first();
+        $afterRaw = $fresh ? (array) $fresh : [];
+
+        // log only meaningful changes (exclude updated_at, updated_at_ip noise)
+        $keysForDiff = array_keys($update);
+        $keysForDiff = array_values(array_filter($keysForDiff, fn($k) => !in_array($k, ['updated_at','updated_at_ip'], true)));
+
+        [$changed, $oldVals, $newVals] = $this->diffKeys($beforeRaw, $afterRaw, $keysForDiff);
+
+        $this->logActivity(
+            $request,
+            'update',
+            'gallery',
+            'gallery',
+            (int) $row->id,
+            $changed,
+            $oldVals,
+            $newVals,
+            'Updated gallery item'
+        );
 
         return response()->json([
             'success' => true,
@@ -556,10 +910,27 @@ class GalleryController extends Controller
 
     public function toggleFeatured(Request $request, $identifier)
     {
-        $row = $this->resolveGallery($request, $identifier, true);
-        if (! $row) return response()->json(['message' => 'Gallery item not found'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
 
-        $new = ((int) ($row->is_featured_home ?? 0)) ? 0 : 1;
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'toggle_featured', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveGallery($request, $identifier, true, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'toggle_featured', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Gallery item not found');
+            return response()->json(['message' => 'Gallery item not found'], 404);
+        }
+
+        $beforeRawObj = DB::table('gallery')->where('id', (int) $row->id)->first();
+        $beforeRaw = $beforeRawObj ? (array) $beforeRawObj : [];
+        $oldFeatured = (int) ($beforeRaw['is_featured_home'] ?? ($row->is_featured_home ?? 0));
+
+        $new = $oldFeatured ? 0 : 1;
 
         DB::table('gallery')->where('id', (int) $row->id)->update([
             'is_featured_home' => $new,
@@ -568,6 +939,19 @@ class GalleryController extends Controller
         ]);
 
         $fresh = DB::table('gallery')->where('id', (int) $row->id)->first();
+        $afterRaw = $fresh ? (array) $fresh : [];
+
+        $this->logActivity(
+            $request,
+            'toggle_featured',
+            'gallery',
+            'gallery',
+            (int) $row->id,
+            ['is_featured_home'],
+            ['is_featured_home' => $oldFeatured],
+            ['is_featured_home' => (int) ($afterRaw['is_featured_home'] ?? $new)],
+            'Toggled featured flag'
+        );
 
         return response()->json([
             'success' => true,
@@ -577,24 +961,68 @@ class GalleryController extends Controller
 
     public function destroy(Request $request, $identifier)
     {
-        $row = $this->resolveGallery($request, $identifier, false);
-        if (! $row) return response()->json(['message' => 'Not found or already deleted'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'delete', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveGallery($request, $identifier, false, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'delete', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Not found or already deleted');
+            return response()->json(['message' => 'Not found or already deleted'], 404);
+        }
+
+        $beforeRawObj = DB::table('gallery')->where('id', (int) $row->id)->first();
+        $beforeRaw = $beforeRawObj ? (array) $beforeRawObj : [];
+
+        $ts = now();
 
         DB::table('gallery')->where('id', (int) $row->id)->update([
-            'deleted_at'    => now(),
-            'updated_at'    => now(),
+            'deleted_at'    => $ts,
+            'updated_at'    => $ts,
             'updated_at_ip' => $request->ip(),
         ]);
+
+        $this->logActivity(
+            $request,
+            'delete',
+            'gallery',
+            'gallery',
+            (int) $row->id,
+            ['deleted_at'],
+            ['deleted_at' => $beforeRaw['deleted_at'] ?? null],
+            ['deleted_at' => (string) $ts],
+            'Soft-deleted gallery item'
+        );
 
         return response()->json(['success' => true]);
     }
 
     public function restore(Request $request, $identifier)
     {
-        $row = $this->resolveGallery($request, $identifier, true);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'restore', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveGallery($request, $identifier, true, $deptId);
         if (! $row || $row->deleted_at === null) {
+            $this->logActivity($request, 'restore', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Not found in bin');
             return response()->json(['message' => 'Not found in bin'], 404);
         }
+
+        $beforeRawObj = DB::table('gallery')->where('id', (int) $row->id)->first();
+        $beforeRaw = $beforeRawObj ? (array) $beforeRawObj : [];
 
         DB::table('gallery')->where('id', (int) $row->id)->update([
             'deleted_at'    => null,
@@ -604,6 +1032,18 @@ class GalleryController extends Controller
 
         $fresh = DB::table('gallery')->where('id', (int) $row->id)->first();
 
+        $this->logActivity(
+            $request,
+            'restore',
+            'gallery',
+            'gallery',
+            (int) $row->id,
+            ['deleted_at'],
+            ['deleted_at' => $beforeRaw['deleted_at'] ?? null],
+            ['deleted_at' => null],
+            'Restored gallery item'
+        );
+
         return response()->json([
             'success' => true,
             'data'    => $fresh ? $this->normalizeRow($fresh) : null,
@@ -612,13 +1052,41 @@ class GalleryController extends Controller
 
     public function forceDelete(Request $request, $identifier)
     {
-        $row = $this->resolveGallery($request, $identifier, true);
-        if (! $row) return response()->json(['message' => 'Gallery item not found'], 404);
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            $this->logActivity($request, 'force_delete', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Not allowed');
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveGallery($request, $identifier, true, $deptId);
+        if (! $row) {
+            $this->logActivity($request, 'force_delete', 'gallery', 'gallery', null, null, null, ['identifier' => $identifier], 'Gallery item not found');
+            return response()->json(['message' => 'Gallery item not found'], 404);
+        }
+
+        $beforeRawObj = DB::table('gallery')->where('id', (int) $row->id)->first();
+        $beforeRaw = $beforeRawObj ? (array) $beforeRawObj : [];
 
         // delete image file if local
         $this->deletePublicPath($row->image ?? null);
 
         DB::table('gallery')->where('id', (int) $row->id)->delete();
+
+        $this->logActivity(
+            $request,
+            'force_delete',
+            'gallery',
+            'gallery',
+            (int) $row->id,
+            array_keys($beforeRaw),
+            $beforeRaw,
+            null,
+            'Hard-deleted gallery item'
+        );
 
         return response()->json(['success' => true]);
     }

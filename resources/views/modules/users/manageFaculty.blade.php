@@ -17,30 +17,14 @@
 /* Tabs */
 .nav.nav-tabs{border-color:var(--line-strong)}
 .nav-tabs .nav-link{color:var(--ink)}
-.nav-tabs .nav-link.active{
-  background:var(--surface);
-  border-color:var(--line-strong) var(--line-strong) var(--surface)
-}
+.nav-tabs .nav-link.active{background:var(--surface);border-color:var(--line-strong) var(--line-strong) var(--surface)}
 .tab-content,.tab-pane{overflow:visible}
 
 /* Table Card */
-.table-wrap.card{
-  position:relative;
-  border:1px solid var(--line-strong);
-  border-radius:16px;
-  background:var(--surface);
-  box-shadow:var(--shadow-2);
-  overflow:visible;
-}
+.table-wrap.card{position:relative;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-2);overflow:visible;}
 .table-wrap .card-body{overflow:visible}
 .table{--bs-table-bg:transparent}
-.table thead th{
-  font-weight:600;
-  color:var(--muted-color);
-  font-size:13px;
-  border-bottom:1px solid var(--line-strong);
-  background:var(--surface)
-}
+.table thead th{font-weight:600;color:var(--muted-color);font-size:13px;border-bottom:1px solid var(--line-strong);background:var(--surface)}
 .table thead.sticky-top{z-index:3}
 .table tbody tr{border-top:1px solid var(--line-soft)}
 .table tbody tr:hover{background:var(--page-hover)}
@@ -48,97 +32,35 @@ td .fw-semibold{color:var(--ink)}
 .small{font-size:12.5px}
 
 /* Badges */
-.badge-soft-primary{
-  background:color-mix(in oklab, var(--primary-color) 12%, transparent);
-  color:var(--primary-color)
-}
-.badge-soft-success{
-  background:color-mix(in oklab, var(--success-color) 12%, transparent);
-  color:var(--success-color)
-}
-.badge-soft-danger{
-  background:color-mix(in oklab, var(--danger-color) 12%, transparent);
-  color:var(--danger-color)
-}
+.badge-soft-primary{background:color-mix(in oklab, var(--primary-color) 12%, transparent);color:var(--primary-color)}
+.badge-soft-success{background:color-mix(in oklab, var(--success-color) 12%, transparent);color:var(--success-color)}
+.badge-soft-danger{background:color-mix(in oklab, var(--danger-color) 12%, transparent);color:var(--danger-color)}
 
 /* Loading overlay */
-.loading-overlay{
-  position:fixed;
-  top:0;left:0;width:100%;height:100%;
-  background:rgba(0,0,0,0.45);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-  backdrop-filter:blur(2px)
-}
-.loading-spinner{
-  background:var(--surface);
-  padding:20px 22px;
-  border-radius:14px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:10px;
-  box-shadow:0 10px 26px rgba(0,0,0,0.3)
-}
-.spinner{
-  width:40px;height:40px;
-  border-radius:50%;
-  border:4px solid rgba(148,163,184,0.3);
-  border-top:4px solid var(--primary-color);
-  animation:spin 1s linear infinite
-}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);display:flex;justify-content:center;align-items:center;z-index:9999;backdrop-filter:blur(2px)}
+.loading-spinner{background:var(--surface);padding:20px 22px;border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 10px 26px rgba(0,0,0,0.3)}
+.spinner{width:40px;height:40px;border-radius:50%;border:4px solid rgba(148,163,184,0.3);border-top:4px solid var(--primary-color);animation:spin 1s linear infinite}
 @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
 
 /* Button loading state */
 .btn-loading{position:relative;color:transparent !important}
-.btn-loading::after{
-  content:'';
-  position:absolute;
-  width:16px;height:16px;
-  top:50%;left:50%;
-  margin:-8px 0 0 -8px;
-  border:2px solid transparent;
-  border-top:2px solid currentColor;
-  border-radius:50%;
-  animation:spin 1s linear infinite
-}
+.btn-loading::after{content:'';position:absolute;width:16px;height:16px;top:50%;left:50%;margin:-8px 0 0 -8px;border:2px solid transparent;border-top:2px solid currentColor;border-radius:50%;animation:spin 1s linear infinite}
 
 /* Responsive toolbar */
 @media (max-width: 768px){
   .musers-toolbar .d-flex{flex-direction:column;gap:12px !important}
   .musers-toolbar .position-relative{min-width:100% !important}
-  .toolbar-buttons{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap
-  }
-  .toolbar-buttons .btn{
-    flex:1;
-    min-width:120px
-  }
+  .toolbar-buttons{display:flex;gap:8px;flex-wrap:wrap}
+  .toolbar-buttons .btn{flex:1;min-width:120px}
 }
 
 /* ✅ Horizontal scroll on small screens */
-.table-responsive{
-  display:block;
-  width:100%;
-  max-width:100%;
-  overflow-x:auto !important;
-  overflow-y:visible !important;
-  -webkit-overflow-scrolling:touch;
-}
-.table-responsive > .table{
-  width:max-content;
-  min-width:980px;
-}
+.table-responsive{display:block;width:100%;max-width:100%;overflow-x:auto !important;overflow-y:visible !important;-webkit-overflow-scrolling:touch;}
+.table-responsive > .table{width:max-content;min-width:1120px;}
 .table-responsive th,
-.table-responsive td{
-  white-space:nowrap;
-}
+.table-responsive td{white-space:nowrap;}
 @media (max-width: 576px){
-  .table-responsive > .table{ min-width:920px; }
+  .table-responsive > .table{ min-width:1040px; }
 }
 </style>
 @endpush
@@ -193,23 +115,22 @@ td .fw-semibold{color:var(--ink)}
           <button id="btnReset" class="btn btn-light">
             <i class="fa fa-rotate-left me-1"></i>Reset
           </button>
-  
-         
         </div>
 
         <div class="col-12 col-lg-auto ms-lg-auto d-flex justify-content-lg-end gap-3">
           <div class="col mb-6 gap-3">
- {{-- ✅ IMPORT --}}
-          <button id="btnImportFaculty" class="btn btn-outline-primary">
-            <i class="fa fa-file-arrow-up me-1"></i>Import CSV
-          </button>
-          <input type="file" id="importFacultyFile" accept=".csv,text/csv" class="d-none">
+            {{-- ✅ IMPORT --}}
+            <button id="btnImportFaculty" class="btn btn-outline-primary">
+              <i class="fa fa-file-arrow-up me-1"></i>Import CSV
+            </button>
+            <input type="file" id="importFacultyFile" accept=".csv,text/csv" class="d-none">
 
-          {{-- ✅ EXPORT --}}
-          <button id="btnExportFaculty" class="btn btn-outline-success">
-            <i class="fa fa-file-csv me-1"></i>Export CSV
-          </button>
-  </div>
+            {{-- ✅ EXPORT --}}
+            <button id="btnExportFaculty" class="btn btn-outline-success">
+              <i class="fa fa-file-csv me-1"></i>Export CSV
+            </button>
+          </div>
+
           <div id="writeControls" style="display:none;">
             <button type="button" class="btn btn-primary" id="btnAddUser">
               <i class="fa fa-plus me-1"></i> Add Faculty
@@ -230,13 +151,14 @@ td .fw-semibold{color:var(--ink)}
                   <th>Name</th>
                   <th>Email</th>
                   <th>Phone</th>
+                  <th style="width:220px;">Department</th>
                   <th style="width:200px;">Role</th>
                   <th style="width:108px;" class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usersTbody-active">
                 <tr>
-                  <td colspan="7" class="text-center text-muted" style="padding:38px;">Loading…</td>
+                  <td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td>
                 </tr>
               </tbody>
             </table>
@@ -270,13 +192,14 @@ td .fw-semibold{color:var(--ink)}
                   <th>Name</th>
                   <th>Email</th>
                   <th>Phone</th>
+                  <th style="width:220px;">Department</th>
                   <th style="width:200px;">Role</th>
                   <th style="width:108px;" class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usersTbody-inactive">
                 <tr>
-                  <td colspan="7" class="text-center text-muted" style="padding:38px;">Loading…</td>
+                  <td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td>
                 </tr>
               </tbody>
             </table>
@@ -318,6 +241,16 @@ td .fw-semibold{color:var(--ink)}
               <option value="tpo">Placement Officer (TPO)</option>
             </select>
           </div>
+
+          {{-- ✅ NEW: Department filter --}}
+          <div class="col-12">
+            <label class="form-label">Department</label>
+            <select id="modal_department" class="form-select">
+              <option value="">All Departments</option>
+            </select>
+            <div class="form-text">Loaded from <code>/api/departments</code></div>
+          </div>
+
           <div class="col-12">
             <label class="form-label">Sort By</label>
             <select id="modal_sort" class="form-select">
@@ -357,6 +290,18 @@ td .fw-semibold{color:var(--ink)}
           <div class="col-md-12">
             <label class="form-label">Full Name <span class="text-danger">*</span></label>
             <input class="form-control" id="userName" required maxlength="190" placeholder="John Doe">
+          </div>
+
+          {{-- ✅ NEW: Short Name + Employee ID (optional) --}}
+          <div class="col-md-6">
+            <label class="form-label">Short Name (Short Code)</label>
+            <input class="form-control" id="userNameShort" maxlength="50" placeholder="e.g., DSA / AS / JD">
+            <div class="form-text">Saved in <code>name_short_form</code> (optional).</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Employee ID</label>
+            <input class="form-control" id="userEmployeeId" maxlength="50" placeholder="e.g., EMP-1024">
+            <div class="form-text">Saved in <code>employee_id</code> (optional).</div>
           </div>
 
           <div class="col-md-6">
@@ -597,6 +542,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnReset = document.getElementById('btnReset');
   const modalRole = document.getElementById('modal_role');
   const modalSort = document.getElementById('modal_sort');
+  const modalDept = document.getElementById('modal_department'); // ✅ NEW
   const filterModalEl = document.getElementById('filterModal');
   const filterModal = new bootstrap.Modal(filterModalEl);
 
@@ -618,6 +564,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const uuidInput = document.getElementById('userUuid');
   const editingUserIdInput = document.getElementById('editingUserId');
   const nameInput = document.getElementById('userName');
+
+  // ✅ NEW inputs
+  const nameShortInput = document.getElementById('userNameShort');
+  const empIdInput = document.getElementById('userEmployeeId');
+
   const emailInput = document.getElementById('userEmail');
   const phoneInput = document.getElementById('userPhone');
   const roleInput = document.getElementById('userRole');
@@ -643,7 +594,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const state = {
     items: [],
     q: '',
-    roleFilter: '', // '' => All
+    roleFilter: '',        // '' => All
+    departmentFilter: '',  // ✅ NEW: '' => All
     sort: '-created_at',
     perPage: 10,
     page: { active: 1, inactive: 1 },
@@ -652,6 +604,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     departments: [],
     departmentsLoaded: false,
+    deptMap: {}, // ✅ NEW: id -> name map for fast lookup
   };
 
   function computePermissions() {
@@ -700,6 +653,16 @@ document.addEventListener('DOMContentLoaded', function () {
     return d?.name || d?.title || d?.department_name || d?.dept_name || d?.slug || (d?.id ? `Department #${d.id}` : 'Department');
   }
 
+  function buildDeptMap() {
+    const map = {};
+    (state.departments || []).forEach(d => {
+      const id = d?.id ?? d?.value ?? d?.department_id;
+      if (id === undefined || id === null || id === '') return;
+      map[String(id)] = deptName(d);
+    });
+    state.deptMap = map;
+  }
+
   function renderDepartmentsOptions() {
     if (!deptInput) return;
     const current = (deptInput.value || '').toString();
@@ -711,6 +674,39 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     deptInput.innerHTML = html;
     if (current) deptInput.value = current;
+  }
+
+  // ✅ NEW: filter modal department options
+  function renderDepartmentFilterOptions() {
+    if (!modalDept) return;
+    const current = (state.departmentFilter || modalDept.value || '').toString();
+
+    let html = `<option value="">All Departments</option>`;
+    (state.departments || []).forEach(d => {
+      const id = d?.id ?? d?.value ?? d?.department_id;
+      if (id === undefined || id === null || id === '') return;
+      html += `<option value="${escapeHtml(String(id))}">${escapeHtml(deptName(d))}</option>`;
+    });
+
+    modalDept.innerHTML = html;
+    modalDept.value = current || '';
+  }
+
+  function deptLabelForRow(row) {
+    const direct =
+      row?.department_name ||
+      row?.department?.name ||
+      row?.department?.title ||
+      row?.department?.department_name ||
+      row?.dept_name ||
+      row?.departmentTitle;
+
+    if (direct) return (direct || '').toString();
+
+    const id = row?.department_id ?? row?.departmentId ?? row?.dept_id ?? row?.department;
+    if (id === undefined || id === null || id === '') return '';
+
+    return state.deptMap[String(id)] || `Department #${id}`;
   }
 
   async function loadDepartments(showOverlay = false) {
@@ -731,12 +727,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
       state.departments = arr;
       state.departmentsLoaded = true;
+
+      buildDeptMap();
       renderDepartmentsOptions();
+      renderDepartmentFilterOptions();
     } catch (e) {
       console.error('Failed to load departments', e);
       state.departments = [];
       state.departmentsLoaded = false;
+      state.deptMap = {};
+
       renderDepartmentsOptions();
+      renderDepartmentFilterOptions();
     } finally {
       if (showOverlay) showGlobalLoading(false);
     }
@@ -787,6 +789,15 @@ document.addEventListener('DOMContentLoaded', function () {
         filtered = filtered.filter(u => TA_GROUP.has((u?.role || '').toLowerCase()));
       } else if (state.roleFilter === 'tpo') {
         filtered = filtered.filter(u => TPO_GROUP.has((u?.role || '').toLowerCase()));
+      }
+
+      // ✅ NEW: department filter (client-side; does NOT require backend support)
+      if (state.departmentFilter) {
+        const want = String(state.departmentFilter);
+        filtered = filtered.filter(u => {
+          const id = u?.department_id ?? u?.departmentId ?? u?.dept_id ?? '';
+          return String(id || '') === want;
+        });
       }
 
       state.items = filtered;
@@ -870,6 +881,11 @@ document.addEventListener('DOMContentLoaded', function () {
       const active = (row.status || 'active').toLowerCase() === 'active';
       const imgUrl = fixImageUrl(row.image);
 
+      const deptText = deptLabelForRow(row);
+      const deptCell = deptText
+        ? escapeHtml(deptText)
+        : '<span class="text-muted">—</span>';
+
       const avatarImg = imgUrl
         ? `<img src="${escapeHtml(imgUrl)}" alt="avatar"
                  style="width:40px;height:40px;border-radius:10px;object-fit:cover;border:1px solid var(--line-strong);"
@@ -930,6 +946,7 @@ document.addEventListener('DOMContentLoaded', function () {
           <td class="fw-semibold">${escapeHtml(row.name || '')}</td>
           <td>${row.email ? `<a href="mailto:${escapeHtml(row.email)}">${escapeHtml(row.email)}</a>` : '<span class="text-muted">—</span>'}</td>
           <td>${row.phone_number ? escapeHtml(row.phone_number) : '<span class="text-muted">—</span>'}</td>
+          <td>${deptCell}</td>
           <td>
             <span class="badge badge-soft-primary">
               <i class="fa fa-user-shield me-1"></i>${escapeHtml(roleLabel(role))}
@@ -996,12 +1013,17 @@ document.addEventListener('DOMContentLoaded', function () {
   // Filter modal show
   filterModalEl.addEventListener('show.bs.modal', () => {
     modalRole.value = state.roleFilter || '';
+    if (modalDept) modalDept.value = state.departmentFilter || ''; // ✅ NEW
     modalSort.value = state.sort || '-created_at';
+
+    // ✅ ensure options exist even if modal opened early
+    renderDepartmentFilterOptions();
   });
 
   // Apply filters
   btnApplyFilters.addEventListener('click', () => {
     state.roleFilter = modalRole.value || '';
+    state.departmentFilter = modalDept ? (modalDept.value || '') : ''; // ✅ NEW
     state.sort = modalSort.value || '-created_at';
     state.page.active = 1;
     state.page.inactive = 1;
@@ -1013,6 +1035,7 @@ document.addEventListener('DOMContentLoaded', function () {
   btnReset.addEventListener('click', () => {
     state.q = '';
     state.roleFilter = '';
+    state.departmentFilter = ''; // ✅ NEW
     state.sort = '-created_at';
     state.perPage = 10;
     state.page.active = 1;
@@ -1021,157 +1044,155 @@ document.addEventListener('DOMContentLoaded', function () {
     searchInput.value = '';
     perPageSel.value = '10';
     modalRole.value = '';
+    if (modalDept) modalDept.value = ''; // ✅ NEW
     modalSort.value = '-created_at';
 
     loadUsers();
   });
 
-  // ✅ Import CSV (Faculty) — FIXED:
-  // 1) Ask for Default Password (required by backend)
-  // 2) Send cookies too (credentials same-origin) to avoid "session expired" if route uses session middleware
   // ✅ Import CSV (Faculty) - With Swal dialog before file picker
-btnImportFaculty?.addEventListener('click', async () => {
-  if (!canCreate && !canEdit) {
-    err('You are not allowed to import faculty.');
-    return;
-  }
+  btnImportFaculty?.addEventListener('click', async () => {
+    if (!canCreate && !canEdit) {
+      err('You are not allowed to import faculty.');
+      return;
+    }
 
-  const { isConfirmed } = await Swal.fire({
-    title: 'Import Faculty (CSV)',
-    html: `
-      <div class="text-start" style="font-size:13px;line-height:1.4">
-        <div class="mb-2">
-          Upload a <b>.csv</b> file to create/update faculty users.
+    const { isConfirmed } = await Swal.fire({
+      title: 'Import Faculty (CSV)',
+      html: `
+        <div class="text-start" style="font-size:13px;line-height:1.4">
+          <div class="mb-2">
+            Upload a <b>.csv</b> file to create/update faculty users.
+          </div>
+          <div class="mb-2 text-muted">
+            Tip: role values must be from: <code>faculty</code>, <code>hod</code>, <code>technical_assistant</code>, <code>tpo</code> (or <code>placement_officer</code>)
+          </div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="swUpdateExisting" checked>
+            <label class="form-check-label" for="swUpdateExisting">Update existing users (match by email/uuid if supported)</label>
+          </div>
         </div>
-        <div class="mb-2 text-muted">
-          Tip: role values must be from: <code>faculty</code>, <code>hod</code>, <code>technical_assistant</code>, <code>tpo</code> (or <code>placement_officer</code>)
-        </div>
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="checkbox" id="swUpdateExisting" checked>
-          <label class="form-check-label" for="swUpdateExisting">Update existing users (match by email/uuid if supported)</label>
-        </div>
-      </div>
-    `,
-    icon: 'info',
-    showCancelButton: true,
-    confirmButtonText: 'Choose CSV',
-    cancelButtonText: 'Cancel'
-  });
-
-  if (!isConfirmed) return;
-
-  // stash updateExisting preference for this selection
-  const updateExisting = document.getElementById('swUpdateExisting')?.checked ? '1' : '0';
-  importFacultyFile.dataset.update_existing = updateExisting;
-
-  importFacultyFile.value = '';
-  importFacultyFile.click();
-});
-  importFacultyFile?.addEventListener('change', async () => {
-  const file = importFacultyFile.files && importFacultyFile.files[0];
-  if (!file) return;
-
-  const isCsv = (file.type || '').includes('csv') || (file.name || '').toLowerCase().endsWith('.csv');
-  if (!isCsv) {
-    err('Please select a CSV file.');
-    importFacultyFile.value = '';
-    return;
-  }
-
-  const updateExisting = importFacultyFile.dataset.update_existing || '1';
-
-  // Show confirmation dialog with file details
-  const prettySize = (bytes) => {
-    const n = Number(bytes || 0);
-    if (n < 1024) return `${n} B`;
-    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-    if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-
-  const confirm = await Swal.fire({
-    title: 'Upload Faculty CSV?',
-    html: `
-      <div class="text-start small">
-        <div><b>File:</b> ${escapeHtml(file.name)}</div>
-        <div><b>Size:</b> ${escapeHtml(prettySize(file.size))}</div>
-        <div><b>Update existing:</b> ${updateExisting === '1' ? 'Yes' : 'No'}</div>
-        <div class="mt-2 text-muted">
-          This will import faculty users based on the CSV rows.
-        </div>
-      </div>
-    `,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, Upload',
-    cancelButtonText: 'Cancel'
-  });
-
-  if (!confirm.isConfirmed) {
-    importFacultyFile.value = '';
-    return;
-  }
-
-  try {
-    showGlobalLoading(true);
-
-    const fd = new FormData();
-    fd.append('file', file);
-
-    // optional hints (backend can ignore safely)
-    fd.append('scope', 'faculty');
-    fd.append('roles_allowed', rolesParamForFilter());
-    fd.append('update_existing', updateExisting);
-
-    const res = await fetch('/api/users/import-csv', {
-      method: 'POST',
-      headers: authHeaders(), // ✅ no manual content-type for FormData
-      body: fd,
-      credentials: 'same-origin'
+      `,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'Choose CSV',
+      cancelButtonText: 'Cancel'
     });
 
-    if (handleAuthStatus(res, 'You are not allowed to import faculty.')) return;
+    if (!isConfirmed) return;
 
-    const ct = (res.headers.get('content-type') || '').toLowerCase();
-    let js = null, txt = '';
-    if (ct.includes('application/json')) js = await res.json().catch(() => null);
-    else txt = await res.text().catch(() => '');
+    // stash updateExisting preference for this selection
+    const updateExisting = document.getElementById('swUpdateExisting')?.checked ? '1' : '0';
+    importFacultyFile.dataset.update_existing = updateExisting;
 
-    if (!res.ok || (js && js.success === false)) {
-      let msg = (js?.error || js?.message || txt || 'Import failed').toString();
+    importFacultyFile.value = '';
+    importFacultyFile.click();
+  });
 
-      // show first validation error nicely (422)
-      if (js?.errors && typeof js.errors === 'object') {
-        const k = Object.keys(js.errors)[0];
-        if (k && Array.isArray(js.errors[k]) && js.errors[k][0]) msg = js.errors[k][0];
+  importFacultyFile?.addEventListener('change', async () => {
+    const file = importFacultyFile.files && importFacultyFile.files[0];
+    if (!file) return;
+
+    const isCsv = (file.type || '').includes('csv') || (file.name || '').toLowerCase().endsWith('.csv');
+    if (!isCsv) {
+      err('Please select a CSV file.');
+      importFacultyFile.value = '';
+      return;
+    }
+
+    const updateExisting = importFacultyFile.dataset.update_existing || '1';
+
+    const prettySize = (bytes) => {
+      const n = Number(bytes || 0);
+      if (n < 1024) return `${n} B`;
+      if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+      if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+      return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    };
+
+    const confirm = await Swal.fire({
+      title: 'Upload Faculty CSV?',
+      html: `
+        <div class="text-start small">
+          <div><b>File:</b> ${escapeHtml(file.name)}</div>
+          <div><b>Size:</b> ${escapeHtml(prettySize(file.size))}</div>
+          <div><b>Update existing:</b> ${updateExisting === '1' ? 'Yes' : 'No'}</div>
+          <div class="mt-2 text-muted">
+            This will import faculty users based on the CSV rows.
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Upload',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!confirm.isConfirmed) {
+      importFacultyFile.value = '';
+      return;
+    }
+
+    try {
+      showGlobalLoading(true);
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      // optional hints (backend can ignore safely)
+      fd.append('scope', 'faculty');
+      fd.append('roles_allowed', rolesParamForFilter());
+      fd.append('update_existing', updateExisting);
+
+      const res = await fetch('/api/users/import-csv', {
+        method: 'POST',
+        headers: authHeaders(), // ✅ no manual content-type for FormData
+        body: fd,
+        credentials: 'same-origin'
+      });
+
+      if (handleAuthStatus(res, 'You are not allowed to import faculty.')) return;
+
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      let js = null, txt = '';
+      if (ct.includes('application/json')) js = await res.json().catch(() => null);
+      else txt = await res.text().catch(() => '');
+
+      if (!res.ok || (js && js.success === false)) {
+        let msg = (js?.error || js?.message || txt || 'Import failed').toString();
+
+        if (js?.errors && typeof js.errors === 'object') {
+          const k = Object.keys(js.errors)[0];
+          if (k && Array.isArray(js.errors[k]) && js.errors[k][0]) msg = js.errors[k][0];
+        }
+
+        throw new Error(msg);
       }
 
-      throw new Error(msg);
-    }
+      let msg = js?.message || js?.msg || 'Import completed';
+      if (js?.data) {
+        const ins = js.data.inserted ?? js.data.created ?? null;
+        const upd = js.data.updated ?? null;
+        const skp = js.data.skipped ?? null;
+        const errc = js.data.errors_count ?? js.data.failed ?? null;
+        const parts = [];
+        if (ins !== null) parts.push(`Inserted: ${ins}`);
+        if (upd !== null) parts.push(`Updated: ${upd}`);
+        if (skp !== null) parts.push(`Skipped: ${skp}`);
+        if (errc !== null) parts.push(`Errors: ${errc}`);
+        if (parts.length) msg = `${msg} (${parts.join(', ')})`;
+      }
 
-    let msg = js?.message || js?.msg || 'Import completed';
-    if (js?.data) {
-      const ins = js.data.inserted ?? js.data.created ?? null;
-      const upd = js.data.updated ?? null;
-      const skp = js.data.skipped ?? null;
-      const errc = js.data.errors_count ?? js.data.failed ?? null;
-      const parts = [];
-      if (ins !== null) parts.push(`Inserted: ${ins}`);
-      if (upd !== null) parts.push(`Updated: ${upd}`);
-      if (skp !== null) parts.push(`Skipped: ${skp}`);
-      if (errc !== null) parts.push(`Errors: ${errc}`);
-      if (parts.length) msg = `${msg} (${parts.join(', ')})`;
+      ok(msg);
+      await loadUsers(false);
+    } catch (ex) {
+      err(ex.message);
+    } finally {
+      showGlobalLoading(false);
+      importFacultyFile.value = '';
     }
+  });
 
-    ok(msg);
-    await loadUsers(false);
-  } catch (ex) {
-    err(ex.message);
-  } finally {
-    showGlobalLoading(false);
-    importFacultyFile.value = '';
-  }
-});
   // ✅ Export CSV (respects current role filter + search)
   btnExportFaculty?.addEventListener('click', async () => {
     try {
@@ -1372,6 +1393,11 @@ btnImportFaculty?.addEventListener('click', async () => {
     statusInput.value = 'active';
     if (deptInput) deptInput.value = '';
     if (roleInput) roleInput.value = 'faculty';
+
+    // ✅ NEW: clear extra fields explicitly (safe)
+    if (nameShortInput) nameShortInput.value = '';
+    if (empIdInput) empIdInput.value = '';
+
     pwdReq.style.display = 'inline';
     pwdHelp.textContent = 'Enter password for new user';
     currentPwdRow.style.display = 'none';
@@ -1403,6 +1429,11 @@ btnImportFaculty?.addEventListener('click', async () => {
       uuidInput.value = u.uuid || '';
       editingUserIdInput.value = u.id || '';
       nameInput.value = u.name || '';
+
+      // ✅ NEW: hydrate extra fields from API
+      if (nameShortInput) nameShortInput.value = (u.name_short_form ?? '') || '';
+      if (empIdInput) empIdInput.value = (u.employee_id ?? '') || '';
+
       emailInput.value = u.email || '';
       phoneInput.value = u.phone_number || '';
       altEmailInput.value = u.alternative_email || '';
@@ -1475,6 +1506,11 @@ btnImportFaculty?.addEventListener('click', async () => {
     const payload = {};
     payload.name = nameInput.value.trim();
     payload.email = emailInput.value.trim();
+
+    // ✅ NEW: always send (nullable) so edit can update/clear safely
+    payload.name_short_form = (nameShortInput?.value || '').trim() || null;
+    payload.employee_id = (empIdInput?.value || '').trim() || null;
+
     if (phoneInput.value.trim()) payload.phone_number = phoneInput.value.trim();
     if (altEmailInput.value.trim()) payload.alternative_email = altEmailInput.value.trim();
     if (altPhoneInput.value.trim()) payload.alternative_phone_number = altPhoneInput.value.trim();

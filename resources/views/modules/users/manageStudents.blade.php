@@ -6,7 +6,6 @@
 <link rel="stylesheet" href="{{ asset('assets/css/common/main.css') }}">
 
 <style>
-/* Dropdowns inside table */
 .table-wrap .dropdown{position:relative}
 .dropdown [data-bs-toggle="dropdown"]{border-radius:10px}
 .dropdown-menu{border-radius:12px;border:1px solid var(--line-strong);box-shadow:var(--shadow-2);min-width:240px;z-index:1049}
@@ -14,153 +13,57 @@
 .dropdown-item i{width:16px;text-align:center}
 .dropdown-item.text-danger{color:var(--danger-color) !important}
 
-/* Tabs */
 .nav.nav-tabs{border-color:var(--line-strong)}
 .nav-tabs .nav-link{color:var(--ink)}
-.nav-tabs .nav-link.active{
-  background:var(--surface);
-  border-color:var(--line-strong) var(--line-strong) var(--surface)
-}
+.nav-tabs .nav-link.active{background:var(--surface);border-color:var(--line-strong) var(--line-strong) var(--surface)}
 .tab-content,.tab-pane{overflow:visible}
 
-/* Toolbar panel */
-.musers-toolbar.panel{
-  background:var(--surface);
-  border:1px solid var(--line-strong);
-  border-radius:16px;
-  box-shadow:var(--shadow-2);
-  padding:12px;
-}
+.musers-toolbar.panel{background:var(--surface);border:1px solid var(--line-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:12px;}
 
-/* Table Card */
-.table-wrap.card{
-  position:relative;
-  border:1px solid var(--line-strong);
-  border-radius:16px;
-  background:var(--surface);
-  box-shadow:var(--shadow-2);
-  overflow:hidden;
-}
+.table-wrap.card{position:relative;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-2);overflow:hidden;}
 .table-wrap .card-body{overflow:visible;padding:0}
 .table{--bs-table-bg:transparent;margin-bottom:0}
-.table thead th{
-  font-weight:600;
-  color:var(--muted-color);
-  font-size:13px;
-  border-bottom:1px solid var(--line-strong);
-  background:var(--surface);
-  position:sticky;
-  top:0;
-  z-index:10;
-}
+.table thead th{font-weight:600;color:var(--muted-color);font-size:13px;border-bottom:1px solid var(--line-strong);background:var(--surface);position:sticky;top:0;z-index:10;}
 .table tbody tr{border-top:1px solid var(--line-soft)}
 .table tbody tr:hover{background:var(--page-hover)}
 td .fw-semibold{color:var(--ink)}
 .small{font-size:12.5px}
 
-/* Badges */
-.badge-soft-primary{
-  background:color-mix(in oklab, var(--primary-color) 12%, transparent);
-  color:var(--primary-color)
-}
-.badge-soft-success{
-  background:color-mix(in oklab, var(--success-color) 12%, transparent);
-  color:var(--success-color)
-}
-.badge-soft-danger{
-  background:color-mix(in oklab, var(--danger-color) 12%, transparent);
-  color:var(--danger-color)
-}
+.badge-soft-primary{background:color-mix(in oklab, var(--primary-color) 12%, transparent);color:var(--primary-color)}
+.badge-soft-success{background:color-mix(in oklab, var(--success-color) 12%, transparent);color:var(--success-color)}
+.badge-soft-danger{background:color-mix(in oklab, var(--danger-color) 12%, transparent);color:var(--danger-color)}
 
-/* Loading overlay */
-.loading-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.45);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-  backdrop-filter:blur(2px)
-}
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;justify-content:center;align-items:center;z-index:9999;backdrop-filter:blur(2px)}
 
-/* Button loading state */
 .btn-loading{position:relative;color:transparent !important;pointer-events:none}
-.btn-loading::after{
-  content:'';
-  position:absolute;
-  width:16px;height:16px;
-  top:50%;left:50%;
-  margin:-8px 0 0 -8px;
-  border:2px solid transparent;
-  border-top:2px solid currentColor;
-  border-radius:50%;
-  animation:spin 1s linear infinite
-}
+.btn-loading::after{content:'';position:absolute;width:16px;height:16px;top:50%;left:50%;margin:-8px 0 0 -8px;border:2px solid transparent;border-top:2px solid currentColor;border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
 
-/* Responsive toolbar */
 @media (max-width: 768px){
   .musers-toolbar .d-flex{flex-direction:column;gap:12px !important}
   .musers-toolbar .position-relative{min-width:100% !important}
-  .toolbar-buttons{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap
-  }
+  .toolbar-buttons{display:flex;gap:8px;flex-wrap:wrap}
   .toolbar-buttons .btn{flex:1;min-width:140px}
 }
 
-/* ✅ FIX: Horizontal scroll with proper constraints */
-.table-responsive{
-  display:block;
-  width:100%;
-  overflow-x:auto;
-  overflow-y:visible;
-  -webkit-overflow-scrolling:touch;
-}
-.table-responsive > .table{
-  width:100%;
-  min-width:980px;
-  table-layout:auto;
-}
+.table-responsive{display:block;width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;}
+/* ✅ updated min-width a bit for new Department column */
+.table-responsive > .table{width:100%;min-width:1080px;table-layout:auto;}
 .table-responsive th,
-.table-responsive td{
-  white-space:nowrap;
-  padding:12px 16px;
-}
+.table-responsive td{white-space:nowrap;padding:12px 16px;}
 @media (max-width: 992px){
-  .table-responsive > .table{min-width:920px}
+  .table-responsive > .table{min-width:1020px}
 }
 @media (max-width: 576px){
-  .table-responsive > .table{min-width:860px}
+  .table-responsive > .table{min-width:940px}
   .table-responsive th,
   .table-responsive td{padding:10px 12px}
 }
 
-/* =========================
-   Student Wizard (Step-up)
-   ========================= */
 .wiz-steps{display:flex;gap:10px;flex-wrap:wrap}
-.wiz-step{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;
-  border:1px solid var(--line-strong);
-  border-radius:14px;
-  background:var(--surface);
-  transition:all .2s ease;
-}
-.wiz-step .num{
-  width:28px;height:28px;border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:900;
-  background:color-mix(in oklab, var(--primary-color) 12%, transparent);
-  color:var(--primary-color);
-}
-.wiz-step.active{
-  border-color:color-mix(in oklab, var(--primary-color) 40%, var(--line-strong));
-  box-shadow:var(--shadow-2);
-}
+.wiz-step{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);transition:all .2s ease;}
+.wiz-step .num{width:28px;height:28px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;background:color-mix(in oklab, var(--primary-color) 12%, transparent);color:var(--primary-color);}
+.wiz-step.active{border-color:color-mix(in oklab, var(--primary-color) 40%, var(--line-strong));box-shadow:var(--shadow-2);}
 .wiz-step.active .num{background:var(--primary-color);color:#fff}
 .wiz-step .lbl{font-weight:800}
 .wiz-step .sub{font-size:12px;color:var(--muted-color);line-height:1.1}
@@ -168,23 +71,13 @@ td .fw-semibold{color:var(--ink)}
 .wiz-pane{display:none}
 .wiz-pane.active{display:block}
 
-.wiz-hint{
-  padding:10px 12px;
-  border:1px dashed var(--line-strong);
-  border-radius:14px;
-  background:color-mix(in oklab, var(--surface) 88%, transparent);
-  color:var(--muted-color);
-  font-size:12.5px;
-}
+.wiz-hint{padding:10px 12px;border:1px dashed var(--line-strong);border-radius:14px;background:color-mix(in oklab, var(--surface) 88%, transparent);color:var(--muted-color);font-size:12.5px;}
 
-/* Modal z-index stacking */
 .modal{z-index:1055}
 .modal-backdrop{z-index:1050}
 
-/* Dropdown in table cells */
 .table .dropdown-menu{position:absolute;z-index:1049}
 
-/* Validation */
 .form-control.is-invalid,
 .form-select.is-invalid{border-color:var(--danger-color)}
 .invalid-feedback{display:block;color:var(--danger-color);font-size:12px;margin-top:4px}
@@ -246,16 +139,14 @@ td .fw-semibold{color:var(--ink)}
             <i class="fa fa-file-csv me-1"></i>Export CSV
           </button>
 
-          {{-- ✅ NEW: Import CSV (role-gated via JS) --}}
-          <button id="btnImportStudents" class="btn btn-outline-primary" style="display:none;">
+          {{-- ✅ UPDATED: Import CSV button - now opens modal --}}
+          <button id="btnImportStudents" class="btn btn-outline-primary" style="display:none;" data-bs-toggle="modal" data-bs-target="#importModal">
             <i class="fa fa-file-import me-1"></i>Import CSV
           </button>
-          <input type="file" id="importStudentsFile" class="d-none" accept=".csv,text/csv" />
 
         </div>
 
         <div class="col-12 col-lg-auto ms-lg-auto d-flex justify-content-lg-end">
-          
           <div id="writeControls" style="display:none;" class="toolbar-buttons">
             <button type="button" class="btn btn-primary" id="btnAddStudent">
               <i class="fa fa-plus me-1"></i> Add Student
@@ -276,13 +167,16 @@ td .fw-semibold{color:var(--ink)}
                   <th>Name</th>
                   <th>Email</th>
                   <th>Phone</th>
+                  {{-- ✅ NEW --}}
+                  <th>Department</th>
                   <th style="width:200px;">Role</th>
                   <th style="width:108px;" class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usersTbody-active">
                 <tr>
-                  <td colspan="7" class="text-center text-muted" style="padding:38px;">Loading…</td>
+                  {{-- ✅ colspan updated --}}
+                  <td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td>
                 </tr>
               </tbody>
             </table>
@@ -314,13 +208,16 @@ td .fw-semibold{color:var(--ink)}
                   <th>Name</th>
                   <th>Email</th>
                   <th>Phone</th>
+                  {{-- ✅ NEW --}}
+                  <th>Department</th>
                   <th style="width:200px;">Role</th>
                   <th style="width:108px;" class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usersTbody-inactive">
                 <tr>
-                  <td colspan="7" class="text-center text-muted" style="padding:38px;">Loading…</td>
+                  {{-- ✅ colspan updated --}}
+                  <td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td>
                 </tr>
               </tbody>
             </table>
@@ -358,6 +255,16 @@ td .fw-semibold{color:var(--ink)}
             </select>
             <div class="form-text">This page shows only students.</div>
           </div>
+
+          {{-- ✅ NEW: Department filter --}}
+          <div class="col-12">
+            <label class="form-label">Department</label>
+            <select id="modal_department" class="form-select">
+              <option value="">All Departments</option>
+            </select>
+            <div class="form-text">Loaded from <code>/api/departments</code></div>
+          </div>
+
           <div class="col-12">
             <label class="form-label">Sort By</label>
             <select id="modal_sort" class="form-select">
@@ -380,6 +287,135 @@ td .fw-semibold{color:var(--ink)}
     </div>
   </div>
 </div>
+
+{{-- ✅ NEW: Import CSV Modal (with Academic Details) --}}
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa fa-file-import me-2"></i>Import Students (CSV)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <i class="fa fa-circle-info me-1"></i>
+              <strong>Import CSV files with student basic details and academic information.</strong>
+              <div class="small mt-1">All imported users will have the <code>student</code> role.</div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Import Mode <span class="text-danger">*</span></label>
+            <select id="importMode" class="form-select">
+              <option value="create">Create Only (skip existing)</option>
+              <option value="upsert">Create or Update (by email)</option>
+            </select>
+            <div class="form-text">
+              <strong>Create Only:</strong> Skips rows where email already exists.<br>
+              <strong>Create or Update:</strong> Updates existing students by email, creates new ones.
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">CSV File <span class="text-danger">*</span></label>
+            <input type="file" id="importCsvFile" class="form-control" accept=".csv,text/csv">
+            <div class="form-text">
+              Maximum file size: 5MB. Required columns for basic import:
+              <code>name, email, phone_number, department_id, status, password</code>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="card border">
+              <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fa fa-table me-1"></i> Download CSV Templates</h6>
+              </div>
+              <div class="card-body">
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <button type="button" class="btn btn-outline-primary w-100" id="btnDownloadTemplate">
+                      <i class="fa fa-download me-1"></i> Basic Template
+                    </button>
+                    <div class="small text-muted mt-1">Basic student fields only</div>
+                  </div>
+                  <div class="col-md-6">
+                    <button type="button" class="btn btn-outline-success w-100" id="btnDownloadTemplateWithAcademic">
+                      <i class="fa fa-download me-1"></i> With Academic Details
+                    </button>
+                    <div class="small text-muted mt-1">Includes academic fields (course, semester, etc.)</div>
+                  </div>
+                </div>
+
+                {{-- CSV Field Guide --}}
+                <div class="mt-3">
+                  <h6 class="small fw-bold mb-2">CSV Field Guide:</h6>
+                  <div class="row g-2">
+                    <div class="col-md-6">
+                      <div class="border rounded p-2 bg-light">
+                        <h6 class="small fw-bold mb-1">Basic Fields:</h6>
+                        <ul class="small mb-0" style="list-style:none;padding-left:0">
+                          <li><code>name</code> - Full name (required)</li>
+                          <li><code>email</code> - Email address (required, unique)</li>
+                          <li><code>phone_number</code> - Primary phone</li>
+                          <li><code>department_id</code> - Department ID</li>
+                          <li><code>status</code> - active/inactive</li>
+                          <li><code>password</code> - Password for new users</li>
+                          <li><code>alternative_email</code> - Alternate email</li>
+                          <li><code>alternative_phone_number</code> - Alternate phone</li>
+                          <li><code>whatsapp_number</code> - WhatsApp number</li>
+                          <li><code>address</code> - Full address</li>
+                          <li><code>image</code> - Avatar image path/URL</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="border rounded p-2 bg-light">
+                        <h6 class="small fw-bold mb-1">Academic Fields:</h6>
+                        <ul class="small mb-0" style="list-style:none;padding-left:0">
+                          <li><code>course_id</code> - Course ID</li>
+                          <li><code>semester_id</code> - Semester ID</li>
+                          <li><code>section_id</code> - Section ID</li>
+                          <li><code>academic_year</code> - Academic year</li>
+                          <li><code>year</code> - Year (e.g., 2026)</li>
+                          <li><code>acad_status</code> - active/inactive/passed-out</li>
+                          <li><code>roll_no</code> - Roll number</li>
+                          <li><code>registration_no</code> - Registration number</li>
+                          <li><code>admission_no</code> - Admission number</li>
+                          <li><code>admission_date</code> - YYYY-MM-DD</li>
+                          <li><code>batch</code> - Batch year</li>
+                          <li><code>session</code> - Session (e.g., 2025-2029)</li>
+                          <li><code>attendance_percentage</code> - 0-100</li>
+                          <li><code>metadata</code> - Optional JSON data</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="alert alert-warning small">
+              <i class="fa fa-exclamation-triangle me-1"></i>
+              <strong>Note:</strong> Academic details will only be imported if the student user is created/updated successfully.
+              Ensure <code>department_id</code> and <code>course_id</code> exist in your system.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnDoImport">
+          <i class="fa fa-upload me-1"></i> Import CSV
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {{-- ✅ Student Wizard Modal (Step-up form: Basic -> Academic) --}}
 <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
@@ -574,12 +610,11 @@ td .fw-semibold{color:var(--ink)}
             <div class="col-md-4">
               <label class="form-label">Status</label>
               <select id="acad_status" class="form-select">
-  <option value="" disabled>Select an option</option>
-  <option value="active" selected>Active</option>
-  <option value="inactive">Inactive</option>
-  <option value="passed-out">Passed-out</option>
-</select>
-
+                <option value="" disabled>Select an option</option>
+                <option value="active" selected>Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="passed-out">Passed-out</option>
+              </select>
             </div>
 
             <div class="col-md-4">
@@ -610,6 +645,19 @@ td .fw-semibold{color:var(--ink)}
             <div class="col-md-4">
               <label class="form-label">Session</label>
               <input id="acad_session" class="form-control" maxlength="40" placeholder="e.g. 2025-2029">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Attendance (%)</label>
+              <input id="acad_attendance_percentage"
+                     type="number"
+                     class="form-control"
+                     min="0"
+                     max="100"
+                     step="0.01"
+                     placeholder="e.g. 87.50">
+              <div class="form-text">Optional (0 to 100)</div>
+              <div class="invalid-feedback">Attendance must be between 0 and 100.</div>
             </div>
 
             <div class="col-12">
@@ -668,7 +716,6 @@ td .fw-semibold{color:var(--ink)}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
 // delegated dropdown toggle (safe)
 document.addEventListener('click', (e) => {
@@ -747,6 +794,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnReset = document.getElementById('btnReset');
   const modalRole = document.getElementById('modal_role');
   const modalSort = document.getElementById('modal_sort');
+  // ✅ NEW
+  const modalDept = document.getElementById('modal_department');
+
   const filterModalEl = document.getElementById('filterModal');
   const filterModal = new bootstrap.Modal(filterModalEl);
 
@@ -754,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnAddStudent = document.getElementById('btnAddStudent');
   const btnExportStudents = document.getElementById('btnExportStudents');
 
-  // ✅ NEW: Import refs
+  // ✅ Import refs
   const btnImportStudents = document.getElementById('btnImportStudents');
   const importModalEl = document.getElementById('importModal');
   const importModal = importModalEl ? new bootstrap.Modal(importModalEl) : null;
@@ -763,12 +813,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnDoImport = document.getElementById('btnDoImport');
   const btnDownloadTemplate = document.getElementById('btnDownloadTemplate');
   const btnDownloadTemplateWithAcademic = document.getElementById('btnDownloadTemplateWithAcademic');
-  const importApiHint = document.getElementById('importApiHint');
 
-const importStudentsFile = document.getElementById('importStudentsFile');
-  // ✅ CHANGE THIS if your backend route differs
-  const IMPORT_API = '/api/users/import-csv';
-  if (importApiHint) importApiHint.textContent = IMPORT_API;
+  // ✅ Import endpoints (tries multiple to FIX "template upload not inserting")
+  const IMPORT_APIS = [
+    '/api/users/import-csv'
+  ];
 
   // Wizard modal refs
   const userModalEl = document.getElementById('userModal');
@@ -790,6 +839,7 @@ const importStudentsFile = document.getElementById('importStudentsFile');
 
   // Basic inputs
   const uuidInput = document.getElementById('userUuid');
+  // ✅ kept internally for system-required relations (not exposed in URL/query)
   const editingUserIdInput = document.getElementById('editingUserId');
 
   const nameInput = document.getElementById('userName');
@@ -831,7 +881,10 @@ const importStudentsFile = document.getElementById('importStudentsFile');
   const acadAdmDate = document.getElementById('acad_admission_date');
   const acadBatch = document.getElementById('acad_batch');
   const acadSession = document.getElementById('acad_session');
-  const acadMeta = document.getElementById('acad_metadata');
+  const acadAttendance = document.getElementById('acad_attendance_percentage');
+
+  // ✅ Remove metadata json usage everywhere (not needed)
+  const acadMeta = document.getElementById('acad_metadata'); // will be hidden + ignored
 
   const ROLE_LABEL = { student: 'Student', students: 'Student' };
   const roleLabel = v => ROLE_LABEL[(v || '').toLowerCase()] || (v || '');
@@ -850,6 +903,8 @@ const importStudentsFile = document.getElementById('importStudentsFile');
     page: { active: 1, inactive: 1 },
     total: { active: 0, inactive: 0 },
     totalPages: { active: 1, inactive: 1 },
+    // ✅ NEW: department filter (string id)
+    deptFilter: '',
     departments: [],
     departmentsLoaded: false,
     courses: [],
@@ -867,19 +922,19 @@ const importStudentsFile = document.getElementById('importStudentsFile');
   };
 
   function computePermissions() {
-  const r = (ACTOR.role || '').toLowerCase();
-  const createDeleteRoles = ['admin', 'director', 'principal'];
-  const writeRoles = ['admin', 'director', 'principal', 'hod'];
+    const r = (ACTOR.role || '').toLowerCase();
+    const createDeleteRoles = ['admin', 'director', 'principal'];
+    const writeRoles = ['admin', 'director', 'principal', 'hod'];
 
-  canCreate = createDeleteRoles.includes(r);
-  canDelete = createDeleteRoles.includes(r);
-  canEdit = writeRoles.includes(r);
+    canCreate = createDeleteRoles.includes(r);
+    canDelete = createDeleteRoles.includes(r);
+    canEdit = writeRoles.includes(r);
 
-  if (writeControls) writeControls.style.display = canCreate ? 'flex' : 'none';
+    if (writeControls) writeControls.style.display = canCreate ? 'flex' : 'none';
 
-  // ✅ Import button visibility (same gating as create)
-  if (btnImportStudents) btnImportStudents.style.display = canCreate ? '' : 'none';
-}
+    // ✅ Import button visibility (same gating as create)
+    if (btnImportStudents) btnImportStudents.style.display = canCreate ? '' : 'none';
+  }
 
   async function fetchMe() {
     try {
@@ -910,9 +965,89 @@ const importStudentsFile = document.getElementById('importStudentsFile');
   }
   document.addEventListener('hidden.bs.modal', () => setTimeout(cleanupModalBackdrops, 80));
 
+  // ✅ Guide: red mark required + replace *_id -> *_uuid + remove metadata everywhere
+  function markImportGuideRequired() {
+    // ✅ Basic required always
+    const reqBasic = new Set(['name', 'email', 'department_id', 'status']);
+
+    // ✅ Password required ONLY in create mode
+    const modeNow = (document.getElementById('importMode')?.value || 'create');
+    if (modeNow === 'create') reqBasic.add('password');
+
+    // ✅ Academic required list (course_uuid is required if academic is being used)
+    const reqAcad = new Set(['course_uuid']);
+
+    const guide = document.querySelector('#importModal .card-body');
+    if (!guide) return;
+
+    const lis = guide.querySelectorAll('li');
+    lis.forEach(li => {
+      const code = li.querySelector('code');
+      if (!code) return;
+
+      let key = (code.textContent || '').trim().toLowerCase();
+
+      // ✅ remove metadata item from guide
+      if (key === 'metadata') {
+        li.remove();
+        return;
+      }
+
+      // ✅ Replace *_id => *_uuid (academic import security fix)
+      if (key === 'course_id') {
+        li.innerHTML = `<code>course_uuid</code> - Course UUID`;
+        key = 'course_uuid';
+      }
+      if (key === 'semester_id') {
+        li.innerHTML = `<code>semester_uuid</code> - Semester UUID`;
+        key = 'semester_uuid';
+      }
+      if (key === 'section_id') {
+        li.innerHTML = `<code>section_uuid</code> - Section UUID`;
+        key = 'section_uuid';
+      }
+
+      const box = li.closest('.col-md-6');
+      const boxTitle = box?.querySelector('h6')?.textContent?.toLowerCase() || '';
+      const inBasicBox = boxTitle.includes('basic');
+      const inAcadBox = boxTitle.includes('academic');
+
+      // ✅ add red star
+      if ((inBasicBox && reqBasic.has(key)) || (inAcadBox && reqAcad.has(key))) {
+        if (!li.querySelector('.req-star')) {
+          const star = document.createElement('span');
+          star.className = 'req-star text-danger fw-bold ms-1';
+          star.textContent = '*';
+          li.appendChild(star);
+        }
+      }
+    });
+
+    // ✅ Update NOTE text: course_uuid (backend will map uuid -> id)
+    const warn = document.querySelector('#importModal .alert.alert-warning');
+    if (warn && warn.innerHTML) {
+      warn.innerHTML = warn.innerHTML
+        .replace(/course_id/gi, 'course_uuid')
+        .replace(/Course ID/gi, 'Course UUID');
+    }
+
+    // ✅ Hide metadata field on Academic step UI (not needed)
+    if (acadMeta) {
+      const wrap = acadMeta.closest('.col-12') || acadMeta.parentElement;
+      if (wrap) wrap.style.display = 'none';
+      acadMeta.value = '';
+    }
+  }
+
+  // Run once now, and also when import modal opens / mode changes (password required star update)
+  markImportGuideRequired();
+  importModalEl?.addEventListener('shown.bs.modal', markImportGuideRequired);
+  importMode?.addEventListener('change', markImportGuideRequired);
+
   // ==========================
-  // ✅ NEW: Import helpers
+  // ✅ Import helpers (FIX: template re-upload not inserting)
   // ==========================
+
   function downloadCsv(filename, csvText) {
     const blob = new Blob([csvText], { type: 'text/csv;charset=UTF-8' });
     const a = document.createElement('a');
@@ -925,6 +1060,117 @@ const importStudentsFile = document.getElementById('importStudentsFile');
     URL.revokeObjectURL(u);
   }
 
+  // Lightweight CSV parser for header validation (supports quotes)
+  function parseCsv(text) {
+    const out = [];
+    let row = [];
+    let cur = '';
+    let i = 0;
+    let inQuotes = false;
+
+    // normalize line endings
+    text = (text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    while (i < text.length) {
+      const ch = text[i];
+
+      if (ch === '"') {
+        // escaped quote
+        if (inQuotes && text[i + 1] === '"') {
+          cur += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = !inQuotes;
+        i++;
+        continue;
+      }
+
+      if (!inQuotes && ch === ',') {
+        row.push(cur);
+        cur = '';
+        i++;
+        continue;
+      }
+
+      if (!inQuotes && ch === '\n') {
+        row.push(cur);
+        out.push(row);
+        row = [];
+        cur = '';
+        i++;
+        continue;
+      }
+
+      cur += ch;
+      i++;
+    }
+
+    // last cell
+    if (cur.length || row.length) {
+      row.push(cur);
+      out.push(row);
+    }
+
+    return out;
+  }
+
+  function normalizeHeader(h) {
+    return (h || '')
+      .toString()
+      .replace(/^\uFEFF/, '') // ✅ remove BOM
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^\w_]/g, '');
+  }
+
+  async function validateImportFile(file, mode) {
+    const txt = await file.text();
+    const rows = parseCsv(txt);
+    const headerRow = rows[0] || [];
+    const headers = headerRow.map(normalizeHeader).filter(Boolean);
+
+    if (!headers.length) {
+      throw new Error('CSV header row is missing or invalid.');
+    }
+
+    // Required headers (create requires password)
+    const requiredAlways = ['name', 'email', 'department_id', 'status'];
+    const requiredCreateOnly = ['password'];
+
+    // ✅ Detect "academic template" by presence of any academic columns
+    const academicSignals = [
+      'course_uuid','semester_uuid','section_uuid',
+      'academic_year','year','acad_status','roll_no','registration_no',
+      'admission_no','admission_date','batch','session','attendance_percentage'
+    ];
+    const hasAcademic = headers.some(h => academicSignals.includes(h));
+
+    const missing = [];
+    requiredAlways.forEach(k => { if (!headers.includes(k)) missing.push(k); });
+    if ((mode || 'create') === 'create') {
+      requiredCreateOnly.forEach(k => { if (!headers.includes(k)) missing.push(k); });
+    }
+
+    // ✅ If academic fields are present, course_uuid becomes required
+    if (hasAcademic && !headers.includes('course_uuid')) {
+      missing.push('course_uuid');
+    }
+
+    if (missing.length) {
+      throw new Error(`Missing required column(s): ${missing.join(', ')}`);
+    }
+
+    // at least 1 data row
+    const dataRows = rows.slice(1).filter(r => r.some(c => (c || '').trim() !== ''));
+    if (!dataRows.length) {
+      throw new Error('CSV has no data rows. Please add at least one student row.');
+    }
+
+    return { headers, dataRowsCount: dataRows.length, hasAcademic };
+  }
+
   function templateCsvBasic() {
     const headers = [
       'name','email','phone_number','department_id','status','password',
@@ -934,228 +1180,144 @@ const importStudentsFile = document.getElementById('importStudentsFile');
       'John Doe','john.doe@example.com','+91 99999 99999','1','active','Pass@1234',
       'alt@example.com','+91 88888 88888','+91 77777 77777','Kolkata, WB','/storage/users/john.jpg'
     ];
-    return headers.join(',') + '\n' + sample.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+    return headers.join(',') + '\r\n' + sample.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   }
 
   function templateCsvWithAcademic() {
     const headers = [
-      // user
+      // user basic fields
       'name','email','phone_number','department_id','status','password',
       'alternative_email','alternative_phone_number','whatsapp_number','address','image',
-      // academic (optional, if your backend supports)
-      'course_id','semester_id','section_id','academic_year','year','acad_status',
-      'roll_no','registration_no','admission_no','admission_date','batch','session','metadata'
+      // academic fields (✅ UUID columns + metadata removed)
+      'course_uuid','semester_uuid','section_uuid','academic_year','year','acad_status',
+      'roll_no','registration_no','admission_no','admission_date','batch','session','attendance_percentage'
     ];
+
+    // ✅ sample UUIDs (replace with real UUIDs from your DB)
     const sample = [
-      // user
+      // user basic
       'John Doe','john.doe@example.com','+91 99999 99999','1','active','Pass@1234',
       'alt@example.com','+91 88888 88888','+91 77777 77777','Kolkata, WB','/storage/users/john.jpg',
-      // academic
-      '2','', '','2025-26','2026','active','BCA-12','REG-123','ADM-456','2025-08-01','2025','2025-2029','{"note":"optional"}'
+      // academic (uuid strings)
+      '11111111-1111-1111-1111-111111111111',
+      '22222222-2222-2222-2222-222222222222',
+      '33333333-3333-3333-3333-333333333333',
+      '2025-26','2026','active','BCA-12','REG-123','ADM-456','2025-08-01','2025','2025-2029','87.5'
     ];
-    return headers.join(',') + '\n' + sample.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+
+    return headers.join(',') + '\r\n' + sample.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   }
 
   async function runImportCsv(file, mode) {
     if (!file) throw new Error('Please choose a CSV file.');
 
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('role', 'student');          // stays consistent with this page
-    fd.append('mode', mode || 'create');   // create | upsert
-
-    const res = await fetch(IMPORT_API, {
-      method: 'POST',
-      headers: authHeaders(), // DO NOT set Content-Type for FormData
-      body: fd
-    });
-
-    if (handleAuthStatus(res, 'You are not allowed to import students.')) return null;
-
-    const ct = (res.headers.get('content-type') || '').toLowerCase();
-    let js = null;
-
-    if (ct.includes('application/json')) {
-      js = await res.json().catch(() => null);
-    } else {
-      // non-json fallback
-      const txt = await res.text().catch(() => '');
-      if (!res.ok) throw new Error(txt || 'Import failed');
-      return { success: true, message: txt || 'Imported' };
-    }
-
-    if (!res.ok || js?.success === false) {
-      let msg = js?.error || js?.message || 'Import failed';
-      if (js?.errors) {
-        const k = Object.keys(js.errors)[0];
-        if (k && js.errors[k] && js.errors[k][0]) msg = js.errors[k][0];
-      }
-      throw new Error(msg);
-    }
-
-    return js;
-  }
-// ✅ Import CSV (students only) - With Swal dialog before file picker
-// ✅ Import CSV (students only) - Safe
-btnImportStudents?.addEventListener('click', async () => {
-  if (!canCreate) return;
-
-  if (!importStudentsFile) {
-    err('Import input is missing. Add: <input type="file" id="importStudentsFile" class="d-none" accept=".csv">');
-    return;
-  }
-
-  const swalRes = await Swal.fire({
-    title: 'Import Students (CSV)',
-    html: `
-      <div class="text-start" style="font-size:13px;line-height:1.4">
-        <div class="mb-2">Upload a <b>.csv</b> file to create/update student users.</div>
-        <div class="mb-2 text-muted">All imported users will have role <code>student</code>.</div>
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="checkbox" id="swUpdateExisting" checked>
-          <label class="form-check-label" for="swUpdateExisting">
-            Update existing users (match by email/uuid if supported)
-          </label>
-        </div>
-      </div>
-    `,
-    icon: 'info',
-    showCancelButton: true,
-    confirmButtonText: 'Choose CSV',
-    cancelButtonText: 'Cancel',
-    // ✅ IMPORTANT: read checkbox BEFORE swal closes
-    preConfirm: () => {
-      const checked = document.getElementById('swUpdateExisting')?.checked;
-      return { updateExisting: checked ? '1' : '0' };
-    }
-  });
-
-  if (!swalRes.isConfirmed) return;
-
-  // stash preference for the next file selection
-  importStudentsFile.dataset.update_existing = swalRes.value?.updateExisting ?? '1';
-
-  importStudentsFile.value = '';
-  importStudentsFile.click();
-});
-
-importStudentsFile?.addEventListener('change', async () => {
-  const file = importStudentsFile.files?.[0];
-  if (!file) return;
-
-  const isCsv = (file.type || '').includes('csv') || (file.name || '').toLowerCase().endsWith('.csv');
-  if (!isCsv) {
-    err('Please select a CSV file.');
-    importStudentsFile.value = '';
-    return;
-  }
-
-  const updateExisting = importStudentsFile.dataset.update_existing || '1';
-
-  const prettySize = (bytes) => {
-    const n = Number(bytes || 0);
-    if (n < 1024) return `${n} B`;
-    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-    if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-
-  const confirm = await Swal.fire({
-    title: 'Upload Students CSV?',
-    html: `
-      <div class="text-start small">
-        <div><b>File:</b> ${escapeHtml(file.name)}</div>
-        <div><b>Size:</b> ${escapeHtml(prettySize(file.size))}</div>
-        <div><b>Update existing:</b> ${updateExisting === '1' ? 'Yes' : 'No'}</div>
-        <div class="mt-2 text-muted">This will import student users based on the CSV rows.</div>
-      </div>
-    `,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, Upload',
-    cancelButtonText: 'Cancel'
-  });
-
-  if (!confirm.isConfirmed) {
-    importStudentsFile.value = '';
-    return;
-  }
-
-  try {
-    showGlobalLoading(true);
+    // ✅ Validate file structure FIRST (prevents "upload same template but not inserting" confusion)
+    const v = await validateImportFile(file, mode);
 
     const fd = new FormData();
+    // ✅ Send multiple common keys to match backend expectations
     fd.append('file', file);
+    fd.append('csv', file);
+    fd.append('import_file', file);
+    fd.append('csv_file', file);
 
-    // optional hints (backend can ignore safely)
-    fd.append('scope', 'students');
-    fd.append('allowed_roles', 'student');
-    fd.append('update_existing', updateExisting);
+    fd.append('role', 'student');
+    fd.append('mode', mode || 'create');
+    fd.append('import_mode', mode || 'create'); // backend alternate
+    fd.append('upsert', (mode === 'upsert') ? '1' : '0'); // backend alternate
 
-    const res = await fetch(IMPORT_API, {   // ✅ use your constant
-      method: 'POST',
-      headers: authHeaders(),               // ✅ no manual content-type
-      body: fd
-    });
+    // ✅ helpful flags for backend (ignored if not used)
+    fd.append('has_academic', v.hasAcademic ? '1' : '0');
+    fd.append('academic_uuid_mode', v.hasAcademic ? '1' : '0');
 
-    if (handleAuthStatus(res, 'You are not allowed to import students.')) return;
+    let lastErr = null;
 
-    const ct = (res.headers.get('content-type') || '').toLowerCase();
-    let js = null, txt = '';
-    if (ct.includes('application/json')) js = await res.json().catch(() => null);
-    else txt = await res.text().catch(() => '');
+    for (const api of IMPORT_APIS) {
+      try {
+        const res = await fetch(api, {
+          method: 'POST',
+          headers: authHeaders(), // DO NOT set Content-Type for FormData
+          body: fd
+        });
 
-    if (!res.ok || (js && js.success === false)) {
-      let msg = (js?.error || js?.message || txt || 'Import failed').toString();
-      if (js?.errors && typeof js.errors === 'object') {
-        const k = Object.keys(js.errors)[0];
-        if (k && Array.isArray(js.errors[k]) && js.errors[k][0]) msg = js.errors[k][0];
+        if (res.status === 404) {
+          lastErr = new Error(`Import route not found: ${api}`);
+          continue;
+        }
+
+        if (res.status === 405) {
+          const allow = res.headers.get('Allow') || res.headers.get('allow') || '';
+          lastErr = new Error(`Import route exists (${api}) but POST not allowed. Allowed: ${allow || 'unknown'}`);
+          continue;
+        }
+
+        if (res.status >= 500) {
+          // ✅ IMPORTANT: show backend crash message instead of trying other routes
+          const txt = await res.text().catch(() => '');
+          throw new Error(txt || `Server error (500) on ${api}`);
+        }
+
+        if (handleAuthStatus(res, 'You are not allowed to import students.')) return null;
+
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+
+        if (ct.includes('application/json')) {
+          const js = await res.json().catch(() => null);
+          if (!res.ok || js?.success === false) {
+            let msg = js?.error || js?.message || 'Import failed';
+            if (js?.errors) {
+              const k = Object.keys(js.errors)[0];
+              if (k && js.errors[k] && js.errors[k][0]) msg = js.errors[k][0];
+            }
+            throw new Error(msg);
+          }
+          // success
+          return js;
+        } else {
+          // non-json fallback
+          const txt = await res.text().catch(() => '');
+          if (!res.ok) throw new Error(txt || 'Import failed');
+          return { success: true, message: txt || 'Imported' };
+        }
+      } catch (e) {
+        lastErr = e;
+        // try next endpoint
       }
-      throw new Error(msg);
     }
 
-    let msg = js?.message || js?.msg || 'Import completed';
-    if (js?.data) {
-      const ins = js.data.inserted ?? js.data.created ?? null;
-      const upd = js.data.updated ?? null;
-      const skp = js.data.skipped ?? null;
-      const errc = js.data.errors_count ?? js.data.failed ?? null;
-      const parts = [];
-      if (ins !== null) parts.push(`Inserted: ${ins}`);
-      if (upd !== null) parts.push(`Updated: ${upd}`);
-      if (skp !== null) parts.push(`Skipped: ${skp}`);
-      if (errc !== null) parts.push(`Errors: ${errc}`);
-      if (parts.length) msg = `${msg} (${parts.join(', ')})`;
-    }
-
-    ok(msg);
-    await loadUsers(false);
-  } catch (ex) {
-    err(ex.message);
-  } finally {
-    showGlobalLoading(false);
-    importStudentsFile.value = '';
+    throw lastErr || new Error('Import failed');
   }
-});
 
+  // ✅ Download template buttons
   btnDownloadTemplate?.addEventListener('click', () => {
-    downloadCsv('students_import_template.csv', templateCsvBasic());
+    downloadCsv('students_basic_template.csv', templateCsvBasic());
+    ok('Basic template downloaded');
   });
 
   btnDownloadTemplateWithAcademic?.addEventListener('click', () => {
-    downloadCsv('students_import_template_with_academic.csv', templateCsvWithAcademic());
+    downloadCsv('students_with_academic_template.csv', templateCsvWithAcademic());
+    ok('Template with academic details downloaded');
   });
 
+  // ✅ Import CSV
   btnDoImport?.addEventListener('click', async () => {
     if (!canCreate) return;
+
     try {
       const file = importFile?.files?.[0] || null;
+      if (!file) { err('Please choose a CSV file.'); return; }
+
+      const isCsv = (file.type || '').includes('csv') || (file.name || '').toLowerCase().endsWith('.csv');
+      if (!isCsv) { err('Please select a CSV file.'); return; }
+
+      // optional size gate (5MB)
+      if (file.size > 5 * 1024 * 1024) { err('File too large. Max 5MB.'); return; }
+
       const mode = importMode?.value || 'create';
 
       showGlobalLoading(true);
       const js = await runImportCsv(file, mode);
 
-      // If backend returns counts/errors, show nicely
       const msg =
         js?.message ||
         (js?.data?.message) ||
@@ -1171,6 +1333,7 @@ importStudentsFile?.addEventListener('change', async () => {
           const reason = x?.error || x?.message || 'Failed';
           return `Row ${row}: ${reason}`;
         }).join('\n');
+
         await Swal.fire({
           title: 'Imported with some issues',
           icon: 'warning',
@@ -1179,7 +1342,6 @@ importStudentsFile?.addEventListener('change', async () => {
       }
 
       try { importModal?.hide(); } catch (_) {}
-
       await loadUsers(false);
     } catch (ex) {
       err(ex.message);
@@ -1193,6 +1355,43 @@ importStudentsFile?.addEventListener('change', async () => {
   // ==========================
   function deptName(d) {
     return d?.name || d?.title || d?.department_name || d?.dept_name || d?.slug || (d?.id ? `Department #${d.id}` : 'Department');
+  }
+
+  // ✅ NEW: normalize department id from user row
+  function rowDeptId(u) {
+    const v =
+      u?.department_id ??
+      u?.departmentId ??
+      u?.dept_id ??
+      u?.department?.id ??
+      u?.department?.department_id ??
+      u?.department?.dept_id ??
+      null;
+
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  // ✅ NEW: department label for table
+  function rowDeptLabel(u) {
+    const direct =
+      (typeof u?.department_name === 'string' && u.department_name.trim()) ? u.department_name.trim() :
+      (typeof u?.department?.name === 'string' && u.department.name.trim()) ? u.department.name.trim() :
+      (typeof u?.department?.title === 'string' && u.department.title.trim()) ? u.department.title.trim() :
+      '';
+
+    if (direct) return direct;
+
+    const id = rowDeptId(u);
+    if (id && state.departmentsLoaded && Array.isArray(state.departments)) {
+      const d = state.departments.find(x => {
+        const did = parseInt((x?.id ?? x?.value ?? x?.department_id ?? x?.dept_id ?? ''), 10);
+        return Number.isFinite(did) && did === id;
+      });
+      if (d) return deptName(d);
+    }
+
+    return id ? `Department #${id}` : '—';
   }
 
   function renderDepartmentsOptions() {
@@ -1220,6 +1419,20 @@ importStudentsFile?.addEventListener('change', async () => {
       });
       acadDept.innerHTML = aHtml;
       if (curA && curA !== 'null') acadDept.value = curA;
+    }
+
+    // ✅ NEW: Filter modal dept
+    if (modalDept) {
+      const curF = (modalDept.value || '').toString();
+      let fHtml = `<option value="">All Departments</option>`;
+      (state.departments || []).forEach(d => {
+        const id = d?.id ?? d?.value ?? d?.department_id;
+        if (id === undefined || id === null || id === '') return;
+        fHtml += `<option value="${escapeHtml(String(id))}">${escapeHtml(deptName(d))}</option>`;
+      });
+      modalDept.innerHTML = fHtml;
+      // keep selection if any
+      if (curF && curF !== 'null') modalDept.value = curF;
     }
   }
 
@@ -1431,10 +1644,17 @@ importStudentsFile?.addEventListener('change', async () => {
 
   function recomputeAndRender() {
     const lists = { active: [], inactive: [] };
+    const depFilter = (state.deptFilter || '').toString().trim();
 
     state.items.forEach(u => {
       const rr = (u.role || '').toLowerCase();
       if (!(rr === 'student' || rr === 'students')) return;
+
+      // ✅ Department filter apply (both tabs)
+      if (depFilter) {
+        const did = rowDeptId(u);
+        if (!did || String(did) !== depFilter) return;
+      }
 
       const st = (u.status || 'active').toLowerCase();
       if (st === 'inactive') lists.inactive.push(u);
@@ -1547,15 +1767,22 @@ importStudentsFile?.addEventListener('change', async () => {
       }
       actionHtml += `</ul></div>`;
 
+      // ✅ Security change: DO NOT expose numeric IDs in dataset
+      const deptLabel = rowDeptLabel(row);
+      const deptCell = (deptLabel === '—')
+        ? `<span class="text-muted">—</span>`
+        : escapeHtml(deptLabel);
+
       return `
         <tr data-uuid="${escapeHtml(row.uuid)}"
-            data-id="${escapeHtml(row.id)}"
             data-email="${escapeHtml(row.email || '')}">
           <td>${statusCell}</td>
           <td style="position:relative">${avatarImg}${avatarFallback}</td>
           <td class="fw-semibold">${escapeHtml(row.name || '')}</td>
           <td>${row.email ? `<a href="mailto:${escapeHtml(row.email)}">${escapeHtml(row.email)}</a>` : '<span class="text-muted">—</span>'}</td>
           <td>${row.phone_number ? escapeHtml(row.phone_number) : '<span class="text-muted">—</span>'}</td>
+          {{-- ✅ NEW: Department column --}}
+          <td>${deptCell}</td>
           <td>
             <span class="badge badge-soft-primary">
               <i class="fa fa-user-shield me-1"></i>${escapeHtml(roleLabel(role || 'student'))}
@@ -1623,10 +1850,15 @@ importStudentsFile?.addEventListener('change', async () => {
   filterModalEl.addEventListener('show.bs.modal', () => {
     modalRole.value = 'student';
     modalSort.value = state.sort || '-created_at';
+    // ✅ NEW
+    if (modalDept) modalDept.value = state.deptFilter || '';
   });
 
   btnApplyFilters.addEventListener('click', () => {
     state.sort = modalSort.value || '-created_at';
+    // ✅ NEW
+    state.deptFilter = (modalDept?.value || '').toString();
+
     state.page.active = 1;
     state.page.inactive = 1;
     filterModal.hide();
@@ -1639,11 +1871,14 @@ importStudentsFile?.addEventListener('change', async () => {
     state.perPage = 10;
     state.page.active = 1;
     state.page.inactive = 1;
+    // ✅ NEW
+    state.deptFilter = '';
 
     searchInput.value = '';
     perPageSel.value = '10';
     modalRole.value = 'student';
     modalSort.value = '-created_at';
+    if (modalDept) modalDept.value = '';
 
     loadUsers();
   });
@@ -1812,6 +2047,9 @@ importStudentsFile?.addEventListener('change', async () => {
     acadForStudentLabel.textContent = '—';
     acadModeBadge.innerHTML = `<i class="fa fa-graduation-cap me-1"></i>Academic Details`;
 
+    // ✅ remove metadata from form (not needed)
+    if (acadMeta) acadMeta.value = '';
+
     setDisabledAll(form, false);
     setStepActive(1);
   }
@@ -1877,6 +2115,16 @@ importStudentsFile?.addEventListener('change', async () => {
     let okk = true;
     if (!acadDept.value) { acadDept.classList.add('is-invalid'); okk = false; }
     if (!acadCourse.value) { acadCourse.classList.add('is-invalid'); okk = false; }
+
+    // Validate attendance percentage if provided
+    if (acadAttendance && acadAttendance.value !== '') {
+      const v = parseFloat(acadAttendance.value);
+      if (Number.isNaN(v) || v < 0 || v > 100) {
+        acadAttendance.classList.add('is-invalid');
+        okk = false;
+      }
+    }
+
     return okk;
   }
 
@@ -1928,8 +2176,15 @@ importStudentsFile?.addEventListener('change', async () => {
     acadAdmDate.value = rec?.admission_date ? String(rec.admission_date).slice(0,10) : '';
     acadBatch.value = rec?.batch || '';
     acadSession.value = rec?.session || '';
-    if (rec?.metadata && typeof rec.metadata === 'object') acadMeta.value = JSON.stringify(rec.metadata);
-    else acadMeta.value = rec?.metadata ? String(rec.metadata) : '';
+    if (acadAttendance) {
+      acadAttendance.value =
+        (rec?.attendance_percentage !== null && rec?.attendance_percentage !== undefined)
+          ? String(rec.attendance_percentage)
+          : '';
+    }
+
+    // ✅ metadata removed
+    if (acadMeta) acadMeta.value = '';
 
     const semId = rec?.semester_id ? String(rec.semester_id) : '';
     const secId = rec?.section_id ? String(rec.section_id) : '';
@@ -2103,7 +2358,7 @@ importStudentsFile?.addEventListener('change', async () => {
   }
 
   // ==========================
-  // Save academic (create/update)
+  // Save academic (create/update)  ✅ metadata removed
   // ==========================
   async function saveAcademicStep() {
     const payload = {
@@ -2120,8 +2375,10 @@ importStudentsFile?.addEventListener('change', async () => {
       admission_date: acadAdmDate.value || null,
       batch: acadBatch.value.trim() || null,
       session: acadSession.value.trim() || null,
-      status: acadStatus.value || null,
-      metadata: acadMeta.value.trim() || null
+      attendance_percentage: (acadAttendance && acadAttendance.value !== '')
+        ? Math.max(0, Math.min(100, parseFloat(acadAttendance.value)))
+        : null,
+      status: acadStatus.value || null
     };
 
     if (!payload.user_id) throw new Error('User ID missing. Please save basic details first.');
@@ -2131,11 +2388,14 @@ importStudentsFile?.addEventListener('change', async () => {
     const recId = acadRecordId.value ? parseInt(acadRecordId.value, 10) : 0;
     const isUpdate = !!recId;
 
-    const res = await fetch(isUpdate ? `/api/student-academic-details/${encodeURIComponent(recId)}` : '/api/student-academic-details', {
-      method: isUpdate ? 'PUT' : 'POST',
-      headers: { ...authHeaders({ 'Content-Type': 'application/json' }) },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(
+      isUpdate ? `/api/student-academic-details/${encodeURIComponent(recId)}` : '/api/student-academic-details',
+      {
+        method: isUpdate ? 'PUT' : 'POST',
+        headers: { ...authHeaders({ 'Content-Type': 'application/json' }) },
+        body: JSON.stringify(payload)
+      }
+    );
     if (handleAuthStatus(res, 'You are not allowed to save academic details.')) return null;
 
     const js = await res.json().catch(() => ({}));
@@ -2228,18 +2488,19 @@ importStudentsFile?.addEventListener('change', async () => {
     }
   }
 
-  async function openAcademicOnlyWizard(uuid, userId, email) {
+  // ✅ Security: open academic using ONLY UUID (no DOM numeric id exposure)
+  async function openAcademicOnlyWizard(uuid, email) {
     resetWizard();
     wizard.mode = 'edit';
     wizard.academicOnly = true;
     wizard.step = 2;
 
     wizard.user.uuid = uuid;
-    wizard.user.id = parseInt(userId || 0, 10) || null;
+    wizard.user.id = null;
     wizard.user.email = email || '';
 
     uuidInput.value = uuid || '';
-    editingUserIdInput.value = wizard.user.id || '';
+    editingUserIdInput.value = '';
 
     pwdReq.style.display = 'none';
     pwdHelp.textContent = '—';
@@ -2254,15 +2515,17 @@ importStudentsFile?.addEventListener('change', async () => {
     try {
       const u = await fetchUser(uuid);
       if (u) {
-        wizard.user.id = u.id || wizard.user.id;
+        wizard.user.id = u.id || null;
         wizard.user.email = u.email || wizard.user.email;
 
-        acadForStudentLabel.textContent = wizard.user.email ? `For: ${wizard.user.email}` : `User #${wizard.user.id}`;
+        // store internal id only (not exposed in table dataset)
+        editingUserIdInput.value = wizard.user.id ? String(wizard.user.id) : '';
+        acadUserId.value = wizard.user.id ? String(wizard.user.id) : '';
+
+        acadForStudentLabel.textContent = wizard.user.email ? `For: ${wizard.user.email}` : '—';
 
         deptInput.value = (u.department_id !== undefined && u.department_id !== null) ? String(u.department_id) : '';
         fillAcademicFromUserDept();
-
-        acadUserId.value = wizard.user.id ? String(wizard.user.id) : '';
       }
 
       const rec = await findAcademicRecordByEmail(wizard.user.id, wizard.user.email);
@@ -2276,7 +2539,6 @@ importStudentsFile?.addEventListener('change', async () => {
         wizard.academic.id = null;
         acadModeBadge.innerHTML = `<i class="fa fa-plus me-1"></i>Add Academic Details`;
         acadRecordId.value = '';
-        acadUserId.value = wizard.user.id ? String(wizard.user.id) : '';
         fillAcademicFromUserDept();
       }
 
@@ -2296,6 +2558,7 @@ importStudentsFile?.addEventListener('change', async () => {
     if (wizard.mode === 'view') { setStepActive(1); return; }
     setStepActive(1);
   });
+
   wizStep2?.addEventListener('click', async () => {
     if (wizard.academicOnly) return;
     if (wizard.step === 2) return;
@@ -2452,7 +2715,6 @@ importStudentsFile?.addEventListener('change', async () => {
 
     const tr = btn.closest('tr');
     const uuid = tr?.dataset?.uuid;
-    const id = tr?.dataset?.id;
     const email = tr?.dataset?.email || '';
     if (!uuid) return;
 
@@ -2475,13 +2737,14 @@ importStudentsFile?.addEventListener('change', async () => {
     }
 
     if (act === 'assign_privilege') {
-      window.location.href = `/user-privileges/manage?user_uuid=${encodeURIComponent(uuid)}&user_id=${encodeURIComponent(id || '')}`;
+      // ✅ Security: only uuid in query
+      window.location.href = `/user-privileges/manage?user_uuid=${encodeURIComponent(uuid)}`;
       return;
     }
 
     if (act === 'acad') {
       setSpin(true);
-      openAcademicOnlyWizard(uuid, id, email).finally(() => setSpin(false));
+      openAcademicOnlyWizard(uuid, email).finally(() => setSpin(false));
       return;
     }
 

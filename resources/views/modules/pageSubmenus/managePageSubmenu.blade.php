@@ -8,9 +8,10 @@
   $psCreateUrl    = url('/page/submenu/create');
   $psEditPattern  = url('/page/submenu/create') . '?edit={id}';
 
-  // API URLs (from your API block)
-  $apiBase  = url('/api/page-submenus');
-  $apiTree  = url('/api/page-submenus/tree?only_active=1'); // will append page_id/page_slug in JS
+  // API URLs
+  $apiBase         = url('/api/page-submenus');
+  $apiTree         = url('/api/page-submenus/tree?only_active=1'); // kept for compatibility (not used now)
+  $apiHeaderMenus  = url('/api/header-menus'); // we'll call /tree inside JS
 @endphp
 
 @push('styles')
@@ -28,6 +29,25 @@
     .mfa-toolbar .btn-light{background:var(--surface);border:1px solid var(--line-strong)}
     .mfa-toolbar .btn-primary{background:var(--primary-color);border:none}
 
+    /* ✅ Header Menu badge */
+    .badge-soft{
+      background:var(--t-primary);
+      color:#0f766e;
+      border:1px solid rgba(201,75,80,.26);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      font-weight:800;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      max-width:420px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .pick-parent-btn{white-space:nowrap}
+
     /* Card */
     .table-wrap.card{position:relative;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-2);overflow:visible}
     .table-wrap .card-body{overflow:visible}
@@ -44,7 +64,6 @@
     .placeholder{background:linear-gradient(90deg,#00000010,#00000005,#00000010);border-radius:8px}
 
     /* Badges */
-    .badge-soft{background:color-mix(in oklab, var(--muted-color) 12%, transparent);color:var(--ink)}
     .badge.badge-success{background:var(--success-color)!important;color:#fff!important}
     .badge.badge-secondary{background:#64748b!important;color:#fff!important}
 
@@ -100,16 +119,57 @@
     .hm-btn-loading .btn-spinner{display:inline-block !important}
     .hm-btn-loading .btn-icon{display:none !important}
 
+    /* ============================
+      ✅ Header Menu Picker Modal Tree
+    ============================ */
+    .tree-wrap{position:relative;min-height:140px}
+    .tree-loader{
+      position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+      background: color-mix(in oklab, var(--surface) 86%, transparent);
+      z-index:2;
+    }
+    .tree-loader.show{display:flex}
+    .spin{width:22px;height:22px;border:3px solid #0001;border-top-color:var(--accent-color);border-radius:50%;animation:rot 1s linear infinite}
+    @keyframes rot{to{transform:rotate(360deg)}}
+
+    .tree{--rad:12px}
+    .tree ul{list-style:none;margin:0;padding-left:18px;border-left:1px dashed var(--line-strong)}
+    .tree li{margin:4px 0 4px 0;position:relative}
+    .tree-node{
+      display:flex;align-items:center;gap:10px;
+      padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--rad);
+      background:var(--surface);
+      transition:transform .12s ease, box-shadow .12s ease;
+    }
+    .tree-node:hover{transform:translateY(-1px);box-shadow:var(--shadow-1)}
+    .tree-node.is-selected{
+      border-color:color-mix(in oklab, var(--accent-color) 45%, var(--line-strong));
+      box-shadow:0 0 0 3px rgba(201,75,80,.14);
+    }
+    .tree-node .toggle{
+      width:24px;height:24px;border:1px solid var(--line-strong);border-radius:8px;
+      display:inline-grid;place-items:center;cursor:pointer;flex:0 0 auto;
+      background:color-mix(in oklab, var(--surface) 92%, var(--ink) 0%);
+    }
+    .tree-node .toggle i{transition:transform .18s ease}
+    .tree-node[data-open="1"] .toggle i{transform:rotate(90deg)}
+    .tree-title{font-weight:700}
+    .tree-meta{font-size:12px;color:var(--muted-color)}
+    .tree-actions{margin-left:auto;display:flex;gap:8px}
+    .tree .children{margin-top:6px;display:none}
+    .tree-node[data-open="1"] + .children{display:block}
+    .tree-empty{padding:16px;border:1px dashed var(--line-strong);border-radius:12px;color:var(--muted-color);text-align:center}
+
     /* Dark tweaks */
     html.theme-dark .panel,
     html.theme-dark .table-wrap.card{background:#0f172a;border-color:var(--line-strong)}
     html.theme-dark .table thead th{background:#0f172a;border-color:var(--line-strong);color:#94a3b8}
     html.theme-dark .hm-row{background:#0f172a;border-color:var(--line-soft)}
     html.theme-dark .hm-toggle{background:#0f172a}
+    html.theme-dark .tree-node{background:#0f172a}
+    html.theme-dark .tree-node .toggle{background:#0f172a}
 
-    /* ============================
-      FIX: prevent wrapper clipping / weird overflow
-    ============================ */
+    /* FIX overflow issues */
     #{{ $psUid }},
     #{{ $psUid }} .table-responsive,
     #{{ $psUid }} .table-wrap,
@@ -124,9 +184,6 @@
       transform: none !important;
     }
 
-    /* ============================
-      FIX: stop flex children from forcing overflow
-    ============================ */
     #{{ $psUid }} .hm-row { max-width: 100%; }
     #{{ $psUid }} .hm-main{
       min-width: 0;
@@ -138,7 +195,6 @@
       word-break: break-word;
     }
 
-    /* Make toolbar/search responsive */
     #{{ $psUid }} .mfa-toolbar .position-relative{
       min-width: min(320px, 100%) !important;
       flex: 1 1 320px;
@@ -161,7 +217,8 @@
        data-create-url="{{ $psCreateUrl }}"
        data-edit-pattern="{{ $psEditPattern }}"
        data-api-base="{{ $apiBase }}"
-       data-api-tree="{{ $apiTree }}">
+       data-api-tree="{{ $apiTree }}"
+       data-api-header-menus="{{ $apiHeaderMenus }}">
 
     {{-- ===== Global toolbar ===== --}}
     <div class="row align-items-center g-2 mb-3 mfa-toolbar panel">
@@ -207,12 +264,24 @@
         <div class="row align-items-center g-2 mb-3 mfa-toolbar panel">
           <div class="col-12 col-xl d-flex align-items-center flex-wrap gap-2">
 
-            {{-- ✅ Page selector (required for API: page_id/page_slug) --}}
-            <div class="d-flex align-items-center gap-2">
-              <label class="text-muted small mb-0">Page</label>
-              <select class="form-select js-page" style="width:260px;">
-                <option value="">Loading pages…</option>
-              </select>
+            {{-- ✅ Header Menu Picker (Tree Modal) --}}
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <label class="text-muted small mb-0">Header Menu</label>
+
+              <span id="hmBadge" class="badge-soft">
+                <i class="fa-solid fa-bars"></i>
+                <span id="hmBadgeText">Not selected</span>
+              </span>
+
+              <button class="btn btn-light pick-parent-btn" type="button" id="btnPickHeaderMenu">
+                <i class="fa-solid fa-sitemap me-1"></i>Choose from tree
+              </button>
+
+              <button class="btn btn-outline-danger btn-sm" type="button" id="btnClearHeaderMenu">
+                <i class="fa-solid fa-xmark me-1"></i>Clear
+              </button>
+
+              <input type="hidden" id="header_menu_id" value="">
             </div>
 
             <div class="d-flex align-items-center gap-2">
@@ -228,7 +297,7 @@
             </div>
 
           </div>
-          
+
           <div class="col-12 col-xxl-auto ms-xxl-auto d-flex justify-content-xxl-end gap-2">
             <button class="btn btn-primary js-reset"><i class="fa fa-rotate-left me-1"></i>Reset</button>
             <button class="btn btn-light js-reorder"><i class="fa fa-up-down-left-right me-1"></i>Reorder</button>
@@ -240,7 +309,7 @@
           <div class="card-body p-0">
             <div class="hm-tree">
               <div class="hm-reorder-note p-2 mb-2 small text-muted">
-                Reorder mode is ON — drag using the handle. **Only sibling reordering is allowed (no parent changes).**
+                Reorder mode is ON — drag using the handle. <b>Only sibling reordering is allowed (no parent changes).</b>
               </div>
 
               <div class="js-loader" style="display:none;">
@@ -288,7 +357,7 @@
                 <thead class="sticky-top">
                   <tr>
                     <th>TITLE & SLUG</th>
-                    <th style="width:20%;">PAGE</th>
+                    <th style="width:22%;">HEADER MENU</th>
                     <th style="width:18%;">PARENT</th>
                     <th style="width:140px;">CREATED</th>
                     <th class="text-end" style="width:190px;">ACTIONS</th>
@@ -331,7 +400,7 @@
                 <thead class="sticky-top">
                   <tr>
                     <th>TITLE & SLUG</th>
-                    <th style="width:20%;">PAGE</th>
+                    <th style="width:22%;">HEADER MENU</th>
                     <th style="width:18%;">PARENT</th>
                     <th style="width:140px;">DELETED AT</th>
                     <th class="text-end" style="width:230px;">ACTIONS</th>
@@ -365,6 +434,44 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  {{-- ✅ Header Menu Picker Modal --}}
+  <div class="modal fade" id="headerMenuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title"><i class="fa-solid fa-bars me-2"></i>Pick Header Menu</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <button class="btn btn-light btn-sm" type="button" id="btnReloadHeaderTree">
+              <span class="label"><i class="fa-solid fa-rotate"></i> Reload</span>
+              <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            </button>
+
+            <div class="input-group" style="max-width: 340px;">
+              <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="text" class="form-control" id="headerTreeSearch" placeholder="Search by title…">
+            </div>
+          </div>
+
+          <div class="tree-wrap">
+            <div class="tree-loader" id="headerTreeLoader">
+              <div class="spin me-2"></div><span class="text-muted">Loading tree…</span>
+            </div>
+            <div id="headerTreeEmpty" class="tree-empty" style="display:none">No header menus found.</div>
+            <div id="headerTreeRoot" class="tree"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -408,9 +515,9 @@
         return;
       }
 
-      const API_BASE = ROOT.dataset.apiBase;
-      const API_TREE = ROOT.dataset.apiTree;
-      const EDIT_PATTERN = ROOT.dataset.editPattern;
+      const API_BASE         = ROOT.dataset.apiBase;
+      const API_HEADER_MENUS = ROOT.dataset.apiHeaderMenus;
+      const EDIT_PATTERN     = ROOT.dataset.editPattern;
 
       const qs  = (sel) => ROOT.querySelector(sel);
       const qsa = (sel) => Array.from(ROOT.querySelectorAll(sel));
@@ -467,67 +574,220 @@
         return j;
       }
 
-      /* =========================
-        REQUIRED PAGE CONTEXT
-      ========================= */
-      const pageSel = qs('.js-page');
-      let pageId = '';
-      let pageSlug = '';
-
-      function getPageParams() {
-        if (pageId) return { page_id: pageId, page_slug: pageSlug || '' };
-        if (pageSlug) return { page_slug: pageSlug };
-        return {};
+      function setBtnBusy(btn, on) {
+        if (!btn) return;
+        const label = btn.querySelector('.label');
+        const spin  = btn.querySelector('.spinner-border');
+        btn.disabled = !!on;
+        if (spin) spin.classList.toggle('d-none', !on);
+        if (label) label.style.opacity = on ? '.9' : '';
       }
 
-      async function loadPages() {
-        if (!pageSel) return;
+      /* =========================
+        ✅ REQUIRED HEADER MENU CONTEXT (TREE MODAL PICKER)
+      ========================= */
+      const hmHidden = qs('#header_menu_id');
+      const hmBadgeText = qs('#hmBadgeText');
+      const btnPickHeaderMenu = qs('#btnPickHeaderMenu');
+      const btnClearHeaderMenu = qs('#btnClearHeaderMenu');
 
-        pageSel.innerHTML = `<option value="">Loading pages…</option>`;
-        pageSel.disabled = true;
+      const headerMenuModal = new bootstrap.Modal(document.getElementById('headerMenuModal'));
+      const headerTreeRoot = document.getElementById('headerTreeRoot');
+      const headerTreeSearch = document.getElementById('headerTreeSearch');
+      const headerTreeLoader = document.getElementById('headerTreeLoader');
+      const headerTreeEmpty = document.getElementById('headerTreeEmpty');
+      const btnReloadHeaderTree = document.getElementById('btnReloadHeaderTree');
 
-        try {
-          const j = await fetchJSON(API_BASE + '/pages?_ts=' + Date.now());
+      let headerMenuId = '';
 
-          // Accept common shapes:
-          const items =
-            Array.isArray(j?.data) ? j.data :
-            Array.isArray(j?.pages) ? j.pages :
-            Array.isArray(j) ? j :
-            [];
+      function getHeaderMenuId() {
+        const v = parseInt(String(hmHidden.value || '').trim(), 10);
+        return Number.isFinite(v) && v > 0 ? v : 0;
+      }
 
-          if (!items.length) {
-            pageSel.innerHTML = `<option value="">No pages found</option>`;
-            pageSel.disabled = true;
-            pageId = '';
-            pageSlug = '';
-            return;
+      function setHeaderMenu(id, title) {
+        hmHidden.value = id ? String(id) : '';
+        headerMenuId = hmHidden.value;
+
+        hmBadgeText.textContent = id
+          ? `#${id}: ${title || 'Header menu'}`
+          : 'Not selected';
+
+        // Refresh everything
+        loaded.active = false; loaded.archived = false; loaded.bin = false;
+        markDirty(['active','archived','bin']);
+        refreshVisible();
+      }
+
+      btnClearHeaderMenu?.addEventListener('click', () => {
+        setHeaderMenu('', '');
+        ok('Header menu cleared');
+      });
+
+      function closeHeaderPicker() {
+        try { headerMenuModal.hide(); } catch {}
+        headerTreeLoader.classList.remove('show');
+        setTimeout(() => {
+          document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+          document.body.classList.remove('modal-open');
+          document.body.style.removeProperty('padding-right');
+        }, 50);
+      }
+
+      document.getElementById('headerMenuModal')
+        ?.addEventListener('hidden.bs.modal', closeHeaderPicker);
+
+      function renderHeaderTree(nodes) {
+        headerTreeRoot.innerHTML = '';
+        if (!nodes || !nodes.length) {
+          headerTreeEmpty.style.display = 'block';
+          return;
+        }
+        headerTreeEmpty.style.display = 'none';
+
+        const ul = document.createElement('ul');
+        ul.className = 'm-0 p-0';
+
+        function makeNode(n, depth=0) {
+          const li = document.createElement('li');
+
+          const node = document.createElement('div');
+          node.className = 'tree-node';
+          node.dataset.open = (depth <= 1 ? '1' : '0');
+
+          if (hmHidden.value && String(n.id) === String(hmHidden.value)) {
+            node.classList.add('is-selected');
           }
 
-          const opts = items.map(p => {
-            const id = p.id ?? p.page_id ?? '';
-            const slug = p.slug ?? p.page_slug ?? '';
-            const title = p.title ?? p.name ?? slug ?? ('#' + id);
-            return `<option value="${esc(id)}" data-slug="${esc(slug)}">${esc(title)}${slug ? '  ('+esc(slug)+')' : ''}</option>`;
-          }).join('');
+          const toggle = document.createElement('div');
+          toggle.className = 'toggle';
+          toggle.innerHTML = '<i class="fa-solid fa-chevron-right tiny"></i>';
+          if (!n.children || !n.children.length) toggle.style.visibility = 'hidden';
 
-          pageSel.innerHTML = `<option value="">Select page…</option>` + opts;
-          pageSel.disabled = false;
+          const title = document.createElement('div');
+          title.className = 'tree-title';
+          title.textContent = n.title || '-';
 
-          // auto pick first real page
-          const first = pageSel.querySelector('option[value]:not([value=""])');
-          if (first) {
-            pageSel.value = first.value;
-            pageId = String(first.value || '');
-            pageSlug = first.getAttribute('data-slug') || '';
+          const meta = document.createElement('div');
+          meta.className = 'tree-meta';
+          const slugText  = n.slug ? '/' + n.slug : '';
+          const statusText = (n.active ? ' • active' : ' • inactive');
+          meta.textContent = slugText + statusText;
+
+          const actions = document.createElement('div');
+          actions.className = 'tree-actions';
+
+          const pickBtn = document.createElement('button');
+          pickBtn.type = 'button';
+          pickBtn.className = 'btn btn-sm btn-outline-primary';
+          pickBtn.innerHTML = `
+            <span class="label"><i class="fa-regular fa-circle-check me-1"></i>Select</span>
+            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+          `;
+
+          pickBtn.addEventListener('click', () => {
+            setBtnBusy(pickBtn, true);
+            setHeaderMenu(n.id, n.title || '-');
+            setTimeout(() => {
+              setBtnBusy(pickBtn, false);
+              closeHeaderPicker();
+            }, 120);
+          });
+
+          actions.appendChild(pickBtn);
+
+          node.appendChild(toggle);
+          node.appendChild(title);
+          node.appendChild(meta);
+          node.appendChild(actions);
+
+          li.appendChild(node);
+
+          const childrenWrap = document.createElement('div');
+          childrenWrap.className = 'children';
+
+          if (n.children && n.children.length) {
+            const inner = document.createElement('ul');
+            n.children.forEach(c => inner.appendChild(makeNode(c, depth+1)));
+            childrenWrap.appendChild(inner);
+          } else {
+            const empty = document.createElement('div');
+            empty.className = 'tiny text-muted ps-2';
+            empty.textContent = 'No children';
+            childrenWrap.appendChild(empty);
+          }
+
+          li.appendChild(childrenWrap);
+
+          toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = node.dataset.open === '1';
+            node.dataset.open = open ? '0' : '1';
+          });
+
+          return li;
+        }
+
+        nodes.forEach(n => ul.appendChild(makeNode(n, 0)));
+        headerTreeRoot.appendChild(ul);
+
+        headerTreeSearch.value = '';
+        headerTreeSearch.oninput = function () {
+          const q = this.value.trim().toLowerCase();
+          headerTreeRoot.querySelectorAll('.tree-node').forEach(nd => {
+            const t = (nd.querySelector('.tree-title')?.textContent || '').toLowerCase();
+            const m = (nd.querySelector('.tree-meta')?.textContent || '').toLowerCase();
+            const match = !q || t.includes(q) || m.includes(q);
+            nd.parentElement.style.display = match ? '' : 'none';
+          });
+
+          if (q) {
+            headerTreeRoot.querySelectorAll('.tree-node').forEach(nd => nd.dataset.open = '1');
+          }
+        };
+      }
+
+      async function loadHeaderMenuTree(autoPickFirst = false) {
+        headerTreeRoot.innerHTML = '';
+        headerTreeEmpty.style.display = 'none';
+        headerTreeLoader.classList.add('show');
+        setBtnBusy(btnReloadHeaderTree, true);
+
+        try {
+          const j = await fetchJSON(API_HEADER_MENUS + '/tree?only_active=0&_ts=' + Date.now());
+          const nodes = Array.isArray(j.data) ? j.data : [];
+
+          renderHeaderTree(nodes);
+
+          // ✅ Auto pick first root if required and nothing selected
+          if (autoPickFirst && !getHeaderMenuId() && nodes.length) {
+            const first = nodes[0];
+            if (first?.id) {
+              setHeaderMenu(first.id, first.title || 'Header menu');
+            }
           }
 
         } catch (e) {
           console.error(e);
-          pageSel.innerHTML = `<option value="">Failed to load pages</option>`;
-          pageSel.disabled = true;
-          err(e.message || 'Failed to load pages');
+          headerTreeEmpty.style.display = 'block';
+          headerTreeRoot.innerHTML = '';
+          err(e.message || 'Failed to load header menus tree');
+        } finally {
+          headerTreeLoader.classList.remove('show');
+          setBtnBusy(btnReloadHeaderTree, false);
         }
+      }
+
+      btnPickHeaderMenu?.addEventListener('click', () => {
+        loadHeaderMenuTree(false);
+        headerMenuModal.show();
+      });
+
+      btnReloadHeaderTree?.addEventListener('click', () => loadHeaderMenuTree(false));
+
+      function getScopeParams() {
+        const hm = getHeaderMenuId();
+        return hm ? { header_menu_id: hm } : {};
       }
 
       /* =========================
@@ -563,18 +823,18 @@
       /* =========================
         ACTIVE TREE
       ========================= */
-      const perPageSel  = qs('.js-per-page');
-      const qInput      = qs('.js-q');
-      const btnReset    = qs('.js-reset');
-      const btnReorder  = qs('.js-reorder');
-      const btnSaveOrd  = qs('.js-save-order');
-      const btnCancelOrd= qs('.js-cancel-order');
+      const perPageSel   = qs('.js-per-page');
+      const qInput       = qs('.js-q');
+      const btnReset     = qs('.js-reset');
+      const btnReorder   = qs('.js-reorder');
+      const btnSaveOrd   = qs('.js-save-order');
+      const btnCancelOrd = qs('.js-cancel-order');
 
-      const treeWrap    = qs('.js-tree');
-      const loader      = qs('.js-loader');
-      const empty       = qs('.js-empty');
-      const meta        = qs('.js-meta');
-      const pager       = qs('.js-pager');
+      const treeWrap = qs('.js-tree');
+      const loader   = qs('.js-loader');
+      const empty    = qs('.js-empty');
+      const meta     = qs('.js-meta');
+      const pager    = qs('.js-pager');
 
       let reorderMode = false;
       let sortables = [];
@@ -613,7 +873,7 @@
         function nodeMatches(n) {
           const hay = [
             n.title, n.slug, n.shortcode,
-            n.page_title, n.page_slug, n.page_shortcode, n.page_url,
+            n.header_menu_title, n.header_menu_label, n.header_menu_name,
             n.description
           ].filter(Boolean).join(' ').toLowerCase();
           return hay.includes(t);
@@ -656,7 +916,7 @@
             draggable: '.hm-item',
             ghostClass: 'drag-ghost',
             chosenClass: 'drag-chosen',
-            group: { name: 'ps-siblings', put: false }, // ✅ no parent changes
+            group: { name: 'ps-siblings', put: false },
             fallbackOnBody: true,
             swapThreshold: 0.65
           });
@@ -750,13 +1010,6 @@
           ? `<span class="badge badge-success ms-2">Active</span>`
           : `<span class="badge badge-secondary ms-2">Inactive</span>`;
 
-        const pageBits = [
-          n.page_title ? `Page: ${esc(n.page_title)}` : '',
-          n.page_url ? `URL: ${esc(n.page_url)}` : '',
-          n.page_slug ? `/${esc(n.page_slug)}` : '',
-          n.page_shortcode ? `PageCode: ${esc(n.page_shortcode)}` : ''
-        ].filter(Boolean).join(' • ');
-
         main.innerHTML = `
           <div class="hm-title">
             ${esc(n.title || '-')}
@@ -766,7 +1019,6 @@
           </div>
           <div class="hm-meta">
             ${n.slug ? `/${esc(n.slug)}` : ''}
-            ${pageBits ? `${n.slug ? ' • ' : ''}${pageBits}` : ''}
           </div>
         `;
 
@@ -844,17 +1096,44 @@
         else destroySortables();
       }
 
+      // ✅ build tree from flat list (parent_id)
+      function buildTreeFromFlat(items) {
+        const map = new Map();
+        const roots = [];
+
+        const rows = (items || []).map(r => ({ ...r, children: [] }));
+        rows.forEach(r => map.set(Number(r.id), r));
+
+        rows.forEach(r => {
+          const pid = r.parent_id ? Number(r.parent_id) : null;
+          if (pid && map.has(pid)) {
+            map.get(pid).children.push(r);
+          } else {
+            roots.push(r);
+          }
+        });
+
+        function sortRec(list) {
+          list.sort((a,b) => (Number(a.position||0) - Number(b.position||0)) || (Number(a.id||0) - Number(b.id||0)));
+          list.forEach(n => { if (n.children?.length) sortRec(n.children); });
+        }
+        sortRec(roots);
+
+        return roots;
+      }
+
       let activeLoadPromise = null;
 
       async function loadActiveTree() {
         if (activeLoadPromise) return activeLoadPromise;
 
-        const params = getPageParams();
-        if (!params.page_id && !params.page_slug) {
+        const params = getScopeParams();
+
+        if (!params.header_menu_id) {
           treeAll = [];
           treeWrap.innerHTML = '';
           empty.style.display = '';
-          meta.textContent = 'Select a page to view submenus';
+          meta.textContent = 'Select a header menu to view submenus';
           loaded.active = true;
           dirty.active = false;
           return;
@@ -863,20 +1142,36 @@
         activeLoadPromise = (async () => {
           setLoading(true);
           try {
-            const sep = API_TREE.includes('?') ? '&' : '?';
-            const url =
-              API_TREE +
-              sep +
-              'page_id=' + encodeURIComponent(params.page_id || '') +
-              '&page_slug=' + encodeURIComponent(params.page_slug || '') +
-              '&_ts=' + Date.now();
+            const per = 200;
+            let page = 1;
+            let all = [];
 
-            const j = await fetchJSON(url);
-            treeAll = Array.isArray(j.data) ? j.data : [];
+            while (true) {
+              const usp = new URLSearchParams();
+              usp.set('per_page', String(per));
+              usp.set('page', String(page));
+              usp.set('active', '1');
+              usp.set('header_menu_id', String(params.header_menu_id));
+              usp.set('sort', 'position');
+              usp.set('direction', 'asc');
+              usp.set('_ts', String(Date.now()));
+
+              const j = await fetchJSON(API_BASE + '?' + usp.toString());
+              const items = Array.isArray(j.data) ? j.data : [];
+
+              all = all.concat(items);
+
+              if (items.length < per) break;
+              page++;
+              if (page > 80) break; // safety
+            }
+
+            treeAll = buildTreeFromFlat(all);
             renderActiveTree();
 
             loaded.active = true;
             dirty.active = false;
+
           } catch (e) {
             console.error(e);
             treeAll = [];
@@ -927,8 +1222,8 @@
         return (r.parent_id ? `#${r.parent_id}` : 'Root');
       }
 
-      function pageInfo(r) {
-        return r.page_url || (r.page_slug ? ('/' + r.page_slug) : (r.slug ? ('/' + r.slug) : '-'));
+      function headerMenuInfo(r) {
+        return r.header_menu_title || r.header_menu_label || r.header_menu_name || (r.header_menu_id ? ('#' + r.header_menu_id) : '-');
       }
 
       function archivedRow(r) {
@@ -939,7 +1234,7 @@
             <div class="fw-semibold">${esc(r.title || '-')}</div>
             ${slugLine}
           </td>
-          <td>${esc(pageInfo(r))}</td>
+          <td>${esc(headerMenuInfo(r))}</td>
           <td>${esc(parentInfo(r))}</td>
           <td>${fmtDate(r.created_at)}</td>
           <td class="text-end">
@@ -963,7 +1258,7 @@
             <div class="fw-semibold">${esc(r.title || '-')}</div>
             ${slugLine}
           </td>
-          <td>${esc(pageInfo(r))}</td>
+          <td>${esc(headerMenuInfo(r))}</td>
           <td>${esc(parentInfo(r))}</td>
           <td>${fmtDate(r.deleted_at)}</td>
           <td class="text-end">
@@ -1032,9 +1327,8 @@
           usp.set('sort', 'created_at');
           usp.set('direction', 'desc');
 
-          const params = getPageParams();
-          if (params.page_id) usp.set('page_id', params.page_id);
-          if (params.page_slug) usp.set('page_slug', params.page_slug);
+          const params = getScopeParams();
+          if (params.header_menu_id) usp.set('header_menu_id', params.header_menu_id);
 
           const j = await fetchJSON(API_BASE + '?' + usp.toString());
           const items = Array.isArray(j.data) ? j.data : [];
@@ -1081,13 +1375,16 @@
           usp.set('per_page', per);
           usp.set('page', state.bin.page);
 
-          const params = getPageParams();
-          if (params.page_id) usp.set('page_id', params.page_id);
-          if (params.page_slug) usp.set('page_slug', params.page_slug);
-
           const j = await fetchJSON(API_BASE + '/trash?' + usp.toString());
-          const items = Array.isArray(j.data) ? j.data : [];
+
+          let items = Array.isArray(j.data) ? j.data : [];
           const pag = j.pagination || {page:1, per_page: per, total: items.length};
+
+          const params = getScopeParams();
+          if (params.header_menu_id) {
+            const hmNum = Number(params.header_menu_id);
+            items = items.filter(x => Number(x.header_menu_id || 0) === hmNum);
+          }
 
           if (!items.length) emptyBin.style.display = '';
 
@@ -1095,9 +1392,9 @@
           items.forEach(r => frag.appendChild(binRow(r)));
           rowsBin.appendChild(frag);
 
-          const total = Number(pag.total || 0);
+          const total = Number(pag.total || items.length);
           const pages = Math.max(1, Math.ceil(total / Number(pag.per_page || per)));
-          metaBin.textContent = `Showing page ${pag.page} of ${pages} — ${total} result(s)`;
+          metaBin.textContent = `Showing page ${pag.page} of ${pages} — ${items.length} item(s)`;
 
           buildPagerGeneric(pagerBin, Number(pag.page||1), pages, (t)=>{
             state.bin.page = Math.max(1,t);
@@ -1139,18 +1436,6 @@
         perPageSel.value = '30';
         activePage = 1;
         renderActiveTree();
-      });
-
-      pageSel?.addEventListener('change', () => {
-        const opt = pageSel.options[pageSel.selectedIndex];
-        pageId = String(pageSel.value || '');
-        pageSlug = opt ? (opt.getAttribute('data-slug') || '') : '';
-        activePage = 1;
-
-        // switching page affects all tabs
-        loaded.active = false; loaded.archived = false; loaded.bin = false;
-        markDirty(['active','archived','bin']);
-        refreshVisible();
       });
 
       btnReorder.addEventListener('click', () => {
@@ -1326,7 +1611,8 @@
 
       // initial
       (async () => {
-        await loadPages();
+        // ✅ Load menu tree once and auto-select first menu if none selected
+        await loadHeaderMenuTree(true);
         await loadActiveTree();
       })();
 

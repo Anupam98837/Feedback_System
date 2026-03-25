@@ -17,8 +17,7 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
 
 /* TABS */
 .ce-tabs{display:flex;background:var(--ce-white);border-bottom:1px solid var(--ce-border);}
-.ce-tab-btn{padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px;border-right:1px solid var(--ce-border);
-  color:var(--ce-text);display:flex;gap:6px;align-items:center;transition:background var(--ce-transition);}
+.ce-tab-btn{padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px;border-right:1px solid var(--ce-border);color:var(--ce-text);display:flex;gap:6px;align-items:center;transition:background var(--ce-transition);}
 .ce-tab-btn:hover{background:#f9fafb;}
 .ce-tab-btn.ce-active{background:var(--ce-accent-light);color:var(--ce-accent);font-weight:600;}
 .ce-tab-btn.ce-action{border-right:none;margin-left:auto;}
@@ -45,37 +44,21 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
 /* FIELDS */
 .ce-field{margin:0 0 10px 0;}
 .ce-field label{display:block;font-size:12px;margin:0 0 4px 0;color:#374151;font-weight:500;}
-.ce-field input[type="text"],.ce-field input[type="number"],.ce-field input[type="color"],.ce-field textarea,.ce-field select{
-  width:100%;border:1px solid var(--ce-border);border-radius:4px;padding:6px 8px;font-size:13px;box-sizing:border-box;background:#fff;}
+.ce-field input[type="text"],.ce-field input[type="number"],.ce-field input[type="color"],.ce-field textarea,.ce-field select{width:100%;border:1px solid var(--ce-border);border-radius:4px;padding:6px 8px;font-size:13px;box-sizing:border-box;background:#fff;}
 .ce-field textarea{min-height:90px;resize:vertical;}
 .ce-color-pair{display:flex;gap:8px;}
 .ce-color-pair input[type=color]{width:34px;height:34px;padding:0;border:none;border-radius:4px;cursor:pointer;}
 .ce-align-group,.ce-typo-tools,.ce-img-align{display:flex;gap:6px;margin-top:4px;}
-.ce-align-btn,.ce-typo-btn,.ce-img-align-btn{
-  flex:1;border:1px solid var(--ce-border);background:#fff;border-radius:4px;padding:6px 0;cursor:pointer;font-size:14px;
-  display:flex;align-items:center;justify-content:center;color:#374151;transition:background .12s;}
-.ce-align-btn.active,.ce-typo-btn.active,.ce-img-align-btn.active{
-  background:var(--ce-accent-light);color:var(--ce-accent);border-color:var(--ce-accent);
-}
+.ce-align-btn,.ce-typo-btn,.ce-img-align-btn{flex:1;border:1px solid var(--ce-border);background:#fff;border-radius:4px;padding:6px 0;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:#374151;transition:background .12s;}
+.ce-align-btn.active,.ce-typo-btn.active,.ce-img-align-btn.active{background:var(--ce-accent-light);color:var(--ce-accent);border-color:var(--ce-accent);}
 .ce-unit-toggle {display: flex; gap: 6px; margin-bottom: 8px;}
-.ce-unit-toggle button {
-  flex: 1; padding: 4px; border: 1px solid var(--ce-border); background: #fff;
-  border-radius: 4px; cursor: pointer; font-size: 12px;
-}
-.ce-unit-toggle button.active {
-  background: var(--ce-accent-light); color: var(--ce-accent); border-color: var(--ce-accent);
-}
+.ce-unit-toggle button {flex: 1; padding: 4px; border: 1px solid var(--ce-border); background: #fff;border-radius: 4px; cursor: pointer; font-size: 12px;}
+.ce-unit-toggle button.active {background: var(--ce-accent-light); color: var(--ce-accent); border-color: var(--ce-accent);}
 
 /* CANVAS */
 .ce-canvas-wrap{flex:1;position:relative;overflow:auto;background:#f3f4f6;max-height: 100vh}
-.ce-canvas{
-  min-height:100%;padding:32px 24px;outline:none;position:relative;
-  width: 100%; max-width: 600px; margin: 24px auto; background: var(--ce-white); box-shadow: var(--ce-shadow-sm); border-radius: 8px;
-}
-.ce-canvas[data-placeholder]:empty:before{
-  content:attr(data-placeholder);color:var(--ce-muted);font-size:14px;position:absolute;
-  top:40%;left:50%;transform:translate(-50%,-50%);text-align:center;width:240px;
-}
+.ce-canvas{min-height:100%;padding:32px 24px;outline:none;position:relative;width: 100%; max-width: 600px; margin: 24px auto; background: var(--ce-white); box-shadow: var(--ce-shadow-sm); border-radius: 8px;}
+.ce-canvas[data-placeholder]:empty:before{content:attr(data-placeholder);color:var(--ce-muted);font-size:14px;position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);text-align:center;width:240px;}
 
 /* COMPONENTS */
 .ce-components-panel{width:300px;background:var(--ce-white);border-left:1px solid var(--ce-border);display:flex;flex-direction:column;}
@@ -85,44 +68,26 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
 .ce-comp-tab-btn.ce-active{background:var(--ce-accent-light);color:var(--ce-accent);font-weight:600;}
 .ce-components-list{flex:1;overflow:auto;padding:12px;display:none;}
 .ce-components-list.ce-active{display:block;}
-.ce-component{
-  border:1px solid var(--ce-border);border-radius:var(--ce-radius);background:var(--ce-white);
-  padding:10px;margin-bottom:10px;cursor:grab;display:flex;align-items:center;gap:8px;font-size:14px;
-  transition:background var(--ce-transition),transform .08s;}
+.ce-component{border:1px solid var(--ce-border);border-radius:var(--ce-radius);background:var(--ce-white);padding:10px;margin-bottom:10px;cursor:grab;display:flex;align-items:center;gap:8px;font-size:14px;transition:background var(--ce-transition),transform .08s;}
 .ce-component:hover{background:#f3f4f6;}
 .ce-component i{font-size:16px;}
 
 /* BLOCK (only edit canvas shows outlines/handles) */
 #ceCanvasEdit .ce-block{position:relative;}
-#ceCanvasEdit .ce-block:hover::after,#ceCanvasEdit .ce-block.ce-selected::after{
-  content:"";position:absolute;inset:0;outline:1px dotted var(--ce-accent);pointer-events:none;z-index:2;
-}
-.ce-block-handle{
-  position:absolute;right:6px;top:6px;background:var(--ce-accent);color:#fff;border-radius:3px;
-  padding:2px 6px;font-size:11px;display:flex;gap:6px;align-items:center;box-shadow:var(--ce-shadow-sm);
-  opacity:0;pointer-events:none;transition:opacity .12s;z-index:3;
-}
+#ceCanvasEdit .ce-block:hover::after,#ceCanvasEdit .ce-block.ce-selected::after{content:"";position:absolute;inset:0;outline:1px dotted var(--ce-accent);pointer-events:none;z-index:2;}
+.ce-block-handle{position:absolute;right:6px;top:6px;background:var(--ce-accent);color:#fff;border-radius:3px;padding:2px 6px;font-size:11px;display:flex;gap:6px;align-items:center;box-shadow:var(--ce-shadow-sm);opacity:0;pointer-events:none;transition:opacity .12s;z-index:3;}
 #ceCanvasEdit .ce-block:hover .ce-block-handle{opacity:1;pointer-events:auto;}
 .ce-block-handle span{cursor:pointer;line-height:1;}
 .ce-block-handle .ce-remove{color:#f87171;}
 .ce-block-handle .ce-dup{color:#34d399;}
 .ce-block-handle .ce-up,.ce-block-handle .ce-down{color:#fff;}
-
 .ce-slot{min-height:24px;}
-.ce-add-inside{
-  margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;
-  font-size:12px;color:var(--ce-accent);cursor:pointer;width:100%;
-}
+.ce-add-inside{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--ce-accent);cursor:pointer;width:100%;}
 
 /* ADD POPUP */
-.ce-add-popup{
-  position:absolute;background:#fff;border:1px solid var(--ce-border);border-radius:6px;
-  box-shadow:var(--ce-shadow-md);padding:12px;width:220px;z-index:9999;font-size:13px;
-}
+.ce-add-popup{position:absolute;background:#fff;border:1px solid var(--ce-border);border-radius:6px;box-shadow:var(--ce-shadow-md);padding:12px;width:220px;z-index:9999;font-size:13px;}
 .ce-add-popup h4{margin:0 0 8px 0;font-size:12px;color:#374151;font-weight:600;}
-.ce-add-popup button{
-  display:block;width:100%;text-align:left;border:0;background:none;padding:6px 8px;border-radius:4px;cursor:pointer;
-}
+.ce-add-popup button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 8px;border-radius:4px;cursor:pointer;}
 .ce-add-popup button:hover{background:#f3f4f6;color:var(--ce-accent);}
 
 /* DROP MARKER */
@@ -138,51 +103,64 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
 .ce-code-wrap{flex:1;display:flex;}
 .ce-code-left{flex:1;overflow:auto;background:#f9fafb;padding:16px;}
 .ce-code-right{flex:1;display:flex;padding:16px;background:#fafafa;}
-#ceCodeArea{
-  width:100%;height:100%;border:1px solid var(--ce-border);border-radius:6px;padding:12px;font-family:monospace;font-size:13px;resize:none;
-  background:var(--ce-white);color:#374151;
-}
+#ceCodeArea{width:100%;height:100%;border:1px solid var(--ce-border);border-radius:6px;padding:12px;font-family:monospace;font-size:13px;resize:none;background:var(--ce-white);color:#374151;}
 #ceCanvasEdit a { pointer-events:none; cursor:default; }
 .ce-code-actions{padding:10px 16px;background:var(--ce-white);border-top:1px solid var(--ce-border);text-align:right;}
 
 /* MODAL */
 #ceModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center;}
-#ceModal .ce-modal-box{
-  background:#fff;padding:16px 20px;border-radius:8px;width:500px;max-height:80%;overflow:auto;box-shadow:var(--ce-shadow-md);
-}
+#ceModal .ce-modal-box{background:#fff;padding:16px 20px;border-radius:8px;width:500px;max-height:80%;overflow:auto;box-shadow:var(--ce-shadow-md);}
 #ceExport{width:100%;height:300px;font-size:12px;}
 
 /* Hide export canvas */
 #ceCanvasExport{display:none;}
 
 /* Device Preview */
-.ce-device-preview {
-  display:flex;justify-content:center;gap:12px;padding:12px;border-bottom:1px solid var(--ce-border);
-  background:var(--ce-white);position:sticky;top:0;z-index:10;
-}
-.ce-device-btn {
-  border:none;background:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;
-}
+.ce-device-preview {display:flex;justify-content:center;gap:12px;padding:12px;border-bottom:1px solid var(--ce-border);background:var(--ce-white);position:sticky;top:0;z-index:10;}
+.ce-device-btn {border:none;background:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;}
 .ce-device-btn.active { background: var(--ce-accent-light); color: var(--ce-accent); }
 .ce-device-btn i { font-size: 16px; }
+/* ✅ Default Section Padding (existing + new) */
+.ce-block[data-key^="ce-section-"] section{padding:12px 0 !important;}
 
 /* Responsive canvas sizes */
 .ce-canvas.desktop { max-width: 100%; }
 .ce-canvas.tablet { max-width: 768px; }
 .ce-canvas.mobile { max-width: 375px; }
-
 .ce-section-slot-wrapper { display:flex; flex-wrap:wrap; }
 .ce-canvas.mobile .ce-section-slot-wrapper{ flex-direction:column !important; }
 
 /* Rich text mini editor */
 .ce-text-toolbar{display:flex;flex-wrap:wrap;gap:.5em;align-items:center;margin-bottom:6px;}
-.ce-text-toolbar button,.ce-text-toolbar select,.ce-text-toolbar input[type="color"]{
-  margin-right:4px;padding:2px 6px;font-size:14px;border:1px solid var(--ce-border);background:#fff;border-radius:4px;cursor:pointer;
-}
+.ce-text-toolbar button,.ce-text-toolbar select,.ce-text-toolbar input[type="color"]{margin-right:4px;padding:2px 6px;font-size:14px;border:1px solid var(--ce-border);background:#fff;border-radius:4px;cursor:pointer;}
 .ce-text-toolbar .ce-font-controls{display:flex;gap:.25em;}
 .ce-text-toolbar select{padding:.2em .4em;}
 .ce-text-toolbar input[type="color"]{width:1.5em;height:1.5em;padding:0;border:none;border-radius:0;}
 .ce-text-area{border:1px solid var(--ce-border);padding:6px;min-height:200px;margin-top:.5em;border-radius:4px;outline:none;}
+
+/* =========================
+   PDF VIEWER (embed)
+========================= */
+.ce-pdf{ width:100%; }
+
+.ce-pdf-embed{
+  width:100%;
+  display:block;
+  border:1px solid #e5e7eb;
+  border-radius:6px;
+  background:#fff;
+
+  /* auto-adjust with screen size */
+  height: 800px;
+  min-height: 600px;
+}
+
+
+/* Editor canvas: allow selecting/moving blocks (iframe won't steal clicks) */
+#ceCanvasEdit .ce-pdf-embed{
+  pointer-events:none;
+}
+
 </style>
 </head>
 <body>
@@ -235,20 +213,20 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
         <!-- =========================
              TEXT BASICS
         ========================== -->
-        <div class="ce-component" draggable="true" data-key="ce-personalized-greeting"
+        {{-- <div class="ce-component" draggable="true" data-key="ce-personalized-greeting"
           data-html="<p style='margin:0 0 12px 0; line-height:1.5; font-size:1rem;'>Hi %%first_name%%,</p>">
           <i class="fa-solid fa-hand-wave"></i> Personalized Greeting
-        </div>
+        </div> --}}
       
         <div class="ce-component" draggable="true" data-key="ce-heading"
           data-html="<h2 style='margin:0 0 12px 0;'>Your Heading</h2>">
           <i class="fa-solid fa-heading"></i> Heading
         </div>
       
-        <div class="ce-component" draggable="true" data-key="ce-subtitle"
+        {{-- <div class="ce-component" draggable="true" data-key="ce-subtitle"
           data-html="<h3 style='margin:0 0 12px 0;font-size:1.1rem;color:#374151;font-weight:600;'>Sub Title</h3>">
           <i class="fa-solid fa-heading"></i> Sub Title
-        </div>
+        </div> --}}
       
         <div class="ce-component" draggable="true" data-key="ce-paragraph"
           data-html="<p style='margin:0 0 12px 0;line-height:1.5;'>Your paragraph text goes here…</p>">
@@ -285,6 +263,39 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
           data-html="<figure style='margin:0 0 12px 0;text-align:center;'><img src='https://placehold.co/600x260' alt='image' style='max-width:100%;height:auto;display:inline-block;margin:0;border-radius:6px;'/><figcaption style='margin-top:6px;font-size:12px;color:#6b7280;line-height:1.4;'>Image caption goes here…</figcaption></figure>">
           <i class="fa-regular fa-closed-captioning"></i> Image + Caption
         </div>
+
+       <!-- CSS-ONLY CAROUSEL / IMAGE SLIDER
+            ========================== -->
+        <div class="ce-component" draggable="true" data-key="ce-carousel-css"
+        data-html='
+          <div class="ce-carousel-css" style="margin:0 0 12px 0; position:relative; width:100%; border-radius:6px; font-family:inherit;">
+            
+            <!-- Scrollable Carousel Container -->
+            <div class="ce-carousel-css-container" style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; gap:0; border-radius:6px;">
+              
+              <div class="ce-carousel-css-slide" style="flex:0 0 100%; scroll-snap-align:start; position:relative;">
+                <img src="https://placehold.co/800x400/6366f1/ffffff?text=Slide+1" style="width:100%; height:auto; display:block;" alt="Slide 1">
+              </div>
+              
+              <div class="ce-carousel-css-slide" style="flex:0 0 100%; scroll-snap-align:start; position:relative;">
+                <img src="https://placehold.co/800x400/10b981/ffffff?text=Slide+2" style="width:100%; height:auto; display:block;" alt="Slide 2">
+              </div>
+              
+              <div class="ce-carousel-css-slide" style="flex:0 0 100%; scroll-snap-align:start; position:relative;">
+                <img src="https://placehold.co/800x400/ef4444/ffffff?text=Slide+3" style="width:100%; height:auto; display:block;" alt="Slide 3">
+              </div>
+              
+            </div>
+            
+            <!-- Hidden anchors for scroll targeting -->
+            <span id="slide-1" style="display:none;"></span>
+            <span id="slide-2" style="display:none;"></span>
+            <span id="slide-3" style="display:none;"></span>
+            
+          </div>'>
+          <i class="fa-solid fa-images"></i> Image Carousel
+        </div>
+
       
         <div class="ce-component" draggable="true" data-key="ce-gallery"
           data-html="<div class='ce-gallery' data-gallery='simple' style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 12px 0;'><img src='https://placehold.co/300x200' alt='Gallery image' style='width:100%;height:auto;display:block;border-radius:6px;'/><img src='https://placehold.co/300x200' alt='Gallery image' style='width:100%;height:auto;display:block;border-radius:6px;'/><img src='https://placehold.co/300x200' alt='Gallery image' style='width:100%;height:auto;display:block;border-radius:6px;'/></div>">
@@ -316,6 +327,15 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
         <i class="fa-solid fa-video"></i> Video Embed
       </div>
       
+      <div class="ce-component" draggable="true" data-key="ce-pdf"
+      data-html="<div class='ce-pdf' data-pdf-url='' style='margin:0 0 12px 0;width:100%;'>
+            <iframe class='ce-pdf-embed' src='' style='display:none;width:100% !important;height:800px;'></iframe>
+            <div class='ce-pdf-empty' style='padding:14px;border:1px dashed #e5e7eb;border-radius:6px;color:#6b7280;text-align:center;font-size:13px;'>
+              Add PDF link in Properties → Content
+            </div>
+          </div>">
+        <i class="fa-solid fa-file-pdf"></i> PDF Viewer
+      </div>
 
       
         <!-- =========================
@@ -375,11 +395,12 @@ body{margin:0;background:var(--ce-bg);color:var(--ce-text);}
       
 
       <div class="ce-components-list" id="list-sections">
-        <div class="ce-component" draggable="true" data-key="ce-section-1" data-html="<section style='margin:0 auto;padding:0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;'><div class='ce-section-slot' style='flex:1;min-width:100%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class="fa-solid fa-square"></i> 1 Column</div>
-        <div class="ce-component" draggable="true" data-key="ce-section-2" data-html="<section style='margin:0 auto;padding:0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;'><div class='ce-section-slot' style='flex:1;min-width:49%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1;min-width:49%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class="fa-solid fa-table-columns"></i> 2 Columns</div>
-        <div class="ce-component" draggable="true" data-key="ce-section-3" data-html="<section style='margin:0 auto;padding:0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;'><div class='ce-section-slot' style='flex:1;min-width:32%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1;min-width:32%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1;min-width:32%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class="fa-solid fa-border-all"></i> 3 Columns</div>
-        <div class="ce-component" draggable="true" data-key="ce-section-4" data-html="<section style='margin:0 auto;padding:0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;'><div class='ce-section-slot' style='flex:1;min-width:23%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1;min-width:23%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1;min-width:23%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1;min-width:23%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class="fa-solid fa-grip-lines"></i> 4 Columns</div>
+        <div class="ce-component" draggable="true" data-key="ce-section-1" data-html="<section style='margin:0 auto;padding:12px 0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;'><div class='ce-section-slot' style='flex:1;min-width:100%;position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class='fa-solid fa-square'></i> 1 Column</div>
+        <div class="ce-component" draggable="true" data-key="ce-section-2" data-html="<section style='margin:0 auto;padding:12px 0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;'><div class='ce-section-slot' style='flex:1 1 calc(50% - 8px);min-width:calc(50% - 8px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1 1 calc(50% - 8px);min-width:calc(50% - 8px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class='fa-solid fa-table-columns'></i> 2 Columns</div>
+        <div class="ce-component" draggable="true" data-key="ce-section-3" data-html="<section style='margin:0 auto;padding:12px 0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;'><div class='ce-section-slot' style='flex:1 1 calc(33.333% - 11px);min-width:calc(33.333% - 11px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1 1 calc(33.333% - 11px);min-width:calc(33.333% - 11px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1 1 calc(33.333% - 11px);min-width:calc(33.333% - 11px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class='fa-solid fa-border-all'></i> 3 Columns</div>
+        <div class="ce-component" draggable="true" data-key="ce-section-4" data-html="<section style='margin:0 auto;padding:12px 0;'><div class='ce-section-slot-wrapper' style='width:100%!important;display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;'><div class='ce-section-slot' style='flex:1 1 calc(25% - 12px);min-width:calc(25% - 12px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1 1 calc(25% - 12px);min-width:calc(25% - 12px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1 1 calc(25% - 12px);min-width:calc(25% - 12px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div><div class='ce-section-slot' style='flex:1 1 calc(25% - 12px);min-width:calc(25% - 12px);position:relative;display:flex;flex-direction:column;'><div class='ce-slot'></div><span class='ce-add-inside'><i class='fa-solid fa-plus'></i> Add content</span></div></div></section>"><i class='fa-solid fa-grip-lines'></i> 4 Columns</div>
       </div>
+      
     </aside>
   </div>
 </div>
@@ -423,17 +444,20 @@ let importedDocHead = '';
 
 (function(){
   const state = {
-    editEl:null,
-    outEl:null,
-    markerEl:null,
-    selectedBlock:null,
-    undoStack:[],
-    redoStack:[],
-    saving:false,
-    currentUnit: 'px',
-    currentDevice: 'desktop',
-    propTabByBlockId: {} /* ✅ keep active inspector tab per block */
-  };
+  editEl:null,
+  outEl:null,
+  markerEl:null,
+  selectedBlock:null,
+  undoStack:[],
+  redoStack:[],
+  saving:false,
+  currentUnit: 'px',
+  currentDevice: 'desktop',
+  propTabByBlockId: {},
+  popupEl: null,    
+  popupAnchor: null 
+};
+
 
   /* ===== HISTORY ===== */
   function pushHistory(){
@@ -599,13 +623,31 @@ let importedDocHead = '';
     block.addEventListener('dragstart', onDragStartBlock);
 
     // double click to edit table cell in place
-    block.addEventListener('dblclick', (e)=>{
-      const cell = e.target.closest('td,th');
-      if(!cell || !block.contains(cell)) return;
-      e.stopPropagation();
-      e.preventDefault();
-      enableCellEdit(cell);
-    });
+// ✅ double click to edit ANY text on canvas (and tables too)
+block.addEventListener('dblclick', (e)=>{
+  // ignore UI controls
+  if(isUI(e.target)) return;
+
+  // 1) table cells -> existing behavior
+  const cell = e.target.closest('td,th');
+  if(cell && block.contains(cell)){
+    e.stopPropagation();
+    e.preventDefault();
+    enableCellEdit(cell);
+    return;
+  }
+
+  // 2) all other text -> inline edit
+  const target = getEditableTargetFromDblClick(e.target);
+  if(!target || !block.contains(target)) return;
+
+  // prevent selecting block while editing
+  e.stopPropagation();
+  e.preventDefault();
+
+  enableInlineTextEdit(target);
+});
+
   }
 
   function bindAddInside(container){
@@ -617,76 +659,113 @@ let importedDocHead = '';
     });
   }
 
-  /* ===== ADD POPUP ===== */
+  /* ===== ADD POPUP (FIXED) ===== */
   function openAddPopup(anchor) {
-    closePopup();
+  closePopup(); // ✅ Close any existing popup before opening a new one
 
-    const items = Array.from(document.querySelectorAll('#list-elements .ce-component')).map(el => ({
-      key: el.dataset.key,
-      label: el.textContent.trim()
-    }));
+  state.popupAnchor = anchor;
 
-    const popup = document.createElement('div');
-    popup.className = 'ce-add-popup';
-    popup.innerHTML = `<h4>Add element</h4>${items.map(i => `<button data-key="${i.key}">${i.label}</button>`).join('')}`;
-    document.body.appendChild(popup);
+  const items = Array.from(document.querySelectorAll('#list-elements .ce-component')).map(el => ({
+    key: el.dataset.key,
+    label: el.textContent.trim()
+  }));
 
-    const rect = anchor.getBoundingClientRect();
-    const margin = 6;
-    let top = rect.bottom + window.scrollY + margin;
-    let left = rect.left + window.scrollX;
+  const popup = document.createElement('div');
+  popup.className = 'ce-add-popup';
+  popup.innerHTML = `<h4>Add element</h4>${items
+    .map(i => `<button type="button" data-key="${i.key}">${i.label}</button>`)
+    .join('')}`;
+  document.body.appendChild(popup);
 
+  state.popupEl = popup;
+
+  const rect = anchor.getBoundingClientRect();
+  const margin = 6;
+
+  let top = rect.bottom + window.scrollY + margin;
+  let left = rect.left + window.scrollX;
+
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+
+  // ✅ Measure after positioning
+  const popupHeight = popup.offsetHeight;
+  const viewportBottom = window.scrollY + window.innerHeight;
+
+  // ✅ Flip up if overflowing bottom
+  if (top + popupHeight > viewportBottom) {
+    top = rect.top + window.scrollY - popupHeight - margin;
+    // ✅ Clamp if still too high
+    if (top < window.scrollY + margin) top = window.scrollY + margin;
     popup.style.top = top + 'px';
-    popup.style.left = left + 'px';
+  }
 
-    const popupHeight = popup.offsetHeight;
-    const viewportBottom = window.scrollY + window.innerHeight;
+  // ✅ Prevent outside-close firing when clicking inside popup
+  popup.addEventListener('pointerdown', e => e.stopPropagation());
 
-    if (top + popupHeight > viewportBottom) {
-      top = rect.top + window.scrollY - popupHeight - margin;
-      popup.style.top = top + 'px';
+  popup.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    const key = btn.dataset.key;
+    const data = getComponentDataByKey(key);
+    if (!data) return;
+
+    pushHistory();
+
+    if (key === 'ce-html') {
+      const html = prompt('Enter custom HTML:', '<div>Custom</div>');
+      if (html !== null) data.html = html;
+      else { closePopup(); return; }
     }
 
-    popup.addEventListener('click', e => {
-      if (e.target.tagName === 'BUTTON') {
-        const key = e.target.dataset.key;
-        const data = getComponentDataByKey(key);
-        if (!data) return;
+    const block = createBlock(data.html, data.key);
 
-        pushHistory();
+    // ✅ Always detect correct slot when clicked from Section Add-content
+    let slot = null;
+    const sectionSlot = anchor.closest('.ce-section-slot');
+    if (sectionSlot) slot = sectionSlot.querySelector('.ce-slot');
 
-        if (key === 'ce-html') {
-          const html = prompt('Enter custom HTML:', '<div>Custom</div>');
-          if (html !== null) data.html = html;
-          else { closePopup(); return; }
-        }
+    slot =
+      slot ||
+      anchor.previousElementSibling ||
+      anchor.parentElement.querySelector('.ce-slot') ||
+      anchor.parentElement ||
+      state.editEl;
 
-        const block = createBlock(data.html, data.key);
+    slot.appendChild(block);
 
-        let slot = null;
-        const sectionSlot = anchor.closest('.ce-section-slot');
-        if (sectionSlot) slot = sectionSlot.querySelector('.ce-slot');
-        slot = slot || anchor.previousElementSibling || anchor.parentElement.querySelector('.ce-slot') || anchor.parentElement || state.editEl;
+    closePopup();
+    syncExport();
+  });
 
-        slot.appendChild(block);
-        closePopup();
-        syncExport();
-      }
-    });
+  // ✅ Attach outside close AFTER current click finishes
+  setTimeout(() => {
+    document.addEventListener('pointerdown', closePopup, { once: true });
+  }, 0);
+}
 
-    popup.addEventListener('click', e => e.stopPropagation());
-    document.addEventListener('click', closePopup, { once: true });
+function closePopup(e) {
+  const p = state.popupEl || document.querySelector('.ce-add-popup');
+  if (!p) return;
+
+  // ✅ If clicked inside popup or on the same anchor -> ignore
+  if (e) {
+    if (p.contains(e.target)) return;
+    if (state.popupAnchor && state.popupAnchor.contains && state.popupAnchor.contains(e.target)) return;
   }
 
-  function closePopup(){
-    const p=document.querySelector('.ce-add-popup');
-    if(p) p.remove();
-  }
-  function getComponentDataByKey(key){
-    const el=document.querySelector(`.ce-component[data-key="${key}"]`);
-    if(!el) return null;
-    return {key:el.dataset.key, html:el.dataset.html};
-  }
+  p.remove();
+  state.popupEl = null;
+  state.popupAnchor = null;
+}
+
+function getComponentDataByKey(key) {
+  const el = document.querySelector(`.ce-component[data-key="${key}"]`);
+  if (!el) return null;
+  return { key: el.dataset.key, html: el.dataset.html };
+}
+
 
   /* ===== INSPECTOR ===== */
   function renderInspector(block){
@@ -732,7 +811,17 @@ let importedDocHead = '';
 
     const contentHTML=getInnerHTMLWithoutUI(block);
     const tagNames=['H1','H2','H3','H4','H5','H6','P','A','SPAN','BUTTON','LI'];
-    const textNodes=block.querySelectorAll(tagNames.join(','));
+    const textNodes = getOutermostTextNodes(block);
+
+    function getOutermostTextNodes(block){
+      // only “main” text containers (NOT span/a inside them)
+      const selector = 'h1,h2,h3,h4,h5,h6,p,figcaption';
+      const all = Array.from(block.querySelectorAll(selector));
+
+      // keep only the highest-level ones (skip nested)
+      return all.filter(el => !el.parentElement.closest(selector));
+    }
+
 
     const unitToggle = document.createElement('div');
     unitToggle.className = 'ce-unit-toggle';
@@ -777,15 +866,18 @@ block.querySelectorAll('a').forEach((el,i)=>{
     addTextEditors(contentPane, textNodes);
     addListEditors(contentPane, block);
     addImageContentEditors(contentPane, block);
-
+    addCarouselCssEditors(contentPane, stylePane, block);
     addGalleryEditors(contentPane, stylePane, block);
     addTableEditors(contentPane, stylePane, block);      /* ✅ row/col/header + styling */
     addTableContentEditors(contentPane, block);          /* ✅ cell content editing grid */
     addTagsEditors(contentPane, stylePane, block);
     addFAQEditors(contentPane, stylePane, block);
+    addPDFEditors(contentPane, stylePane, block);
 
     addSocialEditors(contentPane, stylePane, block);     /* ✅ new social editor */
-    addVideoEditors(contentPane, stylePane, block);
+    if ((block.dataset.key || '') === 'ce-video') {
+  addVideoEditors(contentPane, stylePane, block);
+}
     if(block.dataset.key==='ce-html'){ addCustomHTMLField(contentPane, block, contentHTML); }
 
     if(block.querySelector('.ce-slot')){
@@ -798,33 +890,47 @@ block.querySelectorAll('a').forEach((el,i)=>{
 
   /* === styling/content helpers === */
   function addAlignField(panel, block){
-    let currentAlign = 'left';
+  // ✅ read current align from actual block
+  const cs = getComputedStyle(block);
+  let currentAlign = (block.style.textAlign || cs.textAlign || 'left').toLowerCase();
+  if(!['left','center','right'].includes(currentAlign)) currentAlign = 'left';
 
+  const field = document.createElement('div');
+  field.className = 'ce-field';
+  field.innerHTML = `
+    <label>Horizontal Align</label>
+    <div class="ce-align-group">
+      <button class="ce-align-btn ${currentAlign === 'left' ? 'active' : ''}" data-align="left"><i class="fa-solid fa-align-left"></i></button>
+      <button class="ce-align-btn ${currentAlign === 'center' ? 'active' : ''}" data-align="center"><i class="fa-solid fa-align-center"></i></button>
+      <button class="ce-align-btn ${currentAlign === 'right' ? 'active' : ''}" data-align="right"><i class="fa-solid fa-align-right"></i></button>
+    </div>
+  `;
 
+  field.querySelectorAll('.ce-align-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      pushHistory();
+      const align = b.dataset.align;
 
-    const field = document.createElement('div');
-    field.className = 'ce-field';
-    field.innerHTML = `
-      <label>Horizontal Align</label>
-      <div class="ce-align-group">
-        <button class="ce-align-btn ${currentAlign === 'left' ? 'active' : ''}" data-align="left"><i class="fa-solid fa-align-left"></i></button>
-        <button class="ce-align-btn ${currentAlign === 'center' ? 'active' : ''}" data-align="center"><i class="fa-solid fa-align-center"></i></button>
-        <button class="ce-align-btn ${currentAlign === 'right' ? 'active' : ''}" data-align="right"><i class="fa-solid fa-align-right"></i></button>
-      </div>`;
+      field.querySelectorAll('.ce-align-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
 
-    field.querySelectorAll('.ce-align-btn').forEach(b => {
-      b.addEventListener('click', () => {
-        pushHistory();
-        const align = b.dataset.align;
-        field.querySelectorAll('.ce-align-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
+      // ✅ actually apply alignment
+      block.style.textAlign = align;
 
-        syncExport();
+      // ✅ special cases (buttons/images often need inline-block to respect text-align)
+      block.querySelectorAll('a, button, img, figure').forEach(el=>{
+        if(el.closest('.cs-social-links')) return; // keep social editor separate
+        const d = getComputedStyle(el).display;
+        if(d === 'inline' || d === 'inline-flex') el.style.display = 'inline-block';
       });
-    });
 
-    panel.appendChild(field);
-  }
+      syncExport();
+    });
+  });
+
+  panel.appendChild(field);
+}
+
 
   function addSpacingField(panel, block){
     const cs=getComputedStyle(block);
@@ -880,6 +986,89 @@ block.querySelectorAll('a').forEach((el,i)=>{
     });
     panel.appendChild(field);
   }
+
+  function makePdfSrc(rawUrl){
+  let url = (rawUrl || '').trim();
+  if(!url) return '';
+
+  // --- Google Drive share -> /preview (best embed behavior) ---
+  // https://drive.google.com/file/d/FILE_ID/view?...  =>  /preview
+  const m = url.match(/drive\.google\.com\/file\/d\/([^\/]+)\//i);
+  if(m && m[1]){
+    return `https://drive.google.com/file/d/${m[1]}/preview`;
+  }
+
+  // --- Default: try to force fit-to-width in built-in PDF viewers ---
+  // Adds #zoom=page-width (and view=FitH) safely even if hash already exists
+  const parts = url.split('#');
+  const base = parts[0];
+  const frag = parts[1] || '';
+  const params = new URLSearchParams(frag);
+
+  if(!params.has('zoom')) params.set('zoom', 'page-width');
+  if(!params.has('view')) params.set('view', 'FitH');
+
+  return base + '#' + params.toString();
+}
+
+
+  function addPDFEditors(panel, stylePanel, block){
+  const wrap = block.querySelector('.ce-pdf');
+  if(!wrap || isUI(wrap)) return;
+
+  const iframe = wrap.querySelector('.ce-pdf-embed');
+  const empty  = wrap.querySelector('.ce-pdf-empty');
+
+  const currentUrl = (wrap.dataset.pdfUrl || '').trim();
+
+  const field = document.createElement('div');
+  field.className = 'ce-field';
+  field.innerHTML = `
+    <label>PDF Link</label>
+    <input type="text" class="ce-pdf-url" value="${(currentUrl || '').replace(/"/g,'&quot;')}"
+      placeholder="https://example.com/file.pdf">
+    <label style="margin-top:10px;">Height (px)</label>
+    <input type="number" class="ce-pdf-h" min="250" value="${parseInt((iframe.style.height||'800px'),10) || 800}">
+  `;
+
+  const urlInp = field.querySelector('.ce-pdf-url');
+  const hInp   = field.querySelector('.ce-pdf-h');
+
+  function apply(){
+    const url = (wrap.dataset.pdfUrl || '').trim();
+
+    if(url){
+      iframe.src = makePdfSrc(url);
+      iframe.style.display = 'block';
+      if(empty) empty.style.display = 'none';
+    }else{
+      iframe.src = '';
+      iframe.style.display = 'none';
+      if(empty) empty.style.display = 'block';
+    }
+    syncExport();
+  }
+
+  urlInp.addEventListener('input', ()=>{
+    pushHistory();
+    wrap.dataset.pdfUrl = urlInp.value.trim();
+    apply();
+  });
+
+  hInp.addEventListener('input', ()=>{
+    pushHistory();
+    const h = Math.max(250, parseInt(hInp.value || '800', 10) || 800);
+    iframe.style.height = h + 'px';
+    apply();
+  });
+
+  panel.appendChild(field);
+
+  // init
+  if(!iframe.style.height) iframe.style.height = '800px';
+  apply();
+}
+
 
   function addColorBorderField(panel, block){
     const cs=getComputedStyle(block);
@@ -1018,28 +1207,65 @@ block.querySelectorAll('a').forEach((el,i)=>{
     panel.appendChild(field);
   }
 
-  function addButtonContentField(panel, el, idx) {
+    function addButtonContentField(panel, el, idx) {
+    // Helper: ensure link has a dedicated label node so we can edit text safely
+    function ensureLabelNode(aEl) {
+      let label = aEl.querySelector('[data-ce-label]');
+      if (label) return label;
+
+      // collect existing text nodes (preserve icons/other elements)
+      const textNodes = Array.from(aEl.childNodes).filter(n => n.nodeType === 3);
+
+      const combinedText = textNodes.map(n => n.textContent).join('').trim();
+      textNodes.forEach(n => n.remove());
+
+      label = document.createElement('span');
+      label.setAttribute('data-ce-label', '1');
+      label.textContent = combinedText || aEl.textContent.trim() || 'Click me';
+
+      // append label at end (keeps any existing <i> icons etc.)
+      aEl.appendChild(label);
+      return label;
+    }
+
+    const labelNode = ensureLabelNode(el);
+
     const field = document.createElement('div');
     field.className = 'ce-field';
     field.innerHTML = `
-      <label>Link ${idx+1} URL</label>
-      <input type="text" class="ce-btn-link-url" placeholder="https://example.com" value="${el.getAttribute('href')||''}" />
+      <label>Button ${idx + 1} Text</label>
+      <input type="text" class="ce-btn-link-text" value="${(labelNode.textContent || '').trim()}" />
+
+      <label style="margin-top:10px;">Link ${idx + 1} URL</label>
+      <input type="text" class="ce-btn-link-url" placeholder="https://example.com" value="${el.getAttribute('href') || ''}" />
+
       <div style="margin-top:8px;">
         <label style="display:flex;gap:8px;align-items:center;">
-          <input type="checkbox" class="ce-btn-link-target" ${el.target === '_blank' ? 'checked' : ''}/>
+          <input type="checkbox" class="ce-btn-link-target" ${el.getAttribute('target') === '_blank' ? 'checked' : ''}/>
           Open in new tab
         </label>
       </div>
     `;
+
+    const textInput = field.querySelector('.ce-btn-link-text');
     const urlInput = field.querySelector('.ce-btn-link-url');
     const targetCheckbox = field.querySelector('.ce-btn-link-target');
 
+    // ✅ Button text editing
+    textInput.addEventListener('input', e => {
+      pushHistory();
+      labelNode.textContent = e.target.value;
+      syncExport();
+    });
+
+    // Existing URL editing
     urlInput.addEventListener('input', e => {
       pushHistory();
       el.setAttribute('href', e.target.value);
       syncExport();
     });
 
+    // Existing target editing
     targetCheckbox.addEventListener('change', e => {
       pushHistory();
       if (e.target.checked) {
@@ -1054,6 +1280,7 @@ block.querySelectorAll('a').forEach((el,i)=>{
 
     panel.appendChild(field);
   }
+
 
   function addImageStyleEditors(panel, block){
     const imgs=block.querySelectorAll('img');
@@ -1084,31 +1311,45 @@ block.querySelectorAll('a').forEach((el,i)=>{
     });
   }
 
-  function addTextEditors(panel, nodes) {
+    function addTextEditors(panel, nodes) {
     nodes.forEach((node, idx) => {
       if (isUI(node)) return;
       if (node.classList && node.classList.contains('ce-tag')) return;
       if (node.closest && node.closest('.cs-social-links')) return;
 
+      // ✅ IMPORTANT FIX: skip LI (list items will be handled by addListEditors)
+      if (node.tagName === 'LI') return;
+
       const wrap = document.createElement('div');
       wrap.className = 'ce-field';
       wrap.innerHTML = `
         <label>Text ${idx + 1}</label>
+
         <div class="ce-text-toolbar">
           <button type="button" data-cmd="bold"><b>B</b></button>
           <button type="button" data-cmd="italic"><i>I</i></button>
           <button type="button" data-cmd="underline"><u>U</u></button>
           <button type="button" data-cmd="strikethrough"><s>S</s></button>
+
+          <!-- ✅ NEW: List Buttons -->
+          <button type="button" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+          <button type="button" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+
           <button type="button" data-cmd="createLink">🔗</button>
           <input type="color" data-cmd="foreColor" title="Text color">
+
           <div class="ce-font-controls">
             <select data-cmd="fontName">
               <option value="Arial">Arial</option>
+              <option value="Book Antiqua">Book Antiqua</option>
+              <option value="Cambria">Cambria</option>
+              <option value="Century Schoolbook">Century Schoolbook</option>
               <option value="Georgia">Georgia</option>
               <option value="Tahoma">Tahoma</option>
               <option value="Times New Roman">Times New Roman</option>
               <option value="Verdana">Verdana</option>
             </select>
+
             <select data-cmd="fontSize">
               <option value="1">10px</option>
               <option value="2">13px</option>
@@ -1120,17 +1361,21 @@ block.querySelectorAll('a').forEach((el,i)=>{
             </select>
           </div>
         </div>
+
         <div class="ce-text-area" contenteditable="true">${node.innerHTML}</div>
       `;
 
+      // ✅ Buttons work automatically (UL/OL will work too)
       wrap.querySelectorAll('.ce-text-toolbar button').forEach(btn => {
         btn.addEventListener('click', () => {
           const cmd = btn.dataset.cmd;
           let val = null;
+
           if (cmd === 'createLink') {
             val = prompt('Enter URL:', 'https://');
             if (!val) return;
           }
+
           document.execCommand(cmd, false, val);
           wrap.querySelector('.ce-text-area').focus();
         });
@@ -1154,45 +1399,148 @@ block.querySelectorAll('a').forEach((el,i)=>{
     });
   }
 
+
+
   function addListEditors(panel, block){
     const lists = block.querySelectorAll('ul,ol');
     lists.forEach((list, idx)=>{
       if(isUI(list)) return;
-      const field=document.createElement('div');field.className='ce-field';
-      field.innerHTML=`<label>List ${idx+1} Items</label>
-        <div class="ce-list-items" style="margin-bottom:6px;"></div>
-        <button type="button" class="ce-btn-sm ce-primary ce-add-li"><i class="fa-solid fa-plus"></i> Add item</button>`;
+
+      const field=document.createElement('div');
+      field.className='ce-field';
+      field.innerHTML=`
+        <label>List ${idx+1} Items</label>
+        <div class="ce-list-items" style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;"></div>
+        <button type="button" class="ce-btn-sm ce-primary ce-add-li">
+          <i class="fa-solid fa-plus"></i> Add item
+        </button>
+      `;
+
       const itemsWrap = field.querySelector('.ce-list-items');
 
-      function makeRow(li){
-        const row=document.createElement('div');row.style.display='flex';row.style.gap='6px';row.style.marginBottom='4px';
-        row.innerHTML=`<input type="text" value="${li.textContent}" style="flex:1;">
-          <button type="button" class="ce-btn-sm ce-del-li"><i class="fa-solid fa-trash"></i></button>`;
-        row.querySelector('input').addEventListener('input',e=>{
-          pushHistory(); li.textContent=e.target.value; syncExport();
+      function makeEditorRow(li){
+        const row = document.createElement('div');
+        row.style.border = '1px solid var(--ce-border)';
+        row.style.borderRadius = '6px';
+        row.style.padding = '8px';
+        row.style.background = '#fff';
+
+        row.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <strong style="font-size:12px;">Item</strong>
+            <button type="button" class="ce-btn-sm ce-del-li" style="margin-left:auto;">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+
+          <div class="ce-text-toolbar">
+            <button type="button" data-cmd="bold"><b>B</b></button>
+            <button type="button" data-cmd="italic"><i>I</i></button>
+            <button type="button" data-cmd="underline"><u>U</u></button>
+            <button type="button" data-cmd="strikethrough"><s>S</s></button>
+
+            <!-- ✅ NEW: List buttons inside LI editor -->
+            <button type="button" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+            <button type="button" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+
+            <button type="button" data-cmd="createLink">🔗</button>
+            <input type="color" data-cmd="foreColor" title="Text color">
+
+            <div class="ce-font-controls">
+              <select data-cmd="fontName">
+                <option value="Arial">Arial</option>
+                <option value="Book Antiqua">Book Antiqua</option>
+                <option value="Cambria">Cambria</option>
+                <option value="Century Schoolbook">Century Schoolbook</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Tahoma">Tahoma</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Verdana">Verdana</option>
+              </select>
+
+              <select data-cmd="fontSize">
+                <option value="1">10px</option>
+                <option value="2">13px</option>
+                <option value="3" selected>16px</option>
+                <option value="4">18px</option>
+                <option value="5">24px</option>
+                <option value="6">32px</option>
+                <option value="7">48px</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ce-text-area ce-li-editor" contenteditable="true">${li.innerHTML}</div>
+        `;
+
+        const editor = row.querySelector('.ce-li-editor');
+
+        // Toolbar actions
+        row.querySelectorAll('.ce-text-toolbar button').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            editor.focus();
+            const cmd = btn.dataset.cmd;
+            let val = null;
+
+            if(cmd === 'createLink'){
+              val = prompt('Enter URL:', 'https://');
+              if(!val) return;
+            }
+
+            document.execCommand(cmd, false, val);
+            editor.focus();
+          });
         });
-        row.querySelector('.ce-del-li').addEventListener('click',()=>{
-          pushHistory(); li.remove(); row.remove(); syncExport();
+
+        row.querySelectorAll('.ce-text-toolbar select, .ce-text-toolbar input[type="color"]').forEach(ctrl=>{
+          ctrl.addEventListener('change', e=>{
+            editor.focus();
+            document.execCommand(ctrl.dataset.cmd, false, e.target.value);
+            editor.focus();
+          });
         });
+
+        // Live sync to LI HTML
+        let armed=false;
+        editor.addEventListener('input', ()=>{
+          if(!armed){ pushHistory(); armed=true; }
+          li.innerHTML = editor.innerHTML;
+          syncExport();
+        });
+        editor.addEventListener('blur', ()=>{ armed=false; });
+
+        // Delete
+        row.querySelector('.ce-del-li').addEventListener('click', ()=>{
+          pushHistory();
+          li.remove();
+          row.remove();
+          syncExport();
+        });
+
         return row;
       }
 
+      // Build existing items
       Array.from(list.children).forEach(li=>{
-        if(li.tagName!=='LI') return;
-        itemsWrap.appendChild(makeRow(li));
+        if(li.tagName !== 'LI') return;
+        itemsWrap.appendChild(makeEditorRow(li));
       });
 
-      field.querySelector('.ce-add-li').addEventListener('click',()=>{
+      // Add item (✅ creates editor also)
+      field.querySelector('.ce-add-li').addEventListener('click', ()=>{
         pushHistory();
-        const li=document.createElement('li');li.textContent='New item';
+        const li=document.createElement('li');
+        li.innerHTML = 'New item';
         list.appendChild(li);
-        itemsWrap.appendChild(makeRow(li));
+        itemsWrap.appendChild(makeEditorRow(li));
         syncExport();
       });
 
       panel.appendChild(field);
     });
   }
+
+
 
   function addImageContentEditors(panel, block){
     const imgs=block.querySelectorAll('img');
@@ -1476,6 +1824,384 @@ block.querySelectorAll('a').forEach((el,i)=>{
   }
 
   /* ============================================================
+     ✅ CSS-ONLY CAROUSEL EDITOR FUNCTIONS
+     ============================================================ */
+function addCarouselCssEditors(panel, stylePanel, block) {
+  const carousel = block.querySelector('.ce-carousel-css');
+  if (!carousel || isUI(carousel)) return;
+  
+  const container = carousel.querySelector('.ce-carousel-css-container');
+  const slides = carousel.querySelectorAll('.ce-carousel-css-slide');
+  const dotsContainer = carousel.querySelector('.ce-carousel-css-dots');
+  
+  // ===== STYLE CONTROLS =====
+  const styleField = document.createElement('div');
+  styleField.className = 'ce-field';
+  
+  // Get current styles
+  const cs = getComputedStyle(container);
+  const currentHeight = parseInt(container.style.minHeight) || 200;
+  const currentBorderRadius = parseInt(cs.borderRadius) || 6;
+  
+  styleField.innerHTML = `
+    <label>Carousel Style</label>
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+      <input type="number" min="100" value="${currentHeight}" style="width:100px;" placeholder="Height" title="Container height (px)">
+      <input type="number" min="0" value="${currentBorderRadius}" style="width:80px;" placeholder="Radius" title="Border radius">
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <label style="display:flex; align-items:center; gap:4px;">
+        <input type="checkbox" class="ce-carousel-css-hide-scrollbar" ${container.style.overflowX === 'auto' ? 'checked' : ''}> Hide scrollbar
+      </label>
+    </div>
+    <div class="ce-muted" style="padding:6px 0 0 0;">Height • Border radius • Scrollbar visibility</div>
+  `;
+  
+  const heightInp = styleField.querySelector('input[type="number"]:first-child');
+  const radiusInp = styleField.querySelector('input[type="number"]:nth-child(2)');
+  const hideScrollbarChk = styleField.querySelector('.ce-carousel-css-hide-scrollbar');
+  
+  heightInp.addEventListener('input', () => {
+    pushHistory();
+    container.style.minHeight = heightInp.value + 'px';
+    syncExport();
+  });
+  
+  radiusInp.addEventListener('input', () => {
+    pushHistory();
+    carousel.style.borderRadius = radiusInp.value + 'px';
+    container.style.borderRadius = radiusInp.value + 'px';
+    syncExport();
+  });
+  
+  hideScrollbarChk.addEventListener('change', () => {
+    pushHistory();
+    if (hideScrollbarChk.checked) {
+      container.style.overflowX = 'auto';
+      container.style.scrollbarWidth = 'none';
+      container.style.msOverflowStyle = 'none';
+      const style = document.createElement('style');
+      style.id = 'ce-carousel-scrollbar-hide';
+      style.textContent = '.ce-carousel-css-container::-webkit-scrollbar { display: none; }';
+      if (!document.getElementById('ce-carousel-scrollbar-hide')) {
+        document.head.appendChild(style);
+      }
+    } else {
+      container.style.overflowX = 'auto';
+      container.style.scrollbarWidth = '';
+      container.style.msOverflowStyle = '';
+      const oldStyle = document.getElementById('ce-carousel-scrollbar-hide');
+      if (oldStyle) oldStyle.remove();
+    }
+    syncExport();
+  });
+  
+  stylePanel.appendChild(styleField);
+  
+  // ===== CONTENT CONTROLS =====
+  const contentField = document.createElement('div');
+  contentField.className = 'ce-field';
+  
+  const addRow = document.createElement('div');
+  addRow.style.display = 'flex';
+  addRow.style.gap = '6px';
+  addRow.style.marginBottom = '12px';
+  addRow.innerHTML = `
+    <button type="button" class="ce-btn-sm ce-primary" id="ceCarouselCssAddSlide"><i class="fa-solid fa-plus"></i> Add Slide</button>
+    <button type="button" class="ce-btn-sm" id="ceCarouselCssRemoveSlide"><i class="fa-solid fa-minus"></i> Remove Last</button>
+  `;
+  contentField.appendChild(addRow);
+  
+  // Slides list
+  const slidesList = document.createElement('div');
+  slidesList.style.display = 'flex';
+  slidesList.style.flexDirection = 'column';
+  slidesList.style.gap = '12px';
+  slidesList.style.marginTop = '8px';
+  slidesList.style.maxHeight = '300px';
+  slidesList.style.overflowY = 'auto';
+  contentField.appendChild(slidesList);
+  
+  function rebuildSlidesList() {
+    slidesList.innerHTML = '';
+    const currentSlides = carousel.querySelectorAll('.ce-carousel-css-slide');
+    
+    currentSlides.forEach((slide, idx) => {
+      const img = slide.querySelector('img');
+      const caption = slide.querySelector('.ce-carousel-css-caption');
+      if (!img) return;
+      
+      const card = document.createElement('div');
+      card.style.border = '1px solid var(--ce-border)';
+      card.style.borderRadius = '6px';
+      card.style.padding = '8px';
+      
+      const head = document.createElement('div');
+      head.style.display = 'flex';
+      head.style.alignItems = 'center';
+      head.style.gap = '8px';
+      head.style.marginBottom = '8px';
+      
+      const title = document.createElement('strong');
+      title.style.fontSize = '12px';
+      title.textContent = `Slide ${idx + 1}`;
+      head.appendChild(title);
+      
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'ce-btn-sm';
+      del.style.marginLeft = 'auto';
+      del.innerHTML = '<i class="fa-solid fa-trash"></i>';
+      del.addEventListener('click', () => {
+        if (currentSlides.length <= 1) {
+          alert('Carousel must have at least 1 slide');
+          return;
+        }
+        pushHistory();
+        
+        // Remove slide
+        slide.remove();
+        
+        // Rebuild dots
+        rebuildDots();
+        
+        syncExport();
+        rebuildSlidesList();
+        renderInspector(block);
+      });
+      head.appendChild(del);
+      
+      card.appendChild(head);
+      
+      // Image URL
+      const imgLabel = document.createElement('label');
+      imgLabel.textContent = 'Image URL';
+      card.appendChild(imgLabel);
+      
+      const imgInp = document.createElement('input');
+      imgInp.type = 'text';
+      imgInp.value = img.src;
+      imgInp.addEventListener('input', (e) => {
+        pushHistory();
+        img.src = e.target.value;
+        syncExport();
+      });
+      card.appendChild(imgInp);
+      
+      // Caption
+      if (caption) {
+        const capLabel = document.createElement('label');
+        capLabel.style.marginTop = '8px';
+        capLabel.textContent = 'Caption';
+        card.appendChild(capLabel);
+        
+        const capInp = document.createElement('input');
+        capInp.type = 'text';
+        capInp.value = caption.textContent || '';
+        capInp.addEventListener('input', (e) => {
+          pushHistory();
+          caption.textContent = e.target.value;
+          syncExport();
+        });
+        card.appendChild(capInp);
+      }
+      
+      slidesList.appendChild(card);
+    });
+  }
+  
+  function rebuildDots() {
+    const currentSlides = carousel.querySelectorAll('.ce-carousel-css-slide');
+    const dotsContainer = carousel.querySelector('.ce-carousel-css-dots');
+    const hiddenAnchors = carousel.querySelectorAll('span[id^="slide-"]');
+    
+    if (!dotsContainer) return;
+    
+    // Clear existing dots and anchors
+    dotsContainer.innerHTML = '';
+    hiddenAnchors.forEach(anchor => anchor.remove());
+    
+    // Create new dots and anchors
+    currentSlides.forEach((_, idx) => {
+      // Create anchor
+      const anchor = document.createElement('span');
+      anchor.id = `slide-${idx + 1}`;
+      anchor.style.display = 'none';
+      carousel.appendChild(anchor);
+      
+      // Create dot
+      const dot = document.createElement('a');
+      dot.href = `#slide-${idx + 1}`;
+      dot.className = 'ce-carousel-css-dot' + (idx === 0 ? ' active' : '');
+      dot.dataset.index = idx;
+      dot.style.display = 'inline-block';
+      dot.style.width = '10px';
+      dot.style.height = '10px';
+      dot.style.background = idx === 0 ? '#6366f1' : '#d1d5db';
+      dot.style.borderRadius = '50%';
+      dot.style.margin = '0 4px';
+      dot.style.cursor = 'pointer';
+      dot.style.transition = 'all 0.2s ease';
+      
+      // Add click handler to update active state
+      dot.addEventListener('click', (e) => {
+        setTimeout(() => {
+          dotsContainer.querySelectorAll('.ce-carousel-css-dot').forEach(d => {
+            d.style.background = '#d1d5db';
+          });
+          e.target.style.background = '#6366f1';
+        }, 100);
+      });
+      
+      dotsContainer.appendChild(dot);
+    });
+  }
+  
+  // Add slide button
+  addRow.querySelector('#ceCarouselCssAddSlide').addEventListener('click', () => {
+    const url = prompt('Enter image URL:', 'https://placehold.co/800x400/6366f1/ffffff?text=New+Slide');
+    if (!url) return;
+    
+    const caption = prompt('Enter caption (optional):', 'New Caption') || '';
+    
+    pushHistory();
+    
+    // Create new slide
+    const newSlide = document.createElement('div');
+    newSlide.className = 'ce-carousel-css-slide';
+    newSlide.style.flex = '0 0 100%';
+    newSlide.style.scrollSnapAlign = 'start';
+    newSlide.style.position = 'relative';
+    
+    newSlide.innerHTML = `
+      <img src="${url}" style="width:100%; height:auto; display:block;">
+      <div class="ce-carousel-css-caption" style="position:absolute; bottom:20px; left:0; right:0; text-align:center; color:white; background:rgba(0,0,0,0.5); padding:8px; font-size:14px; pointer-events:none;">${caption}</div>
+    `;
+    
+    container.appendChild(newSlide);
+    
+    // Rebuild dots
+    rebuildDots();
+    
+    syncExport();
+    rebuildSlidesList();
+    renderInspector(block);
+  });
+  
+  // Remove slide button
+  addRow.querySelector('#ceCarouselCssRemoveSlide').addEventListener('click', () => {
+    const currentSlides = carousel.querySelectorAll('.ce-carousel-css-slide');
+    if (currentSlides.length <= 1) {
+      alert('Carousel must have at least 1 slide');
+      return;
+    }
+    
+    pushHistory();
+    currentSlides[currentSlides.length - 1].remove();
+    
+    // Rebuild dots
+    rebuildDots();
+    
+    syncExport();
+    rebuildSlidesList();
+    renderInspector(block);
+  });
+  
+  rebuildSlidesList();
+  panel.appendChild(contentField);
+  
+  // ===== SCROLL CONTROLS =====
+  const scrollField = document.createElement('div');
+  scrollField.className = 'ce-field';
+  scrollField.innerHTML = `
+    <label>Scroll Controls</label>
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+      <button type="button" class="ce-btn-sm" id="ceCarouselCssPrev"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+      <button type="button" class="ce-btn-sm" id="ceCarouselCssNext">Next <i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <select id="ceCarouselCssScrollTo" style="flex:1;">
+        <option value="">— Jump to slide —</option>
+      </select>
+      <button type="button" class="ce-btn-sm" id="ceCarouselCssGoTo">Go</button>
+    </div>
+  `;
+  
+  const prevBtn = scrollField.querySelector('#ceCarouselCssPrev');
+  const nextBtn = scrollField.querySelector('#ceCarouselCssNext');
+  const slideSelect = scrollField.querySelector('#ceCarouselCssScrollTo');
+  const goBtn = scrollField.querySelector('#ceCarouselCssGoTo');
+  
+  // Update slide select options
+  function updateSlideSelect() {
+    const currentSlides = carousel.querySelectorAll('.ce-carousel-css-slide');
+    slideSelect.innerHTML = '<option value="">— Jump to slide —</option>';
+    
+    currentSlides.forEach((_, idx) => {
+      const option = document.createElement('option');
+      option.value = idx;
+      option.textContent = `Slide ${idx + 1}`;
+      slideSelect.appendChild(option);
+    });
+  }
+  
+  updateSlideSelect();
+  
+  prevBtn.addEventListener('click', () => {
+    const scrollAmount = container.clientWidth;
+    container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+    
+    // Update active dot after scroll
+    setTimeout(() => {
+      const activeIndex = Math.round(container.scrollLeft / container.clientWidth);
+      dotsContainer.querySelectorAll('.ce-carousel-css-dot').forEach((dot, i) => {
+        dot.style.background = i === activeIndex ? '#6366f1' : '#d1d5db';
+      });
+    }, 300);
+  });
+  
+  nextBtn.addEventListener('click', () => {
+    const scrollAmount = container.clientWidth;
+    container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    
+    // Update active dot after scroll
+    setTimeout(() => {
+      const activeIndex = Math.round(container.scrollLeft / container.clientWidth);
+      dotsContainer.querySelectorAll('.ce-carousel-css-dot').forEach((dot, i) => {
+        dot.style.background = i === activeIndex ? '#6366f1' : '#d1d5db';
+      });
+    }, 300);
+  });
+  
+  goBtn.addEventListener('click', () => {
+    const index = parseInt(slideSelect.value);
+    if (!isNaN(index) && index >= 0) {
+      const scrollTo = index * container.clientWidth;
+      container.scrollTo({ left: scrollTo, behavior: 'smooth' });
+      
+      // Update active dot
+      setTimeout(() => {
+        dotsContainer.querySelectorAll('.ce-carousel-css-dot').forEach((dot, i) => {
+          dot.style.background = i === index ? '#6366f1' : '#d1d5db';
+        });
+      }, 300);
+    }
+  });
+  
+  // Update active dot on scroll
+  container.addEventListener('scroll', () => {
+    const activeIndex = Math.round(container.scrollLeft / container.clientWidth);
+    if (!isNaN(activeIndex) && activeIndex >= 0) {
+      dotsContainer.querySelectorAll('.ce-carousel-css-dot').forEach((dot, i) => {
+        dot.style.background = i === activeIndex ? '#6366f1' : '#d1d5db';
+      });
+    }
+  });
+  
+  panel.appendChild(scrollField);
+}
+
+  /* ============================================================
      ✅ Gallery editor
      ============================================================ */
   function addGalleryEditors(panel, stylePanel, block){
@@ -1693,7 +2419,10 @@ block.querySelectorAll('a').forEach((el,i)=>{
    VIDEO EMBED EDITOR
    ================================ */
    function addVideoEditors(panel, stylePanel, block){
-  const iframe = block.querySelector('iframe');
+
+    if ((block.dataset.key || '') !== 'ce-video') return;
+
+const iframe = block.querySelector('.ce-video-frame iframe');
   if(!iframe || isUI(iframe)) return;
 
   const frame = block.querySelector('.ce-video-frame');
@@ -1887,6 +2616,115 @@ block.querySelectorAll('a').forEach((el,i)=>{
     return td;
   }
 
+  /* ✅ Double-click inline editing for ANY text on canvas */
+function isSafeInlineTextContainer(el){
+  if(!el || el === state.editEl) return false;
+  if(isUI(el)) return false;
+  if(el.closest('.ce-block-handle') || el.classList?.contains('ce-add-inside')) return false;
+  if(el.classList?.contains('ce-block')) return false;     // never make wrapper editable
+  if(el.classList?.contains('ce-slot')) return false;      // slot container should not be edited
+
+  // If user double-clicks inside a complex container, choose a sensible text container
+  const okTags = ['H1','H2','H3','H4','H5','H6','P','LI','FIGCAPTION','A','BUTTON','SPAN','DIV'];
+  if(!okTags.includes(el.tagName)) return false;
+
+  // Avoid editing containers that contain other big blocks (prevents breaking layout)
+  // Allow DIV only if it doesn't contain other block-level tags
+  if(el.tagName === 'DIV'){
+    const bad = el.querySelector('h1,h2,h3,h4,h5,h6,p,ul,ol,table,section,article,figure,blockquote');
+    if(bad) return false;
+  }
+
+  // Must have some text or allow typing into empty
+  return true;
+}
+
+function getEditableTargetFromDblClick(startEl){
+  if(!startEl) return null;
+
+  // If clicking inside a table cell, table editor handles it
+  const cell = startEl.closest && startEl.closest('td,th');
+  if(cell) return cell;
+
+  // Otherwise, walk up to find a safe text container
+  let el = startEl;
+  while(el && el !== state.editEl){
+    if(isSafeInlineTextContainer(el)) return el;
+    el = el.parentElement;
+  }
+
+  // Fallback: if you double-click on a container with text, try its first text child
+  const b = getClosestBlock(startEl);
+  if(b){
+    const candidate = b.querySelector('h1,h2,h3,h4,h5,h6,p,li,figcaption,a,button,span');
+    if(candidate && isSafeInlineTextContainer(candidate)) return candidate;
+  }
+  return null;
+}
+
+function enableInlineTextEdit(el){
+  if(!el) return;
+
+  // Table cells are handled by enableCellEdit()
+  if(el.matches && el.matches('td,th')) return;
+
+  if(el.getAttribute('contenteditable') === 'true') return;
+
+  pushHistory();
+
+  const original = el.innerHTML;
+
+  el.setAttribute('contenteditable','true');
+  el.setAttribute('spellcheck','true');
+  el.dataset.ceEditing = '1';
+
+  // place caret at end
+  try{
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    r.collapse(false);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  }catch(_){}
+
+  el.focus();
+
+  const onKey = (e)=>{
+    // ESC = cancel changes
+    if(e.key === 'Escape'){
+      e.preventDefault();
+      el.innerHTML = original;
+      el.blur();
+      return;
+    }
+
+    // ENTER behavior:
+    // - Headings: Enter finishes edit
+    // - Others: allow newline with Shift+Enter, normal Enter finishes
+    const isHeading = /^H[1-6]$/.test(el.tagName);
+    if(e.key === 'Enter' && !e.shiftKey){
+      if(isHeading){
+        e.preventDefault();
+        el.blur();
+      }
+    }
+  };
+
+  const finish = ()=>{
+    el.removeAttribute('contenteditable');
+    delete el.dataset.ceEditing;
+
+    el.removeEventListener('keydown', onKey);
+    el.removeEventListener('blur', finish);
+
+    syncExport();
+  };
+
+  el.addEventListener('keydown', onKey);
+  el.addEventListener('blur', finish);
+}
+
   function makeHeaderCellLike(sample){
     const th = document.createElement('th');
     th.textContent = 'Header';
@@ -2000,154 +2838,375 @@ block.querySelectorAll('a').forEach((el,i)=>{
 
   /* ✅ Table: styling + header toggle + add row/col (restored) */
   function addTableEditors(panel, stylePanel, block){
-    const table = block.querySelector('table.ce-table, table');
-    if(!table || isUI(table)) return;
+  const table = block.querySelector('table.ce-table, table');
+  if(!table || isUI(table)) return;
 
-    const firstCell = table.querySelector('th,td');
-    const cellCS = firstCell ? getComputedStyle(firstCell) : null;
-    const bColor = cellCS ? rgb2hex(cellCS.borderColor) : '#e5e7eb';
-    const bWidth = cellCS ? (parseInt(cellCS.borderWidth,10)||1) : 1;
-    const pad    = cellCS ? (parseInt(cellCS.paddingTop,10)||10) : 10;
+  const firstCell = table.querySelector('th,td');
+  const cellCS = firstCell ? getComputedStyle(firstCell) : null;
+  const bColor = cellCS ? rgb2hex(cellCS.borderColor) : '#e5e7eb';
+  const bWidth = cellCS ? (parseInt(cellCS.borderWidth,10)||1) : 1;
+  const pad    = cellCS ? (parseInt(cellCS.paddingTop,10)||10) : 10;
 
-    const styleField = document.createElement('div');
-    styleField.className='ce-field';
-    styleField.innerHTML = `
-      <label>Table Styling</label>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="number" min="0" value="${bWidth}" style="width:70px;" title="Border width (px)">
-        <input type="color" value="${bColor}" title="Border color" style="width:34px;height:34px;padding:0;border:none;">
-        <input type="number" min="0" value="${pad}" style="width:90px;" title="Cell padding (px)">
-        <button type="button" class="ce-btn-sm" id="ceTblToggleHead" style="margin-left:auto;">
-          <i class="fa-solid fa-heading"></i> Header
-        </button>
-      </div>
-    `;
-    const [bwInp, bcInp, padInp] = styleField.querySelectorAll('input');
+  // =========================
+  // Table Styling (same)
+  // =========================
+  const styleField = document.createElement('div');
+  styleField.className='ce-field';
+  styleField.innerHTML = `
+    <label>Table Styling</label>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="number" min="0" value="${bWidth}" style="width:70px;" title="Border width (px)">
+      <input type="color" value="${bColor}" title="Border color" style="width:34px;height:34px;padding:0;border:none;">
+      <input type="number" min="0" value="${pad}" style="width:90px;" title="Cell padding (px)">
+      <button type="button" class="ce-btn-sm" id="ceTblToggleHead" style="margin-left:auto;">
+        <i class="fa-solid fa-heading"></i> Header
+      </button>
+    </div>
+  `;
+  const [bwInp, bcInp, padInp] = styleField.querySelectorAll('input');
 
-    bwInp.addEventListener('input', e=>{
-      pushHistory();
-      const v = parseInt(e.target.value||'0',10) || 0;
-      table.querySelectorAll('th,td').forEach(c=>{
-        c.style.borderWidth = v+'px';
-        c.style.borderStyle = c.style.borderStyle || 'solid';
-        c.style.borderColor = c.style.borderColor || bcInp.value;
-      });
-      syncExport();
+  bwInp.addEventListener('input', e=>{
+    pushHistory();
+    const v = parseInt(e.target.value||'0',10) || 0;
+    table.querySelectorAll('th,td').forEach(c=>{
+      c.style.borderWidth = v+'px';
+      c.style.borderStyle = c.style.borderStyle || 'solid';
+      c.style.borderColor = c.style.borderColor || bcInp.value;
     });
+    syncExport();
+  });
 
-    bcInp.addEventListener('input', e=>{
-      pushHistory();
-      table.querySelectorAll('th,td').forEach(c=>{
-        c.style.borderColor = e.target.value;
-        c.style.borderStyle = c.style.borderStyle || 'solid';
-        c.style.borderWidth = c.style.borderWidth || (bwInp.value+'px');
-      });
-      syncExport();
+  bcInp.addEventListener('input', e=>{
+    pushHistory();
+    table.querySelectorAll('th,td').forEach(c=>{
+      c.style.borderColor = e.target.value;
+      c.style.borderStyle = c.style.borderStyle || 'solid';
+      c.style.borderWidth = c.style.borderWidth || (bwInp.value+'px');
     });
+    syncExport();
+  });
 
-    padInp.addEventListener('input', e=>{
-      pushHistory();
-      const v = parseInt(e.target.value||'0',10) || 0;
-      table.querySelectorAll('th,td').forEach(c=>c.style.padding = v+'px');
-      syncExport();
-    });
+  padInp.addEventListener('input', e=>{
+    pushHistory();
+    const v = parseInt(e.target.value||'0',10) || 0;
+    table.querySelectorAll('th,td').forEach(c=>c.style.padding = v+'px');
+    syncExport();
+  });
 
-    styleField.querySelector('#ceTblToggleHead').addEventListener('click', ()=>{
+  styleField.querySelector('#ceTblToggleHead').addEventListener('click', ()=>{
+    pushHistory();
+    toggleTableHeader(table);
+    syncExport();
+    renderInspector(block);
+  });
+
+  stylePanel.appendChild(styleField);
+
+  // =========================
+  // Rows / Cols (same)
+  // =========================
+  const ctrl = document.createElement('div');
+  ctrl.className='ce-field';
+  ctrl.innerHTML = `
+    <label>Table Rows / Columns</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button type="button" class="ce-btn-sm" data-act="addRow"><i class="fa-solid fa-plus"></i> Row</button>
+      <button type="button" class="ce-btn-sm" data-act="delRow"><i class="fa-solid fa-minus"></i> Row</button>
+      <button type="button" class="ce-btn-sm" data-act="addCol"><i class="fa-solid fa-plus"></i> Col</button>
+      <button type="button" class="ce-btn-sm" data-act="delCol"><i class="fa-solid fa-minus"></i> Col</button>
+    </div>
+    <div class="ce-muted" style="padding:6px 0 0 0;">Tip: click any cell to edit in inspector.</div>
+  `;
+  ctrl.querySelectorAll('button[data-act]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const act = btn.dataset.act;
       pushHistory();
-      toggleTableHeader(table);
+      if(act==='addRow') tableAddRow(table);
+      if(act==='delRow') tableDelRow(table);
+      if(act==='addCol') tableAddCol(table);
+      if(act==='delCol') tableDelCol(table);
       syncExport();
       renderInspector(block);
     });
+  });
+  panel.appendChild(ctrl);
 
-    stylePanel.appendChild(styleField);
+  // =========================
+  // ✅ Cell editor (AUTO works on click)
+  // =========================
 
-    const ctrl = document.createElement('div');
-    ctrl.className='ce-field';
-    ctrl.innerHTML = `
-      <label>Table Rows / Columns</label>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button type="button" class="ce-btn-sm" data-act="addRow"><i class="fa-solid fa-plus"></i> Row</button>
-        <button type="button" class="ce-btn-sm" data-act="delRow"><i class="fa-solid fa-minus"></i> Row</button>
-        <button type="button" class="ce-btn-sm" data-act="addCol"><i class="fa-solid fa-plus"></i> Col</button>
-        <button type="button" class="ce-btn-sm" data-act="delCol"><i class="fa-solid fa-minus"></i> Col</button>
+  // avoid duplicating editor when renderInspector() is called repeatedly
+  if(panel.querySelector('.ce-table-editor-wrap')) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'ce-field ce-table-editor-wrap';
+  wrap.innerHTML = `
+    <label>Table Cell Editor</label>
+
+    <div class="ce-muted ce-cell-hint" style="margin:-2px 0 8px 0;">
+      Click a cell to edit its content here.
+    </div>
+
+    <div class="ce-text-toolbar ce-cell-toolbar" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <button type="button" data-cmd="bold"><b>B</b></button>
+      <button type="button" data-cmd="italic"><i>I</i></button>
+      <button type="button" data-cmd="underline"><u>U</u></button>
+      <button type="button" data-cmd="strikethrough"><s>S</s></button>
+
+      <button type="button" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+      <button type="button" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+
+      <button type="button" data-cmd="createLink" title="Insert link">🔗</button>
+      <input type="color" data-cmd="foreColor" title="Text color">
+
+      <div class="ce-font-controls" style="display:flex;gap:6px;align-items:center;">
+        <select data-cmd="fontName">
+          <option value="Arial">Arial</option>
+          <option value="Book Antiqua">Book Antiqua</option>
+          <option value="Cambria">Cambria</option>
+          <option value="Century Schoolbook">Century Schoolbook</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Tahoma">Tahoma</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+
+        <select data-cmd="fontSize">
+          <option value="1">10px</option>
+          <option value="2">13px</option>
+          <option value="3" selected>16px</option>
+          <option value="4">18px</option>
+          <option value="5">24px</option>
+          <option value="6">32px</option>
+          <option value="7">48px</option>
+        </select>
       </div>
-      <div class="ce-muted" style="padding:6px 0 0 0;">Tip: double-click any cell to edit inside canvas.</div>
-    `;
-    ctrl.querySelectorAll('button[data-act]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const act = btn.dataset.act;
-        pushHistory();
-        if(act==='addRow') tableAddRow(table);
-        if(act==='delRow') tableDelRow(table);
-        if(act==='addCol') tableAddCol(table);
-        if(act==='delCol') tableDelCol(table);
-        syncExport();
-        renderInspector(block);
-      });
-    });
-    panel.appendChild(ctrl);
+    </div>
+
+    <div class="ce-text-area ce-cell-editor" contenteditable="true"
+         style="min-height:110px;border:1px solid var(--line-strong,#e5e7eb);border-radius:10px;padding:10px;outline:none;">
+    </div>
+  `;
+  panel.appendChild(wrap);
+
+  const cellEditor  = wrap.querySelector('.ce-cell-editor');
+  const cellHint    = wrap.querySelector('.ce-cell-hint');
+  const colorInp    = wrap.querySelector('input[data-cmd="foreColor"]');
+  const fontNameSel = wrap.querySelector('select[data-cmd="fontName"]');
+  const fontSizeSel = wrap.querySelector('select[data-cmd="fontSize"]');
+
+  // Keep active cell reference IN BLOCK so re-render keeps it
+  if(!block.__ceTbl) block.__ceTbl = {};
+  const state = block.__ceTbl;
+
+  const ensureActiveCellStyle = ()=>{
+    if(document.getElementById('ceActiveCellStyle')) return;
+    const st = document.createElement('style');
+    st.id = 'ceActiveCellStyle';
+    st.textContent = `.ce-active-cell{outline:2px solid rgba(201,75,80,.55); outline-offset:-2px;}`;
+    document.head.appendChild(st);
+  };
+  ensureActiveCellStyle();
+
+  const clearActiveCellUI = ()=>{
+    table.querySelectorAll('th,td').forEach(c=>c.classList.remove('ce-active-cell'));
+  };
+
+  const setActiveCell = (cell)=>{
+    if(!cell) return;
+    state.activeCell = cell;
+
+    clearActiveCellUI();
+    cell.classList.add('ce-active-cell');
+
+    cellEditor.innerHTML = cell.innerHTML || '';
+    cellHint.textContent = `Editing ${cell.tagName.toLowerCase()} (click another cell to switch).`;
+
+    // ✅ auto put caret in editor end
+    cellEditor.focus();
+    placeCaretAtEnd(cellEditor);
+  };
+
+  // helper to place caret end (no selection bugs)
+  function placeCaretAtEnd(el){
+    try{
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }catch(_){}
   }
+
+  // commit helper
+  let typingTimer = null;
+  const commitCell = (withHistory)=>{
+    const cell = state.activeCell;
+    if(!cell) return;
+    if(withHistory) pushHistory();
+    cell.innerHTML = cellEditor.innerHTML;
+    syncExport();
+  };
+
+  // ✅ Important fix:
+  // 1) Only bind click handler once per table (avoid duplicate listeners)
+  // 2) Do not lose click due to contenteditable focus / selection
+  if(!state.bound){
+    state.bound = true;
+
+    table.addEventListener('mousedown', (e)=>{
+      const cell = e.target.closest('th,td');
+      if(!cell || !table.contains(cell) || isUI(cell)) return;
+
+      // Prevent selection inside table from stealing focus on quick click
+      // (but allow double click editing inside canvas if you want)
+      e.preventDefault();
+
+      setActiveCell(cell);
+    });
+  }
+
+  // If inspector re-rendered, re-attach UI to previously active cell
+  if(state.activeCell && table.contains(state.activeCell)){
+    setActiveCell(state.activeCell);
+  } else {
+    // auto select first cell so editor is "auto working" even before click
+    const c0 = table.querySelector('th,td');
+    if(c0) setActiveCell(c0);
+  }
+
+  // Editor typing -> write back
+  cellEditor.addEventListener('input', ()=>{
+    if(!state.activeCell) return;
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(()=>commitCell(true), 200);
+  });
+
+  // toolbar exec helper
+  const execOnCellEditor = (cmd, value=null)=>{
+    if(!state.activeCell) return;
+    cellEditor.focus();
+
+    if(cmd === 'createLink'){
+      const url = prompt('Enter URL:', 'https://');
+      if(!url) return;
+      pushHistory();
+      document.execCommand('createLink', false, url);
+      commitCell(false);
+      return;
+    }
+
+    pushHistory();
+    document.execCommand(cmd, false, value);
+    commitCell(false);
+  };
+
+  wrap.querySelectorAll('.ce-cell-toolbar button[data-cmd]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      execOnCellEditor(btn.dataset.cmd);
+    });
+  });
+
+  colorInp.addEventListener('input', (e)=>{
+    execOnCellEditor('foreColor', e.target.value);
+  });
+
+  fontNameSel.addEventListener('change', (e)=>{
+    execOnCellEditor('fontName', e.target.value);
+  });
+
+  fontSizeSel.addEventListener('change', (e)=>{
+    execOnCellEditor('fontSize', e.target.value);
+  });
+}
+
 
   /* ✅ Table Content Editor (fix: edit cell text + header text) */
   function addTableContentEditors(panel, block){
-    const table = block.querySelector('table.ce-table, table');
-    if(!table || isUI(table)) return;
+  const table = block.querySelector('table.ce-table, table');
+  if(!table || isUI(table)) return;
 
-    const headRows = Array.from(table.querySelectorAll('thead tr'));
-    const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
-    const allRows  = [...headRows, ...bodyRows];
+  // ✅ Remove "Title" field from panel (so it won't show for tables)
+  (function removeTitleField(){
+    const fields = Array.from(panel.querySelectorAll('.ce-field'));
+    fields.forEach(f=>{
+      const lbl = (f.querySelector('label')?.textContent || '').trim().toLowerCase();
+      if(lbl === 'title' || lbl.includes('title')){
+        f.remove();
+      }
+    });
+  })();
 
-    if(!allRows.length) return;
+  const headRows = Array.from(table.querySelectorAll('thead tr'));
+  const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+  let allRows  = [...headRows, ...bodyRows];
 
-    const cols = Math.max(...allRows.map(r => Array.from(r.children).filter(c=>c.tagName==='TH'||c.tagName==='TD').length), 1);
+  // ✅ Fallback: table without thead/tbody
+  if(!allRows.length){
+    allRows = Array.from(table.querySelectorAll('tr'));
+  }
+  if(!allRows.length) return;
 
-    const field = document.createElement('div');
-    field.className='ce-field';
-    field.innerHTML = `<label>Table Content</label>
-      <div class="ce-muted" style="padding:6px 0 8px 0;">Edit text in header/body cells (also works with double-click in canvas).</div>`;
-    const box = document.createElement('div');
-    box.style.border = '1px solid var(--ce-border)';
-    box.style.borderRadius = '6px';
-    box.style.padding = '8px';
-    box.style.maxHeight = '320px';
-    box.style.overflow = 'auto';
-    field.appendChild(box);
+  const cols = Math.max(
+    ...allRows.map(r => Array.from(r.children).filter(c=>c.tagName==='TH'||c.tagName==='TD').length),
+    1
+  );
 
-    allRows.forEach((row, rIdx)=>{
-      const isHead = !!row.closest('thead');
-      const rowWrap = document.createElement('div');
-      rowWrap.style.display = 'grid';
-      rowWrap.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-      rowWrap.style.gap = '6px';
-      rowWrap.style.marginBottom = '6px';
+  const field = document.createElement('div');
+  field.className='ce-field';
+  field.innerHTML = `<label>Table Content</label>
+    <div class="ce-muted" style="padding:6px 0 8px 0;">Edit text in header/body cells (also works with double-click in canvas).</div>`;
 
-      const cells = Array.from(row.children).filter(c=>c.tagName==='TH'||c.tagName==='TD');
-      for(let c=0;c<cols;c++){
-        const cell = cells[c];
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.value = cell ? (cell.textContent || '') : '';
-        inp.placeholder = isHead ? `H${c+1}` : `R${rIdx+1}C${c+1}`;
-        if(isHead){
-          inp.style.fontWeight = '700';
-          inp.style.background = '#f9fafb';
-        }
-        let armed=false;
-        inp.addEventListener('input', ()=>{
-          if(!cell) return;
-          if(!armed){ pushHistory(); armed=true; }
-          cell.textContent = inp.value;
-          syncExport();
-        });
-        inp.addEventListener('blur', ()=>{ armed=false; });
-        rowWrap.appendChild(inp);
+  const box = document.createElement('div');
+  box.style.border = '1px solid var(--ce-border)';
+  box.style.borderRadius = '6px';
+  box.style.padding = '8px';
+  box.style.maxHeight = '320px';
+  box.style.overflow = 'auto';
+  field.appendChild(box);
+
+  allRows.forEach((row, rIdx)=>{
+    const isHead = !!row.closest('thead') || (row.parentElement?.tagName === 'THEAD');
+
+    const rowWrap = document.createElement('div');
+    rowWrap.style.display = 'grid';
+    rowWrap.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    rowWrap.style.gap = '6px';
+    rowWrap.style.marginBottom = '6px';
+
+    const cells = Array.from(row.children).filter(c=>c.tagName==='TH'||c.tagName==='TD');
+
+    for(let c=0;c<cols;c++){
+      const cell = cells[c];
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = cell ? (cell.textContent || '') : '';
+      inp.placeholder = isHead ? `H${c+1}` : `R${rIdx+1}C${c+1}`;
+
+      if(isHead){
+        inp.style.fontWeight = '700';
+        inp.style.background = '#f9fafb';
       }
 
-      box.appendChild(rowWrap);
-    });
+      let armed=false;
+      inp.addEventListener('input', ()=>{
+        if(!cell) return;
+        if(!armed){ pushHistory(); armed=true; }
+        cell.textContent = inp.value;
+        syncExport();
+      });
+      inp.addEventListener('blur', ()=>{ armed=false; });
 
-    panel.appendChild(field);
-  }
+      rowWrap.appendChild(inp);
+    }
+
+    box.appendChild(rowWrap);
+  });
+
+  panel.appendChild(field);
+}
+
 
   /* ✅ Tags Editor */
   function addTagsEditors(panel, stylePanel, block){

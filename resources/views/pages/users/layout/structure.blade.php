@@ -256,7 +256,6 @@
           <div class="w3-section-rule"></div>
         </div>
 
-        <!-- Departments -->
         <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-departments" aria-expanded="false">
             <i class="fa-solid fa-building"></i><span>Departments</span>
@@ -264,9 +263,6 @@
           </a>
           <div id="sm-departments" class="w3-submenu" role="group" aria-label="Departments submenu">
             <a href="/department/manage" class="w3-link">Manage Departments</a>
-            <a href="/department/curriculum-syllabus" class="w3-link">Curriculum & Syllabus</a>
-            <a href="/department/gallery" class="w3-link">Gallery</a>
-          </div>
         </div>
 
         <!-- Courses -->
@@ -279,14 +275,25 @@
             <a href="/course/manage" class="w3-link">Manage Courses</a>
             <a href="/course/semester/manage" class="w3-link">Manage Semesters</a>
             <a href="/course/semester/section/manage" class="w3-link">Manage Sections</a>
+          </div>
+        </div>
+
+        <!-- Subjects -->
+        <div class="w3-group">
+          <a href="#" class="w3-link w3-toggle" data-target="sm-subjects" aria-expanded="false">
+            <i class="fa-solid fa-book"></i><span>Subjects</span>
+            <i class="fa fa-chevron-down w3-chev"></i>
+          </a>
+          <div id="sm-subjects" class="w3-submenu" role="group" aria-label="Subjects submenu">
             <a href="/course/subject/manage" class="w3-link">Manage Subject</a>
+            <a href="/student-subject-attendance" class="w3-link">Student Subject Attendance</a>
           </div>
         </div>
 
         {{-- =======================
            SITE SETTINGS & CONTENT (site related changes)
         ======================== --}}
-        <div class="w3-nav-section" style="padding:10px 6px 2px">
+        {{-- <div class="w3-nav-section" style="padding:10px 6px 2px">
           <div class="w3-section-title"><i class="fa-solid fa-screwdriver-wrench"></i> SITE SETTINGS & CONTENT</div>
           <div class="w3-section-rule"></div>
         </div>
@@ -301,19 +308,19 @@
             <a href="/header/menu/manage" class="w3-link">Manage Header Menus</a>
             <a href="/top-header/menu" class="w3-link">Top Header Menus</a>
           </div>
-        </div>
+        </div> --}}
 
         <!-- Header Components (Single Link) -->
-        <a href="/header-components/manage" class="w3-link">
+        {{-- <a href="/header-components/manage" class="w3-link">
           <i class="fa-solid fa-header"></i><span>Header Components</span>
-        </a>
+        </a> --}}
 
         <!-- Footer Components -->
-        <a href="/footer-components/manage" class="w3-link">
+        {{-- <a href="/footer-components/manage" class="w3-link">
           <i class="fa-solid fa-window-minimize"></i><span>Footer Components</span>
-        </a>
+        </a> --}}
 
-        <div class="w3-group">
+        {{-- <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-pages" aria-expanded="false">
             <i class="fa-solid fa-file-lines"></i><span>Pages</span>
             <i class="fa fa-chevron-down w3-chev"></i>
@@ -322,8 +329,8 @@
             <a href="/pages/create" class="w3-link">Create Page</a>
             <a href="/pages/manage" class="w3-link">Manage Page</a>
           </div>
-        </div>
-
+        </div> --}}
+{{-- 
         <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-page-submenu" aria-expanded="false">
             <i class="fa-solid fa-sitemap"></i><span>Page Submenu</span>
@@ -333,25 +340,24 @@
             <a href="/page/submenu/create" class="w3-link">Create Page Submenu</a>
             <a href="/page/submenu/manage" class="w3-link">Manage Page Submenu</a>
           </div>
-        </div>
+        </div> --}}
 
         <!-- Contact Info -->
-        <div class="w3-group">
+        {{-- <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-contact-info" aria-expanded="false">
             <i class="fa-solid fa-address-book"></i><span>Contact Info</span>
             <i class="fa fa-chevron-down w3-chev"></i>
           </a>
           <div id="sm-contact-info" class="w3-submenu" role="group" aria-label="Contact Info submenu">
             <a href="/contact-info/manage" class="w3-link">Manage Contact Info</a>
-            <!-- <a href="/contact/forms/manage" class="w3-link">Contact Forms</a>
-            <a href="/contact/locations/manage" class="w3-link">Office Locations</a> -->
+     
             <a href="/contact-us/manage" class="w3-link">Manage Contacts</a>
             <a href="/contact-us-visibility/manage" class="w3-link">Contact Visibility</a>
           </div>
-        </div>
+        </div> --}}
 
         <!-- Hero Carousel -->
-        <div class="w3-group">
+        {{-- <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-hero-carousel" aria-expanded="false">
             <i class="fa-solid fa-images"></i><span>Hero Carousel</span>
             <i class="fa fa-chevron-down w3-chev"></i>
@@ -360,48 +366,48 @@
             <a href="/hero-carousel/manage" class="w3-link">Manage Hero Carousel</a>
             <a href="/hero-carousel/settings" class="w3-link">Hero Carousel Settings</a>
           </div>
-        </div>
+        </div> --}}
 
         <!-- Center Iframes -->
-        <a href="/center-iframes/manage" class="w3-link">
+        {{-- <a href="/center-iframes/manage" class="w3-link">
           <i class="fa-solid fa-window-maximize"></i><span>Center Iframes</span>
-        </a>
+        </a> --}}
 
         <!-- Stats Settings -->
-        <a href="/stats/settings" class="w3-link">
+        {{-- <a href="/stats/settings" class="w3-link">
           <i class="fa-solid fa-chart-line"></i><span>Stats</span>
-        </a>
+        </a> --}}
 
-        <!-- Notice Marquee Settings -->
+        {{-- <!-- Notice Marquee Settings -->
         <a href="/notice-marquee/settings" class="w3-link">
           <i class="fa-solid fa-scroll"></i><span>Notice Marquee</span>
-        </a>
+        </a> --}}
 
         {{-- =======================
            PLACEMENT & OUTCOMES
         ======================== --}}
-        <div class="w3-nav-section" style="padding:10px 6px 2px">
+        {{-- <div class="w3-nav-section" style="padding:10px 6px 2px">
           <div class="w3-section-title"><i class="fa-solid fa-briefcase"></i> PLACEMENT & OUTCOMES</div>
           <div class="w3-section-rule"></div>
-        </div>
+        </div> --}}
 
         <!-- Recruiters (Single Link) -->
-        <a href="/recruiters" class="w3-link">
+        {{-- <a href="/recruiters" class="w3-link">
           <i class="fa-solid fa-handshake"></i><span>Recruiters</span>
-        </a>
+        </a> --}}
 
         <!-- Success Stories (Single Link) -->
-        <a href="/success-stories/manage" class="w3-link">
+        {{-- <a href="/success-stories/manage" class="w3-link">
           <i class="fa-solid fa-trophy"></i><span>Success Stories</span>
-        </a>
+        </a> --}}
 
         <!-- Events (Single Link) -->
-        <a href="/events/manage" class="w3-link">
+        {{-- <a href="/events/manage" class="w3-link">
           <i class="fa-solid fa-calendar-days"></i><span>Events</span>
-        </a>
+        </a> --}}
 
         <!-- Placement -->
-        <div class="w3-group">
+        {{-- <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-placement" aria-expanded="false">
             <i class="fa-solid fa-briefcase"></i><span>Placement</span>
             <i class="fa fa-chevron-down w3-chev"></i>
@@ -411,23 +417,23 @@
             <a href="/department/placed-students" class="w3-link">Placed Students</a>
             <a href="/department/successful-entrepreneurs" class="w3-link">Successful Entrepreneurs</a>
           </div>
-        </div>
+        </div> --}}
 
         <!-- Alumni Speak -->
-        <a href="/alumni-speak/manage" class="w3-link">
+        {{-- <a href="/alumni-speak/manage" class="w3-link">
           <i class="fa-solid fa-microphone"></i><span>Alumni Speak</span>
-        </a>
+        </a> --}}
 
         {{-- =======================
            COMMUNICATIONS (notices/announcements/etc + feedback)
         ======================== --}}
-        <div class="w3-nav-section" style="padding:10px 6px 2px">
+        {{-- <div class="w3-nav-section" style="padding:10px 6px 2px">
           <div class="w3-section-title"><i class="fa-solid fa-bell"></i> COMMUNICATIONS</div>
           <div class="w3-section-rule"></div>
-        </div>
+        </div> --}}
 
         <!-- Notifications -->
-        <div class="w3-group">
+        {{-- <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-notifications" aria-expanded="false">
             <i class="fa-solid fa-bell"></i><span>Notifications</span>
             <i class="fa fa-chevron-down w3-chev"></i>
@@ -441,7 +447,7 @@
             <a href="/why-us" class="w3-link">Why Us</a>
             <a href="/scholarships" class="w3-link">Scholarships</a>
           </div>
-        </div>
+        </div> --}}
 
         <!-- Feedback -->
         <div class="w3-group">
@@ -451,14 +457,17 @@
           </a>
           <div id="sm-feedback" class="w3-submenu" role="group" aria-label="Feedback submenu">
             <a href="/feedback/question/manage" class="w3-link">Manage Questions</a>
-            <a href="/feedback/post/manage" class="w3-link">Manage Posts</a>
+            <a href="/feedback/post/manage" class="w3-link">Create Posts</a>
+            <a href="/feedback/manage" class="w3-link">Manage Posts</a>
+            <a href="/feedback/result" class="w3-link">Feedback Result</a>
+
           </div>
         </div>
 
       </nav>
 
       <!-- privileges (admin static) -->
-      <div class="w3-nav-section">
+      {{-- <div class="w3-nav-section">
         <div class="w3-section-title"><i class="fa-solid fa-screwdriver-wrench"></i> privileges</div>
         <div class="w3-section-rule"></div>
       </div>
@@ -477,9 +486,9 @@
               <i class="fa-solid fa-puzzle-piece"></i><span>Manage Dashboard Menu</span>
             </a>
           </div>
-        </div>
+        </div> --}}
 
-        <div class="w3-group">
+        {{-- <div class="w3-group">
           <a href="#" class="w3-link w3-toggle" data-target="sm-page-privilege" aria-expanded="false">
             <i class="fa-solid fa-shield-halved"></i><span>Page Privilege</span>
             <i class="fa fa-chevron-down w3-chev"></i>
@@ -492,7 +501,7 @@
               <i class="fa-solid fa-list-check"></i><span>Manage Page Privilege</span>
             </a>
           </div>
-        </div>
+        </div> --}}
 
       </nav>
     </div>
@@ -515,13 +524,13 @@
 
         <div id="sm-manage-profile" class="w3-submenu" role="group" aria-label="Manage Profile submenu">
           <a href="/user/basic-information/manage" class="w3-link">Basic Information</a>
-          <a href="/user/personal-information/manage" class="w3-link">Personal Information</a>
+          {{-- <a href="/user/personal-information/manage" class="w3-link">Personal Information</a>
           <a href="/user/education/manage" class="w3-link">Educations</a>
           <a href="/user/honors/manage" class="w3-link">Honors & Awards</a>
           <a href="/user/journals/manage" class="w3-link">Journals</a>
           <a href="/user/conference-publications/manage" class="w3-link">Conference Publications</a>
           <a href="/user/teaching-engagements/manage" class="w3-link">Teaching Engagements</a>
-          <a href="/user/social-media/manage" class="w3-link">Social Media</a>
+          <a href="/user/social-media/manage" class="w3-link">Social Media</a> --}}
         </div>
       </div>
       <a href="/feedback/submit" class="w3-link"><i class="fa-solid fa-comment-dots"></i><span> Feedback</span></a>
@@ -850,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ===== Logout (token-based)
   const API_LOGOUT = '/api/auth/logout';
-  const LOGIN_PAGE = '/login';
+  const LOGIN_PAGE = '/';
 
   function clearAuthStorage(){
     try { sessionStorage.removeItem('token'); } catch(e){}

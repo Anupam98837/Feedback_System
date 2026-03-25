@@ -1,3 +1,5 @@
+@extends('pages.users.layout.structure')
+
 @section('title', 'Manage Department')
 
 @include('modules.pages.managePage')

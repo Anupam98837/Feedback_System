@@ -1,12 +1,6 @@
 {{-- resources/views/landing/faculty-members.blade.php --}}
 
 <style>
-  /* =========================================================
-    ✅ Faculty Members (Scoped / No :root / No global body rules)
-    - Matches Announcements UI DNA
-    - Dept dropdown + ?d-{uuid} deep-link
-    - Loads dept-specific data from API (dept_uuid param)
-  ========================================================= */
 
   .fmx-wrap{
     --fmx-brand: var(--primary-color, #9E363A);
@@ -16,363 +10,94 @@
     --fmx-line: var(--line-soft, rgba(15,23,42,.10));
     --fmx-shadow: 0 10px 24px rgba(2,6,23,.08);
 
-    --fmx-card-h: 426.4px;
-
-    max-width: 1320px;
-    margin: 18px auto 54px;
-    padding: 0 12px;
-    background: transparent;
-    position: relative;
-    overflow: visible;
+    /* used for skeleton only */
+    --fmx-card-h: 250px;max-width: 1320px;margin: 18px auto 54px;padding: 0 12px;background: transparent;position: relative;overflow: visible;
   }
 
-  .fmx-head{
-    background: var(--fmx-card);
-    border: 1px solid var(--fmx-line);
-    border-radius: 16px;
-    box-shadow: var(--fmx-shadow);
-    padding: 14px 16px;
-    margin-bottom: 16px;
-
-    display:flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: space-between;
-
-    /* ✅ one-row head (desktop) */
-    flex-wrap: nowrap;
-  }
-  .fmx-title{
-    margin: 0;
-    font-weight: 950;
-    letter-spacing: .2px;
-    color: var(--fmx-ink);
-    font-size: 28px;
-    display:flex;
-    align-items:center;
-    gap: 10px;
-    white-space: nowrap;
-  }
+  .fmx-head{background: var(--fmx-card);border: 1px solid var(--fmx-line);border-radius: 16px;box-shadow: var(--fmx-shadow);padding: 14px 16px;margin-bottom: 16px;display:flex;gap: 12px;align-items: center;justify-content: space-between;flex-wrap: nowrap;}
+  .fmx-title{margin: 0;font-weight: 950;letter-spacing: .2px;color: var(--fmx-ink);font-size: 28px;display:flex;align-items:center;gap: 10px;white-space: nowrap;}
   .fmx-title i{ color: var(--fmx-brand); }
-  .fmx-sub{
-    margin: 6px 0 0;
-    color: var(--fmx-muted);
-    font-size: 14px;
-  }
+  .fmx-sub{margin: 6px 0 0;color: var(--fmx-muted);font-size: 14px;}
 
-  .fmx-tools{
-    display:flex;
-    gap: 10px;
-    align-items:center;
+  .fmx-tools{display:flex;gap: 10px;align-items:center;flex-wrap: nowrap;}
 
-    /* ✅ keep tools in one row */
-    flex-wrap: nowrap;
-  }
+  .fmx-search{position: relative;min-width: 260px;max-width: 520px;flex: 1 1 320px;}
+  .fmx-search i{position:absolute;left: 14px;top: 50%;transform: translateY(-50%);opacity: .65;color: var(--fmx-muted);pointer-events:none;}
+  .fmx-search input{width:100%;height: 42px;border-radius: 999px;padding: 11px 12px 11px 42px;border: 1px solid var(--fmx-line);background: var(--fmx-card);color: var(--fmx-ink);outline: none;}
+  .fmx-search input:focus{border-color: rgba(201,75,80,.55);box-shadow: 0 0 0 4px rgba(201,75,80,.18);}
 
-  .fmx-search{
-    position: relative;
-    min-width: 260px;
-    max-width: 520px;
-    flex: 1 1 320px;
-  }
-  .fmx-search i{
-    position:absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: .65;
-    color: var(--fmx-muted);
-    pointer-events:none;
-  }
-  .fmx-search input{
-    width:100%;
-    height: 42px;
-    border-radius: 999px;
-    padding: 11px 12px 11px 42px;
-    border: 1px solid var(--fmx-line);
-    background: var(--fmx-card);
-    color: var(--fmx-ink);
-    outline: none;
-  }
-  .fmx-search input:focus{
-    border-color: rgba(201,75,80,.55);
-    box-shadow: 0 0 0 4px rgba(201,75,80,.18);
-  }
+  .fmx-select{position: relative;min-width: 260px;max-width: 360px;flex: 0 1 320px;}
+  .fmx-select__icon{position:absolute;left: 14px;top: 50%;transform: translateY(-50%);opacity: .70;color: var(--fmx-muted);pointer-events:none;font-size: 14px;}
+  .fmx-select__caret{position:absolute;right: 14px;top: 50%;transform: translateY(-50%);opacity: .70;color: var(--fmx-muted);pointer-events:none;font-size: 12px;}
+  .fmx-select select{width: 100%;height: 42px;border-radius: 999px;padding: 10px 38px 10px 42px;border: 1px solid var(--fmx-line);background: var(--fmx-card);color: var(--fmx-ink);outline: none;appearance: none;-webkit-appearance: none;-moz-appearance: none;}
+  .fmx-select select:focus{border-color: rgba(201,75,80,.55);box-shadow: 0 0 0 4px rgba(201,75,80,.18);}
 
-  .fmx-select{
-    position: relative;
-    min-width: 260px;
-    max-width: 360px;
-    flex: 0 1 320px;
-  }
-  .fmx-select__icon{
-    position:absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: .70;
-    color: var(--fmx-muted);
-    pointer-events:none;
-    font-size: 14px;
-  }
-  .fmx-select__caret{
-    position:absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: .70;
-    color: var(--fmx-muted);
-    pointer-events:none;
-    font-size: 12px;
-  }
-  .fmx-select select{
-    width: 100%;
-    height: 42px;
-    border-radius: 999px;
-    padding: 10px 38px 10px 42px;
-    border: 1px solid var(--fmx-line);
-    background: var(--fmx-card);
-    color: var(--fmx-ink);
-    outline: none;
+  /* ✅ Screenshot UI: single-column rows */
+  .fmx-grid,
+  .fmx-skeleton{max-width: 1040px;margin: 0 auto;}
+  .fmx-grid{display:flex;flex-direction:column;gap: 18px;align-items: stretch;}
 
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-  }
-  .fmx-select select:focus{
-    border-color: rgba(201,75,80,.55);
-    box-shadow: 0 0 0 4px rgba(201,75,80,.18);
-  }
+  .fmx-card{width:100%;position:relative;display:flex;flex-direction:column;border: 1px solid rgba(2,6,23,.08);border-radius: 16px;background: #fff;box-shadow: var(--fmx-shadow);overflow:hidden;transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;will-change: transform;cursor: pointer;outline: none;}
+  .fmx-card:hover{transform: translateY(-2px);box-shadow: 0 16px 34px rgba(2,6,23,.12);border-color: rgba(158,54,58,.22);}
+  .fmx-card:focus-visible{box-shadow: 0 0 0 4px rgba(201,75,80,.18), 0 16px 34px rgba(2,6,23,.12);border-color: rgba(201,75,80,.55);}
 
-  .fmx-grid{
-    display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 18px;
-    align-items: stretch;
-  }
-
-  .fmx-card{
-    width:100%;
-    min-height: var(--fmx-card-h);
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    border: 1px solid rgba(2,6,23,.08);
-    border-radius: 16px;
-    background: #fff;
-    box-shadow: var(--fmx-shadow);
-    overflow:hidden;
-    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-    will-change: transform;
-    cursor: pointer;
-    outline: none;
-  }
-  .fmx-card:hover{
-    transform: translateY(-2px);
-    box-shadow: 0 16px 34px rgba(2,6,23,.12);
-    border-color: rgba(158,54,58,.22);
-  }
-  .fmx-card:focus-visible{
-    box-shadow: 0 0 0 4px rgba(201,75,80,.18), 0 16px 34px rgba(2,6,23,.12);
-    border-color: rgba(201,75,80,.55);
-  }
-
-  .fmx-body{
-    padding: 16px 16px 14px;
-    display:flex;
-    flex-direction:column;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
+  .fmx-body{padding: 16px 16px 14px;display:flex;flex-direction:column;}
 
   .fmx-top{ display:flex; gap: 12px; align-items:flex-start; }
 
-  .fmx-avatar{
-    width: 64px;
-    height: 64px;
-    border-radius: 999px;
-    flex: 0 0 64px;
-    overflow:hidden;
-    border: 3px solid #fff;
-    box-shadow: 0 10px 22px rgba(2,6,23,.12);
-    background: radial-gradient(140px 140px at 30% 20%,
-      rgba(201,75,80,.16),
-      transparent 60%),
-      linear-gradient(180deg, rgba(0,0,0,.03), rgba(0,0,0,.06));
-    position: relative;
-    display:grid;
-    place-items:center;
-  }
+  .fmx-avatar{width: 64px;height: 64px;border-radius: 999px;flex: 0 0 64px;overflow:hidden;border: 3px solid #fff;box-shadow: 0 10px 22px rgba(2,6,23,.12);background: radial-gradient(140px 140px at 30% 20%, rgba(201,75,80,.16), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.03), rgba(0,0,0,.06));position: relative;display:grid;place-items:center;}
   .fmx-avatar img{ width:100%; height:100%; object-fit: cover; display:block; }
-  .fmx-initial{
-    position:absolute; inset:0;
-    display:grid; place-items:center;
-    font-weight: 950;
-    color: rgba(158,54,58,.95);
-    font-size: 18px;
-    letter-spacing:.5px;
-  }
+  .fmx-initial{position:absolute; inset:0;display:grid; place-items:center;font-weight: 950;color: rgba(158,54,58,.95);font-size: 18px;letter-spacing:.5px;}
   .fmx-avatar.has-img .fmx-initial{ opacity:0; pointer-events:none; }
 
-  .fmx-name{
-    margin: 0;
-    font-weight: 950;
-    color: var(--fmx-ink);
-    font-size: 18px;
-    line-height: 1.25;
-    text-transform: uppercase;
-
-    display:-webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow:hidden;
-    overflow-wrap:anywhere;
-    word-break:break-word;
-  }
-  .fmx-desig{
-    margin-top: 6px;
-    color: #334155;
-    font-size: 14px;
-    font-weight: 800;
-
-    display:-webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow:hidden;
-  }
+  .fmx-name{margin: 0;font-weight: 950;color: var(--fmx-ink);font-size: 18px;line-height: 1.25;text-transform: uppercase;display:-webkit-box;-webkit-line-clamp: 2;-webkit-box-orient: vertical;overflow:hidden;overflow-wrap:anywhere;word-break:break-word;}
+  .fmx-desig{margin-top: 6px;color: #334155;font-size: 14px;font-weight: 800;display:-webkit-box;-webkit-line-clamp: 1;-webkit-box-orient: vertical;overflow:hidden;}
 
   .fmx-meta{ margin-top: 12px; display:grid; gap: 6px; }
   .fmx-line{ font-size: 14px; color: #334155; line-height: 1.55; overflow-wrap:anywhere; }
   .fmx-line b{ font-weight: 950; color: var(--fmx-ink); }
 
-  .fmx-links{
-    margin-top: 12px;
-    display:flex;
-    flex-direction:column;
-    gap: 6px;
-    font-size: 14px;
-  }
-  .fmx-links a{
-    color: #1d4ed8;
-    text-decoration: none;
-    font-weight: 900;
-    word-break: break-word;
-  }
+  .fmx-links{margin-top: 12px;display:flex;flex-direction:column;gap: 6px;font-size: 14px;}
+  .fmx-links a{color: #1d4ed8;text-decoration: none;font-weight: 900;word-break: break-word;}
   .fmx-links a:hover{ text-decoration: underline; }
 
-  .fmx-social{
-    margin-top: auto;
-    padding-top: 14px;
-    display:flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .fmx-social a{
-    width: 42px;
-    height: 42px;
-    border-radius: 999px;
-    display:grid;
-    place-items:center;
-    background: var(--fmx-brand);
-    color:#fff;
-    border: 1px solid rgba(255,255,255,.18);
-    box-shadow: 0 12px 22px rgba(143,47,47,.18);
-    transition: transform .14s ease, filter .14s ease;
-    text-decoration:none;
-  }
+  .fmx-social{margin-top: 12px;display:flex;gap: 10px;flex-wrap: wrap;}
+  .fmx-social a{width: 42px;height: 42px;border-radius: 999px;display:grid;place-items:center;background: var(--fmx-brand);color:#fff;border: 1px solid rgba(255,255,255,.18);box-shadow: 0 12px 22px rgba(143,47,47,.18);transition: transform .14s ease, filter .14s ease;text-decoration:none;}
   .fmx-social a:hover{ transform: translateY(-1px); filter: brightness(1.06); }
   .fmx-social a i{ color:#fff; font-size: 16px; line-height: 1; }
 
-  .fmx-state{
-    background: var(--fmx-card);
-    border: 1px solid var(--fmx-line);
-    border-radius: 16px;
-    box-shadow: var(--fmx-shadow);
-    padding: 18px;
-    color: var(--fmx-muted);
-    text-align:center;
-  }
+  .fmx-state{max-width: 1040px;margin: 0 auto;background: var(--fmx-card);border: 1px solid var(--fmx-line);border-radius: 16px;box-shadow: var(--fmx-shadow);padding: 18px;color: var(--fmx-muted);text-align:center;}
 
-  .fmx-skeleton{
-    display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 18px;
-  }
-  .fmx-sk{
-    border-radius: 16px;
-    border: 1px solid var(--fmx-line);
-    background: #fff;
-    overflow:hidden;
-    position:relative;
-    box-shadow: 0 10px 24px rgba(2,6,23,.08);
-    height: var(--fmx-card-h);
-  }
-  .fmx-sk:before{
-    content:'';
-    position:absolute; inset:0;
-    transform: translateX(-60%);
-    background: linear-gradient(90deg, transparent, rgba(148,163,184,.22), transparent);
-    animation: fmxSkMove 1.15s ease-in-out infinite;
-  }
+  .fmx-skeleton{display:flex;flex-direction:column;gap: 18px;}
+  .fmx-sk{border-radius: 16px;border: 1px solid var(--fmx-line);background: #fff;overflow:hidden;position:relative;box-shadow: 0 10px 24px rgba(2,6,23,.08);height: var(--fmx-card-h);}
+  .fmx-sk:before{content:'';position:absolute; inset:0;transform: translateX(-60%);background: linear-gradient(90deg, transparent, rgba(148,163,184,.22), transparent);animation: fmxSkMove 1.15s ease-in-out infinite;}
   @keyframes fmxSkMove{ to{ transform: translateX(60%);} }
 
-  .fmx-pagination{
-    display:flex;
-    justify-content:center;
-    margin-top: 18px;
-  }
-  .fmx-pagination .fmx-pager{
-    display:flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items:center;
-    justify-content:center;
-    padding: 10px;
-  }
-  .fmx-pagebtn{
-    border:1px solid var(--fmx-line);
-    background: var(--fmx-card);
-    color: var(--fmx-ink);
-    border-radius: 12px;
-    padding: 9px 12px;
-    font-size: 13px;
-    font-weight: 950;
-    box-shadow: 0 8px 18px rgba(2,6,23,.06);
-    cursor:pointer;
-    user-select:none;
-  }
+  .fmx-pagination{display:flex;justify-content:center;margin-top: 18px;}
+  .fmx-pagination .fmx-pager{display:flex;gap: 8px;flex-wrap: wrap;align-items:center;justify-content:center;padding: 10px;}
+  .fmx-pagebtn{border:1px solid var(--fmx-line);background: var(--fmx-card);color: var(--fmx-ink);border-radius: 12px;padding: 9px 12px;font-size: 13px;font-weight: 950;box-shadow: 0 8px 18px rgba(2,6,23,.06);cursor:pointer;user-select:none;}
   .fmx-pagebtn:hover{ background: rgba(2,6,23,.03); }
   .fmx-pagebtn[disabled]{ opacity:.55; cursor:not-allowed; }
-  .fmx-pagebtn.active{
-    background: rgba(201,75,80,.12);
-    border-color: rgba(201,75,80,.35);
-    color: var(--fmx-brand);
-  }
+  .fmx-pagebtn.active{background: rgba(201,75,80,.12);border-color: rgba(201,75,80,.35);color: var(--fmx-brand);}
 
   @media (max-width: 640px){
-    /* ✅ allow wrap on small screens so it doesn't overflow */
     .fmx-head{ flex-wrap: wrap; align-items: flex-end; }
     .fmx-tools{ flex-wrap: wrap; }
-
     .fmx-title{ font-size: 24px; white-space: normal; }
     .fmx-search{ min-width: 220px; flex: 1 1 240px; }
     .fmx-select{ min-width: 220px; flex: 1 1 240px; }
+    .fmx-grid, .fmx-skeleton, .fmx-state{ max-width: 100%; }
   }
 
-  .dynamic-navbar .navbar-nav .dropdown-menu{
-    position: absolute !important;
-    inset: auto !important;
-  }
-  .dynamic-navbar .dropdown-menu.is-portaled{
-    position: fixed !important;
-  }
+  .dynamic-navbar .navbar-nav .dropdown-menu{position: absolute !important;inset: auto !important;}
+  .dynamic-navbar .dropdown-menu.is-portaled{position: fixed !important;}
 </style>
 
 <div
   class="fmx-wrap"
-  data-api="{{ url('/api/public/faculty') }}"
   data-profile-base="{{ url('/user/profile') }}/"
-  data-dept-api="{{ url('/api/public/departments') }}"
+  data-preview-index="{{ url('/api/public/faculty-preview-order') }}"
+  data-preview-show-base="{{ url('/api/public/faculty-preview-order') }}/"
 >
   <div class="fmx-head">
     <div>
@@ -393,7 +118,6 @@
         </select>
         <i class="fa-solid fa-chevron-down fmx-select__caret"></i>
       </div>
-      {{-- ✅ Count chip removed --}}
     </div>
   </div>
 
@@ -416,9 +140,9 @@
   const root = document.querySelector('.fmx-wrap');
   if (!root) return;
 
-  const API = root.getAttribute('data-api') || '/api/public/faculty';
   const PROFILE_BASE = root.getAttribute('data-profile-base') || (window.location.origin + '/user/profile/');
-  const DEPT_API = root.getAttribute('data-dept-api') || '/api/public/departments';
+  const PREVIEW_INDEX = root.getAttribute('data-preview-index') || (window.location.origin + '/api/public/faculty-preview-order');
+  const PREVIEW_SHOW_BASE = root.getAttribute('data-preview-show-base') || (window.location.origin + '/api/public/faculty-preview-order/');
 
   const $ = (id) => document.getElementById(id);
 
@@ -442,7 +166,12 @@
   };
 
   let activeController = null;
+
+  // deptUuid -> {id,uuid,slug,title}
   let deptByUuid = new Map();
+
+  // current assigned list (ordered, must match DB saved order)
+  let assignedAll = [];
 
   function esc(str){
     return (str ?? '').toString().replace(/[&<>"']/g, s => ({
@@ -498,6 +227,7 @@
     const p = (platform || '').toLowerCase().trim();
     if (p.includes('linkedin')) return 'fa-brands fa-linkedin-in';
     if (p.includes('google') || p.includes('scholar')) return 'fa-solid fa-graduation-cap';
+    if (p.includes('university') || p.includes('profile') || p.includes('college')) return 'fa-solid fa-building-columns';
     if (p.includes('researchgate')) return 'fa-brands fa-researchgate';
     if (p === 'facebook' || p.includes('fb')) return 'fa-brands fa-facebook-f';
     if (p.includes('instagram') || p.includes('insta')) return 'fa-brands fa-instagram';
@@ -514,21 +244,65 @@
     }
     return i;
   }
+
+  // ✅ Social links: prefer socials[], else fallback to metadata keys (LinkedIn/Scholar/College/Facebook/Instagram/etc.)
   function buildSocialFromItem(it){
-    const arr = Array.isArray(it?.socials) ? it.socials : [];
-    const html = arr.map(s => {
-      const url = (s?.url || '').toString().trim();
-      if (!url) return '';
-      const icon = normalizeFaIcon(s?.icon) || iconForPlatform(s?.platform);
-      const title = (s?.platform || 'Link').toString();
-      return `
-        <a href="${escAttr(normalizeUrl(url))}" target="_blank" rel="noopener"
-           title="${escAttr(title)}" data-stop-card="1">
-          <i class="${escAttr(icon)}"></i>
-        </a>
-      `;
-    }).join('');
-    return html ? `<div class="fmx-social">${html}</div>` : '';
+    const socials = Array.isArray(it?.socials) ? it.socials : [];
+    const meta = decodeMaybeJson(it?.metadata) || {};
+
+    let items = [];
+
+    if (socials.length){
+      items = socials.map(s => ({
+        url: (s?.url || '').toString().trim(),
+        icon: normalizeFaIcon(s?.icon) || iconForPlatform(s?.platform),
+        title: (s?.platform || 'Link').toString(),
+      }));
+    } else {
+      // fallback (common keys you might store in metadata)
+      const pickUrl = (...keys) => {
+        for (const k of keys){
+          const v = meta?.[k] ?? it?.[k];
+          const s = (v || '').toString().trim();
+          if (s) return s;
+        }
+        return '';
+      };
+
+      const add = (url, title, icon) => {
+        const u = (url || '').toString().trim();
+        if (!u) return;
+        items.push({ url: u, title, icon });
+      };
+
+      // screenshot-like set (only if present)
+      add(pickUrl('linkedin','linkedin_url','linkedIn','linkedinLink'), 'LinkedIn', 'fa-brands fa-linkedin-in');
+      add(pickUrl('google_scholar','scholar','scholar_url','google_scholar_url'), 'Google Scholar', 'fa-solid fa-graduation-cap');
+      add(pickUrl('college_profile','university_profile','profile_url','msit_profile','institute_profile'), 'Profile', 'fa-solid fa-building-columns');
+      add(pickUrl('facebook','facebook_url','fb','fb_url'), 'Facebook', 'fa-brands fa-facebook-f');
+      add(pickUrl('instagram','instagram_url','insta','insta_url'), 'Instagram', 'fa-brands fa-instagram');
+
+      // extra (only if present)
+      add(pickUrl('twitter','x','twitter_url','x_url'), 'X', 'fa-brands fa-x-twitter');
+      add(pickUrl('github','github_url'), 'GitHub', 'fa-brands fa-github');
+      add(pickUrl('youtube','youtube_url'), 'YouTube', 'fa-brands fa-youtube');
+      add(pickUrl('researchgate','researchgate_url'), 'ResearchGate', 'fa-brands fa-researchgate');
+    }
+
+    items = items
+      .map(x => ({...x, url: normalizeUrl(x.url)}))
+      .filter(x => x.url);
+
+    if (!items.length) return '';
+
+    const html = items.map(s => `
+      <a href="${escAttr(s.url)}" target="_blank" rel="noopener"
+         title="${escAttr(s.title)}" data-stop-card="1">
+        <i class="${escAttr(s.icon)}"></i>
+      </a>
+    `).join('');
+
+    return `<div class="fmx-social">${html}</div>`;
   }
 
   function bindAvatarImages(rootEl){
@@ -587,7 +361,7 @@
     });
 
     const js = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(js?.message || ('Request failed: ' + res.status));
+    if (!res.ok) throw new Error(js?.message || js?.error || ('Request failed: ' + res.status));
     return js;
   }
 
@@ -597,7 +371,8 @@
     return m ? m[1] : '';
   }
 
-  async function loadDepartments(){
+  // ✅ load ONLY ordered departments (active + has count)
+  async function loadOrderedDepartments(){
     const sel = els.dept;
     if (!sel) return;
 
@@ -608,21 +383,24 @@
     sel.value = '__loading';
 
     try{
-      const res = await fetch(DEPT_API, { headers: { 'Accept':'application/json' } });
-      const js = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(js?.message || ('HTTP ' + res.status));
+      const js = await fetchJson(PREVIEW_INDEX);
+      const rows = Array.isArray(js?.data) ? js.data : [];
 
-      const items = Array.isArray(js?.data) ? js.data : [];
-      const depts = items
-        .map(d => ({
-          id: d?.id ?? null,
-          uuid: (d?.uuid ?? '').toString().trim(),
-          title: (d?.title ?? d?.name ?? '').toString().trim(),
-          active: (d?.active ?? 1),
+      // rows:
+      // { department:{id,uuid,slug,title}, order:{active,faculty_count} }
+      const depts = rows
+        .map(r => ({
+          id: r?.department?.id ?? null,
+          uuid: (r?.department?.uuid ?? '').toString().trim(),
+          slug: (r?.department?.slug ?? '').toString().trim(),
+          title:(r?.department?.title ?? '').toString().trim(),
+          count: parseInt(r?.order?.faculty_count ?? 0, 10) || 0,
         }))
-        .filter(x => x.uuid && x.title && String(x.active) === '1');
+        .filter(d => d.uuid && d.title && d.count > 0);
 
       deptByUuid = new Map(depts.map(d => [d.uuid, d]));
+
+      // keep dropdown clean (no brackets / no extra text)
       depts.sort((a,b) => a.title.localeCompare(b.title));
 
       sel.innerHTML = `<option value="">Select Department</option>` + depts
@@ -630,27 +408,33 @@
         .join('');
 
       sel.value = '';
+
+      if (!depts.length){
+        if (els.state){
+          els.state.style.display = '';
+          els.state.innerHTML = `
+            <div style="font-size:34px;opacity:.6;margin-bottom:6px;">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            Faculty list is not available right now.
+          `;
+        }
+      }
+
     } catch (e){
-      console.warn('Departments load failed:', e);
+      console.warn('Ordered departments load failed:', e);
       sel.innerHTML = `<option value="">Select Department</option>`;
       sel.value = '';
+      if (els.state){
+        els.state.style.display = '';
+        els.state.innerHTML = `
+          <div style="font-size:34px;opacity:.6;margin-bottom:6px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          Faculty list is not available right now.
+        `;
+      }
     }
-  }
-
-  function buildListUrl(){
-    const u = new URL(API, window.location.origin);
-    u.searchParams.set('page', String(state.page));
-    u.searchParams.set('per_page', String(state.perPage));
-    u.searchParams.set('status', 'active');
-    u.searchParams.set('sort', 'created_at');
-    u.searchParams.set('direction', 'desc');
-
-    // ✅ pass dept_uuid to backend (no client-side guessing)
-    if (state.deptUuid) u.searchParams.set('dept_uuid', String(state.deptUuid));
-    else u.searchParams.delete('dept_uuid');
-
-    if (state.q.trim()) u.searchParams.set('q', state.q.trim());
-    return u.toString();
   }
 
   function cardHtml(it){
@@ -715,6 +499,38 @@
         </div>
       </article>
     `;
+  }
+
+  function applySearch(items){
+    const q = (state.q || '').trim().toLowerCase();
+    if (!q) return items;
+
+    // ✅ filter only; DO NOT reorder (keeps DB order)
+    return items.filter(it => {
+      const name = (pick(it, ['name','user_name']) || '').toLowerCase();
+      const desig =
+        (pick(it, ['designation']) ||
+          (decodeMaybeJson(it?.metadata)?.designation || '') ||
+          (decodeMaybeJson(it?.metadata)?.role_title || '')
+        ).toString().toLowerCase();
+
+      const qual = formatQualification(it?.qualification).toLowerCase();
+      return name.includes(q) || desig.includes(q) || qual.includes(q);
+    });
+  }
+
+  function paginate(items){
+    const per = state.perPage || 9;
+    const total = items.length;
+    const last = Math.max(1, Math.ceil(total / per));
+    state.lastPage = last;
+
+    const page = Math.min(Math.max(1, state.page || 1), last);
+    state.page = page;
+
+    const start = (page - 1) * per;
+    const slice = items.slice(start, start + per);
+    return { slice, total, last };
   }
 
   function render(items){
@@ -784,21 +600,83 @@
     pager.style.display = 'flex';
   }
 
-  async function load(){
+  // ✅ Force DB-order even if API returns unordered
+  function toInt(v){
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : null;
+  }
+  function getUserNumericId(it){
+    // your order is "faculty json array = id of faculties" -> typically user.id
+    return (
+      toInt(it?.user_id) ??
+      toInt(it?.faculty_id) ??
+      toInt(it?.id) ??
+      toInt(it?.user?.id) ??
+      null
+    );
+  }
+  function extractOrderIds(js){
+    // try common shapes:
+    // js.order.faculty_ids OR js.order.faculty_ids_json OR js.faculty_ids OR js.order_ids
+    const raw =
+      js?.order?.faculty_ids ??
+      js?.order?.faculty_ids_json ??
+      js?.faculty_ids ??
+      js?.order_ids ??
+      js?.faculty_order ??
+      null;
+
+    const arr = Array.isArray(raw) ? raw : (decodeMaybeJson(raw) || null);
+    if (!Array.isArray(arr)) return [];
+
+    return arr.map(x => toInt(x)).filter(x => x !== null);
+  }
+  function orderByDb(assigned, orderIds){
+    if (!Array.isArray(assigned) || !assigned.length) return [];
+    if (!Array.isArray(orderIds) || !orderIds.length) return assigned;
+
+    const idx = new Map(orderIds.map((id, i) => [String(id), i]));
+
+    return assigned
+      .map((it, originalIndex) => {
+        const id = getUserNumericId(it);
+        const key = id === null ? null : String(id);
+        const orderIndex = (key && idx.has(key)) ? idx.get(key) : 1e9;
+        return { it, originalIndex, orderIndex };
+      })
+      .sort((a,b) => (a.orderIndex - b.orderIndex) || (a.originalIndex - b.originalIndex))
+      .map(x => x.it);
+  }
+
+  async function loadAssignedForDept(deptUuid){
     showSkeleton();
 
     try{
-      const js = await fetchJson(buildListUrl());
-      const items = Array.isArray(js?.data) ? js.data : [];
-      const p = js?.pagination || {};
+      const url = PREVIEW_SHOW_BASE + encodeURIComponent(deptUuid) + '?status=active';
+      const js = await fetchJson(url);
 
-      state.lastPage = parseInt(p.last_page ?? 1, 10) || 1;
-      state.page = parseInt(p.page ?? state.page, 10) || state.page;
+      const dept = js?.department || {};
+      const assigned = Array.isArray(js?.assigned) ? js.assigned : [];
 
+      // ✅ enforce DB saved order
+      const orderIds = extractOrderIds(js);
+      assignedAll = orderByDb(assigned, orderIds);
+
+      // header/subtitle
+      state.deptName = (dept?.title || deptByUuid.get(deptUuid)?.title || '').toString().trim();
+      if (els.sub) {
+        els.sub.textContent = state.deptName ? ('Faculty members of ' + state.deptName) : 'Faculty members';
+      }
+
+      // enable search only when dept is selected
+      if (els.search){
+        els.search.disabled = false;
+        els.search.placeholder = 'Search faculty (name/designation/qualification)…';
+      }
+
+      state.page = 1;
       hideSkeleton();
-
-      render(items);
-      renderPager();
+      applyAndRender();
 
     } catch (e){
       hideSkeleton();
@@ -811,31 +689,34 @@
           <div style="font-size:34px;opacity:.6;margin-bottom:6px;">
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
-          Could not load faculty.
-          <div style="margin-top:8px;font-size:12.5px;opacity:.9;">
-            API: <b>${esc(API)}</b>
-          </div>
+          Faculty list is not available right now.
         `;
       }
     }
   }
 
+  function applyAndRender(){
+    const filtered = applySearch(assignedAll);
+    const { slice } = paginate(filtered);
+    render(slice);
+    renderPager();
+  }
+
   document.addEventListener('DOMContentLoaded', async () => {
     showSelectDeptState();
 
-    await loadDepartments();
+    // dropdown from preview-order public index (only ordered depts)
+    await loadOrderedDepartments();
 
     // deep-link ?d-{uuid}
     const deep = extractDeptUuidFromUrl();
     if (deep && deptByUuid.has(deep)){
       els.dept.value = deep;
       state.deptUuid = deep;
-      state.deptName = deptByUuid.get(deep)?.title || '';
-      if (els.sub) els.sub.textContent = state.deptName ? ('Faculty members of ' + state.deptName) : 'Faculty members';
-
-      els.search.disabled = false;
-      els.search.placeholder = 'Search faculty (name/designation/qualification)…';
-      await load();
+      state.page = 1;
+      state.q = '';
+      if (els.search) els.search.value = '';
+      await loadAssignedForDept(deep);
     }
 
     // dept change
@@ -844,6 +725,7 @@
 
       state.page = 1;
       state.q = '';
+      assignedAll = [];
       if (els.search) els.search.value = '';
 
       if (!v){
@@ -854,45 +736,34 @@
           els.search.disabled = true;
           els.search.placeholder = 'Select a department to search…';
         }
-        await load();   // ✅ load all
+        showSelectDeptState();
         return;
       }
 
       state.deptUuid = v;
-      state.deptName = deptByUuid.get(v)?.title || '';
-
-      if (els.sub){
-        els.sub.textContent = state.deptName ? ('Faculty members of ' + state.deptName) : 'Faculty members';
-      }
-
-      if (els.search){
-        els.search.disabled = false;
-        els.search.placeholder = 'Search faculty (name/designation/qualification)…';
-      }
-
-      await load();
+      await loadAssignedForDept(v);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // search (debounced)
+    // search (debounced, client-side on assigned list; keeps DB order)
     let t = null;
     els.search && els.search.addEventListener('input', () => {
       clearTimeout(t);
-      t = setTimeout(async () => {
+      t = setTimeout(() => {
         state.q = (els.search.value || '').trim();
         state.page = 1;
-        await load();
-      }, 260);
+        applyAndRender();
+      }, 220);
     });
 
     // pagination
-    document.addEventListener('click', async (e) => {
+    document.addEventListener('click', (e) => {
       const b = e.target.closest('button.fmx-pagebtn[data-page]');
       if (!b) return;
       const p = parseInt(b.dataset.page, 10);
       if (!p || Number.isNaN(p) || p === state.page) return;
       state.page = p;
-      await load();
+      applyAndRender();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 

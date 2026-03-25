@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class AnnouncementController extends Controller
@@ -25,10 +26,141 @@ class AnnouncementController extends Controller
         ];
     }
 
+    /**
+     * Insert into user_data_activity_log safely (never breaks primary flow)
+     * Logs ONLY for non-GET mutations (create/update/delete/restore/force_delete/toggle_featured).
+     */
+    private function logActivity(
+        Request $r,
+        string $activity,
+        string $tableName,
+        ?int $recordId = null,
+        ?array $changedFields = null,
+        $oldValues = null,
+        $newValues = null,
+        ?string $note = null,
+        string $module = 'announcements'
+    ): void {
+        try {
+            if (!Schema::hasTable('user_data_activity_log')) return;
+
+            $a = $this->actor($r);
+
+            // keep UA within migration limit (512)
+            $ua = (string) ($r->userAgent() ?? '');
+            if (strlen($ua) > 512) $ua = substr($ua, 0, 512);
+
+            DB::table('user_data_activity_log')->insert([
+                'performed_by'      => (int) ($a['id'] ?? 0),
+                'performed_by_role' => trim((string) ($a['role'] ?? '')) !== '' ? (string) $a['role'] : null,
+                'ip'                => $r->ip(),
+                'user_agent'        => $ua,
+
+                'activity'          => $activity,
+                'module'            => $module,
+
+                'table_name'        => $tableName,
+                'record_id'         => $recordId,
+
+                'changed_fields'    => $changedFields !== null ? json_encode(array_values($changedFields)) : null,
+                'old_values'        => $oldValues !== null ? json_encode($oldValues) : null,
+                'new_values'        => $newValues !== null ? json_encode($newValues) : null,
+
+                'log_note'          => $note,
+
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // never block real APIs because of logging
+        }
+    }
+
+    private function subsetRow($row, array $keys): array
+    {
+        $out = [];
+        if (!$row) {
+            foreach ($keys as $k) $out[$k] = null;
+            return $out;
+        }
+
+        foreach ($keys as $k) {
+            if (is_array($row)) {
+                $out[$k] = array_key_exists($k, $row) ? $row[$k] : null;
+            } else {
+                $out[$k] = $row->{$k} ?? null;
+            }
+        }
+        return $out;
+    }
+
     private function normSlug(?string $s): string
     {
         $s = trim((string) $s);
         return $s === '' ? '' : Str::slug($s, '-');
+    }
+
+    /**
+     * accessControl (ONLY users table)
+     *
+     * Returns ONLY:
+     *  - ['mode' => 'all',         'department_id' => null]
+     *  - ['mode' => 'department',  'department_id' => <int>]
+     *  - ['mode' => 'none',        'department_id' => null]
+     *  - ['mode' => 'not_allowed', 'department_id' => null]
+     */
+    private function accessControl(int $userId): array
+    {
+        if ($userId <= 0) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // Safety (if some env doesn't have dept column yet)
+        if (!Schema::hasColumn('users', 'department_id')) {
+            return ['mode' => 'not_allowed', 'department_id' => null];
+        }
+
+        $q = DB::table('users')->select(['id', 'role', 'department_id', 'status']);
+
+        // your schema has deleted_at; keep it safe
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        $u = $q->where('id', $userId)->first();
+
+        if (!$u) {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // optional: inactive users => none
+        if (isset($u->status) && (string)$u->status !== 'active') {
+            return ['mode' => 'none', 'department_id' => null];
+        }
+
+        // normalize role from users table
+        $role = strtolower(trim((string)($u->role ?? '')));
+        $role = str_replace([' ', '-'], '_', $role);
+        $role = preg_replace('/_+/', '_', $role) ?? $role;
+
+        $deptId = $u->department_id !== null ? (int)$u->department_id : null;
+        if ($deptId !== null && $deptId <= 0) $deptId = null;
+
+        // ✅ CONFIG: decide access by role + department_id
+        $allRoles  = ['admin', 'director', 'principal']; // gets ALL even if dept null
+        $deptRoles = ['hod', 'faculty', 'technical_assistant', 'it_person', 'placement_officer', 'student']; // needs dept
+
+        if (in_array($role, $allRoles, true)) {
+            return ['mode' => 'all', 'department_id' => null];
+        }
+
+        if (in_array($role, $deptRoles, true)) {
+            // none is based on role + dept id (your rule)
+            if (!$deptId) return ['mode' => 'none', 'department_id' => null];
+            return ['mode' => 'department', 'department_id' => $deptId];
+        }
+
+        return ['mode' => 'not_allowed', 'department_id' => null];
     }
 
     protected function resolveDepartment($identifier, bool $includeDeleted = false)
@@ -46,100 +178,102 @@ class AnnouncementController extends Controller
 
         return $q->first();
     }
-protected function baseQuery(Request $request, bool $includeDeleted = false)
-{
-    $q = DB::table('announcements as a')
-        ->leftJoin('departments as d', 'd.id', '=', 'a.department_id')
-        ->select([
-            'a.*',
-            'd.title as department_title',
-            'd.slug  as department_slug',
-            'd.uuid  as department_uuid',
-        ]);
 
-    if (! $includeDeleted) {
-        $q->whereNull('a.deleted_at');
-    }
+    protected function baseQuery(Request $request, bool $includeDeleted = false)
+    {
+        $q = DB::table('announcements as a')
+            ->leftJoin('departments as d', 'd.id', '=', 'a.department_id')
+            ->select([
+                'a.*',
+                'd.title as department_title',
+                'd.slug  as department_slug',
+                'd.uuid  as department_uuid',
+            ]);
 
-    // ?q=
-    if ($request->filled('q')) {
-        $term = '%' . trim((string) $request->query('q')) . '%';
-        $q->where(function ($sub) use ($term) {
-            $sub->where('a.title', 'like', $term)
-                ->orWhere('a.slug', 'like', $term)
-                ->orWhere('a.body', 'like', $term);
-        });
-    }
-
-    // ✅ FIX: Handle multiple statuses (comma-separated or array)
-    // ?status=draft,archived OR ?status[]=draft&status[]=archived
-    if ($request->filled('status')) {
-        $status = $request->query('status');
-        
-        // If it's an array, use whereIn
-        if (is_array($status)) {
-            $q->whereIn('a.status', $status);
-        } 
-        // If it's a comma-separated string, split it
-        elseif (str_contains($status, ',')) {
-            $statuses = array_map('trim', explode(',', $status));
-            $q->whereIn('a.status', $statuses);
+        if (! $includeDeleted) {
+            $q->whereNull('a.deleted_at');
         }
-        // Single status value
-        else {
-            $q->where('a.status', $status);
+
+        // ?q=
+        if ($request->filled('q')) {
+            $term = '%' . trim((string) $request->query('q')) . '%';
+            $q->where(function ($sub) use ($term) {
+                $sub->where('a.title', 'like', $term)
+                    ->orWhere('a.slug', 'like', $term)
+                    ->orWhere('a.body', 'like', $term);
+            });
         }
-    }
 
-    // ✅ ADD: Support for inactive flag (shows draft + archived)
-    if ($request->has('inactive') && $request->boolean('inactive')) {
-        $q->whereIn('a.status', ['draft', 'archived']);
-    }
+        // ✅ FIX: Handle multiple statuses (comma-separated or array)
+        // ?status=draft,archived OR ?status[]=draft&status[]=archived
+        if ($request->filled('status')) {
+            $status = $request->query('status');
 
-    // ?featured=1/0
-    if ($request->has('featured')) {
-        $featured = filter_var($request->query('featured'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-        if ($featured !== null) {
-            $q->where('a.is_featured_home', $featured ? 1 : 0);
+            // If it's an array, use whereIn
+            if (is_array($status)) {
+                $q->whereIn('a.status', $status);
+            }
+            // If it's a comma-separated string, split it
+            elseif (str_contains($status, ',')) {
+                $statuses = array_map('trim', explode(',', $status));
+                $q->whereIn('a.status', $statuses);
+            }
+            // Single status value
+            else {
+                $q->where('a.status', $status);
+            }
         }
-    }
 
-    // ?department=id|uuid|slug
-    if ($request->filled('department')) {
-        $dept = $this->resolveDepartment($request->query('department'), true);
-        if ($dept) {
-            $q->where('a.department_id', (int) $dept->id);
-        } else {
-            $q->whereRaw('1=0');
+        // ✅ ADD: Support for inactive flag (shows draft + archived)
+        if ($request->has('inactive') && $request->boolean('inactive')) {
+            $q->whereIn('a.status', ['draft', 'archived']);
         }
-    }
 
-    // ?visible_now=1 -> only published and currently in window
-    if ($request->has('visible_now')) {
-        $visible = filter_var($request->query('visible_now'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-        if ($visible) {
-            $now = now();
-            $q->where('a.status', 'published')
-                ->where(function ($w) use ($now) {
-                    $w->whereNull('a.publish_at')->orWhere('a.publish_at', '<=', $now);
-                })
-                ->where(function ($w) use ($now) {
-                    $w->whereNull('a.expire_at')->orWhere('a.expire_at', '>', $now);
-                });
+        // ?featured=1/0
+        if ($request->has('featured')) {
+            $featured = filter_var($request->query('featured'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($featured !== null) {
+                $q->where('a.is_featured_home', $featured ? 1 : 0);
+            }
         }
+
+        // ?department=id|uuid|slug
+        if ($request->filled('department')) {
+            $dept = $this->resolveDepartment($request->query('department'), true);
+            if ($dept) {
+                $q->where('a.department_id', (int) $dept->id);
+            } else {
+                $q->whereRaw('1=0');
+            }
+        }
+
+        // ?visible_now=1 -> only published and currently in window
+        if ($request->has('visible_now')) {
+            $visible = filter_var($request->query('visible_now'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($visible) {
+                $now = now();
+                $q->where('a.status', 'published')
+                    ->where(function ($w) use ($now) {
+                        $w->whereNull('a.publish_at')->orWhere('a.publish_at', '<=', $now);
+                    })
+                    ->where(function ($w) use ($now) {
+                        $w->whereNull('a.expire_at')->orWhere('a.expire_at', '>', $now);
+                    });
+            }
+        }
+
+        // sort
+        $sort = (string) $request->query('sort', 'created_at');
+        $dir  = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $allowed = ['created_at', 'publish_at', 'expire_at', 'title', 'views_count', 'id'];
+        if (! in_array($sort, $allowed, true)) $sort = 'created_at';
+
+        $q->orderBy('a.' . $sort, $dir);
+
+        return $q;
     }
 
-    // sort
-    $sort = (string) $request->query('sort', 'created_at');
-    $dir  = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-
-    $allowed = ['created_at', 'publish_at', 'expire_at', 'title', 'views_count', 'id'];
-    if (! in_array($sort, $allowed, true)) $sort = 'created_at';
-
-    $q->orderBy('a.' . $sort, $dir);
-
-    return $q;
-}
     protected function resolveAnnouncement(Request $request, $identifier, bool $includeDeleted = false, $departmentId = null)
     {
         $q = DB::table('announcements as a');
@@ -317,7 +451,31 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function index(Request $request)
     {
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+
         $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
+
+        // none => empty list (keep same response shape)
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
+        // department mode => force department filter
+        if ($ac['mode'] === 'department') {
+            $request->query->set('department', (string) $ac['department_id']);
+        }
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
         $onlyDeleted    = filter_var($request->query('only_trashed', false), FILTER_VALIDATE_BOOLEAN);
@@ -342,10 +500,94 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
         ]);
     }
 
+    /* ==========================================================
+     | ✅ NEW FETCH API: Only Approved (is_approved = 1)
+     |========================================================== */
+    public function indexApproved(Request $request)
+    {
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+
+        $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
+
+        // none => empty list (keep same response shape)
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
+        // department mode => force department filter
+        if ($ac['mode'] === 'department') {
+            $request->query->set('department', (string) $ac['department_id']);
+        }
+
+        $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
+        $onlyDeleted    = filter_var($request->query('only_trashed', false), FILTER_VALIDATE_BOOLEAN);
+
+        $query = $this->baseQuery($request, $includeDeleted || $onlyDeleted);
+
+        // ✅ Only approved items
+        $query->where('a.is_approved', 1);
+
+        if ($onlyDeleted) {
+            $query->whereNotNull('a.deleted_at');
+        }
+
+        $paginator = $query->paginate($perPage);
+        $items = array_map(function ($r) { return $this->normalizeRow($r); }, $paginator->items());
+
+        return response()->json([
+            'success' => true,
+            'data' => $items,
+            'pagination' => [
+                'page'      => $paginator->currentPage(),
+                'per_page'  => $paginator->perPage(),
+                'total'     => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
     public function indexByDepartment(Request $request, $department)
     {
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+
+        // none => empty list (keep same response shape as index)
+        $perPage = max(1, min(200, (int) $request->query('per_page', 20)));
+        if ($ac['mode'] === 'none') {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'page'      => 1,
+                    'per_page'  => $perPage,
+                    'total'     => 0,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
         $dept = $this->resolveDepartment($department, false);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
+
+        // department mode => can only access own department
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
 
         $request->query->set('department', $dept->id);
         return $this->index($request);
@@ -359,9 +601,22 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function show(Request $request, $identifier)
     {
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
-        $row = $this->resolveAnnouncement($request, $identifier, $includeDeleted);
+        // none => behave like not found (do not leak)
+        if ($ac['mode'] === 'none') {
+            return response()->json(['message' => 'Announcement not found'], 404);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveAnnouncement($request, $identifier, $includeDeleted, $deptId);
         if (! $row) return response()->json(['message' => 'Announcement not found'], 404);
 
         // optional: ?inc_view=1
@@ -378,8 +633,20 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function showByDepartment(Request $request, $department, $identifier)
     {
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['message' => 'Announcement not found'], 404);
+
         $dept = $this->resolveDepartment($department, true);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
+
+        // department mode => can only access own department
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
 
         $includeDeleted = filter_var($request->query('with_trashed', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -394,6 +661,18 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function store(Request $request)
     {
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        // department mode => force department_id to actor dept
+        if ($ac['mode'] === 'department') {
+            $request->merge(['department_id' => (int) $ac['department_id']]);
+        }
+
         $actor = $this->actor($request);
 
         $validated = $request->validate([
@@ -467,28 +746,52 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
             if (json_last_error() === JSON_ERROR_NONE) $metadata = $decoded;
         }
 
+        // ✅ NEW: Auto-sync request_for_approval based on is_featured_home
+        $featured = (int) ($validated['is_featured_home'] ?? 0);
+        $requestForApproval = $featured === 1 ? 1 : 0;
+
         $id = DB::table('announcements')->insertGetId([
-            'uuid'             => $uuid,
-            'department_id'    => $validated['department_id'] ?? null,
-            'title'            => $validated['title'],
-            'slug'             => $slug,
-            'body'             => $validated['body'],
-            'cover_image'      => $coverPath,
-            'attachments_json' => !empty($attachments) ? json_encode($attachments) : null,
-            'is_featured_home' => (int) ($validated['is_featured_home'] ?? 0),
-            'status'           => (string) ($validated['status'] ?? 'draft'),
-            'publish_at'       => !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null,
-            'expire_at'        => !empty($validated['expire_at']) ? Carbon::parse($validated['expire_at']) : null,
-            'views_count'      => 0,
-            'created_by'       => $actor['id'] ?: null,
-            'created_at'       => $now,
-            'updated_at'       => $now,
-            'created_at_ip'    => $request->ip(),
-            'updated_at_ip'    => $request->ip(),
-            'metadata'         => $metadata !== null ? json_encode($metadata) : null,
+            'uuid'                 => $uuid,
+            'department_id'        => $validated['department_id'] ?? null,
+            'title'                => $validated['title'],
+            'slug'                 => $slug,
+            'body'                 => $validated['body'],
+            'cover_image'          => $coverPath,
+            'attachments_json'     => !empty($attachments) ? json_encode($attachments) : null,
+            'is_featured_home'     => $featured,
+
+            // ✅ NEW: Authority Control Flag
+            'request_for_approval' => $requestForApproval,
+
+            'status'               => (string) ($validated['status'] ?? 'draft'),
+            'publish_at'           => !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null,
+            'expire_at'            => !empty($validated['expire_at']) ? Carbon::parse($validated['expire_at']) : null,
+            'views_count'          => 0,
+            'created_by'           => $actor['id'] ?: null,
+            'created_at'           => $now,
+            'updated_at'           => $now,
+            'created_at_ip'        => $request->ip(),
+            'updated_at_ip'        => $request->ip(),
+            'metadata'             => $metadata !== null ? json_encode($metadata) : null,
         ]);
 
         $row = DB::table('announcements')->where('id', $id)->first();
+
+        // ✅ ACTIVITY LOG (POST)
+        $createFields = [
+            'department_id','title','slug','body','cover_image','attachments_json',
+            'is_featured_home','request_for_approval','status','publish_at','expire_at','metadata'
+        ];
+        $this->logActivity(
+            $request,
+            'create',
+            'announcements',
+            (int) $id,
+            $createFields,
+            null,
+            $this->subsetRow($row, $createFields),
+            'Announcement created'
+        );
 
         return response()->json([
             'success' => true,
@@ -498,17 +801,47 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function storeForDepartment(Request $request, $department)
     {
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
         $dept = $this->resolveDepartment($department, false);
         if (! $dept) return response()->json(['message' => 'Department not found'], 404);
 
+        // department mode => can only store in own department
+        if ($ac['mode'] === 'department' && (int)$dept->id !== (int)$ac['department_id']) {
+            return response()->json(['error' => 'Not allowed'], 403);
+        }
+
+        // force department_id (always)
         $request->merge(['department_id' => (int) $dept->id]);
-        return $this->store($request);
+        return $this->store($request); // logs happen inside store()
     }
 
     public function update(Request $request, $identifier)
     {
-        $row = $this->resolveAnnouncement($request, $identifier, true);
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        // department mode => lock department_id in request (prevents cross-dept move)
+        if ($ac['mode'] === 'department') {
+            $request->merge(['department_id' => (int) $ac['department_id']]);
+        }
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveAnnouncement($request, $identifier, true, $deptId);
         if (! $row) return response()->json(['message' => 'Announcement not found'], 404);
+
+        // ✅ OLD SNAPSHOT (for log)
+        $oldDbRow = DB::table('announcements')->where('id', (int) $row->id)->first();
 
         $validated = $request->validate([
             'department_id'      => ['nullable', 'integer', 'exists:departments,id'],
@@ -547,9 +880,16 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
         if (array_key_exists('department_id', $validated)) {
             $update['department_id'] = $validated['department_id'] !== null ? (int) $validated['department_id'] : null;
         }
+
+        // ✅ NEW: If is_featured_home is updated -> also auto-update request_for_approval
         if (array_key_exists('is_featured_home', $validated)) {
-            $update['is_featured_home'] = (int) $validated['is_featured_home'];
+            $featured = (int) $validated['is_featured_home'];
+            $update['is_featured_home'] = $featured;
+
+            // ✅ Authority Control Auto-Sync
+            $update['request_for_approval'] = $featured === 1 ? 1 : 0;
         }
+
         if (array_key_exists('publish_at', $validated)) {
             $update['publish_at'] = !empty($validated['publish_at']) ? Carbon::parse($validated['publish_at']) : null;
         }
@@ -652,6 +992,21 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
         $fresh = DB::table('announcements')->where('id', (int) $row->id)->first();
 
+        // ✅ ACTIVITY LOG (PUT/PATCH)
+        $changedKeys = array_keys($update);
+        // don't spam with timestamps for "changed_fields"
+        $changedKeys = array_values(array_diff($changedKeys, ['updated_at', 'updated_at_ip']));
+        $this->logActivity(
+            $request,
+            'update',
+            'announcements',
+            (int) $row->id,
+            $changedKeys,
+            $this->subsetRow($oldDbRow, $changedKeys),
+            $this->subsetRow($fresh, $changedKeys),
+            'Announcement updated'
+        );
+
         return response()->json([
             'success' => true,
             'data'    => $fresh ? $this->normalizeRow($fresh) : null,
@@ -660,18 +1015,47 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function toggleFeatured(Request $request, $identifier)
     {
-        $row = $this->resolveAnnouncement($request, $identifier, true);
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveAnnouncement($request, $identifier, true, $deptId);
         if (! $row) return response()->json(['message' => 'Announcement not found'], 404);
+
+        // ✅ OLD SNAPSHOT (for log)
+        $oldDbRow = DB::table('announcements')->where('id', (int) $row->id)->first();
 
         $new = ((int) ($row->is_featured_home ?? 0)) ? 0 : 1;
 
         DB::table('announcements')->where('id', (int) $row->id)->update([
-            'is_featured_home' => $new,
-            'updated_at'       => now(),
-            'updated_at_ip'    => $request->ip(),
+            'is_featured_home'     => $new,
+
+            // ✅ NEW: Auto-sync request_for_approval
+            'request_for_approval' => $new === 1 ? 1 : 0,
+
+            'updated_at'           => now(),
+            'updated_at_ip'        => $request->ip(),
         ]);
 
         $fresh = DB::table('announcements')->where('id', (int) $row->id)->first();
+
+        // ✅ ACTIVITY LOG (PATCH)
+        $keys = ['is_featured_home', 'request_for_approval'];
+        $this->logActivity(
+            $request,
+            'toggle_featured',
+            'announcements',
+            (int) $row->id,
+            $keys,
+            $this->subsetRow($oldDbRow, $keys),
+            $this->subsetRow($fresh, $keys),
+            $new === 1 ? 'Featured enabled' : 'Featured disabled'
+        );
 
         return response()->json([
             'success' => true,
@@ -681,8 +1065,20 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function destroy(Request $request, $identifier)
     {
-        $row = $this->resolveAnnouncement($request, $identifier, false);
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveAnnouncement($request, $identifier, false, $deptId);
         if (! $row) return response()->json(['message' => 'Not found or already deleted'], 404);
+
+        // ✅ OLD SNAPSHOT (for log)
+        $oldDbRow = DB::table('announcements')->where('id', (int) $row->id)->first();
 
         DB::table('announcements')->where('id', (int) $row->id)->update([
             'deleted_at'    => now(),
@@ -690,15 +1086,42 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
             'updated_at_ip' => $request->ip(),
         ]);
 
+        $fresh = DB::table('announcements')->where('id', (int) $row->id)->first();
+
+        // ✅ ACTIVITY LOG (DELETE)
+        $keys = ['deleted_at'];
+        $this->logActivity(
+            $request,
+            'delete',
+            'announcements',
+            (int) $row->id,
+            $keys,
+            $this->subsetRow($oldDbRow, $keys),
+            $this->subsetRow($fresh, $keys),
+            'Announcement moved to trash'
+        );
+
         return response()->json(['success' => true]);
     }
 
     public function restore(Request $request, $identifier)
     {
-        $row = $this->resolveAnnouncement($request, $identifier, true);
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveAnnouncement($request, $identifier, true, $deptId);
         if (! $row || $row->deleted_at === null) {
             return response()->json(['message' => 'Not found in bin'], 404);
         }
+
+        // ✅ OLD SNAPSHOT (for log)
+        $oldDbRow = DB::table('announcements')->where('id', (int) $row->id)->first();
 
         DB::table('announcements')->where('id', (int) $row->id)->update([
             'deleted_at'    => null,
@@ -708,6 +1131,19 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
         $fresh = DB::table('announcements')->where('id', (int) $row->id)->first();
 
+        // ✅ ACTIVITY LOG (POST/PATCH)
+        $keys = ['deleted_at'];
+        $this->logActivity(
+            $request,
+            'restore',
+            'announcements',
+            (int) $row->id,
+            $keys,
+            $this->subsetRow($oldDbRow, $keys),
+            $this->subsetRow($fresh, $keys),
+            'Announcement restored from trash'
+        );
+
         return response()->json([
             'success' => true,
             'data'    => $fresh ? $this->normalizeRow($fresh) : null,
@@ -716,8 +1152,20 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
 
     public function forceDelete(Request $request, $identifier)
     {
-        $row = $this->resolveAnnouncement($request, $identifier, true);
+        // ✅ ACCESS CONTROL
+        $actorId = (int) $request->attributes->get('auth_tokenable_id');
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed') return response()->json(['error' => 'Not allowed'], 403);
+        if ($ac['mode'] === 'none')        return response()->json(['error' => 'Not allowed'], 403);
+
+        $deptId = ($ac['mode'] === 'department') ? (int) $ac['department_id'] : null;
+
+        $row = $this->resolveAnnouncement($request, $identifier, true, $deptId);
         if (! $row) return response()->json(['message' => 'Announcement not found'], 404);
+
+        // ✅ OLD SNAPSHOT (for log) - capture key data before deletion
+        $oldDbRow = DB::table('announcements')->where('id', (int) $row->id)->first();
 
         // delete cover
         $this->deletePublicPath($row->cover_image ?? null);
@@ -734,6 +1182,22 @@ protected function baseQuery(Request $request, bool $includeDeleted = false)
         }
 
         DB::table('announcements')->where('id', (int) $row->id)->delete();
+
+        // ✅ ACTIVITY LOG (DELETE - force)
+        $keys = [
+            'id','uuid','department_id','title','slug','status','is_featured_home','request_for_approval',
+            'publish_at','expire_at','cover_image','attachments_json','deleted_at','created_by','created_at','updated_at'
+        ];
+        $this->logActivity(
+            $request,
+            'force_delete',
+            'announcements',
+            (int) $row->id,
+            ['force_delete'],
+            $this->subsetRow($oldDbRow, $keys),
+            null,
+            'Announcement permanently deleted'
+        );
 
         return response()->json(['success' => true]);
     }
