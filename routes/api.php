@@ -69,6 +69,8 @@ use App\Http\Controllers\API\TechnicalAssistantPreviewOrderController;
 use App\Http\Controllers\API\PlacementOfficerPreviewOrderController;
 use App\Http\Controllers\API\UserActivityLogsController;
 use App\Http\Controllers\API\MetaTagController;
+use App\Http\Controllers\API\EmailOtpController;
+use App\Http\Controllers\API\LoginOtpController;
 
 /*
 |--------------------------------------------------------------------------
@@ -2226,3 +2228,16 @@ Route::prefix('public')->group(function () {
     // recommended: pass ?page_link=/about or full URL, etc.
     Route::get('/meta-tags', [MetaTagController::class, 'publicIndex']);
 });
+
+
+Route::post('/check-email-verification', [EmailOtpController::class, 'checkEmailVerification']);
+Route::post('/send-email-otp',          [EmailOtpController::class, 'send']);
+Route::post('/verify-email-otp',        [EmailOtpController::class, 'verify']);
+
+// Route::middleware('checkRole')->group(function () {
+//     Route::post('/student-results/send-result-email', [EmailOtpController::class, 'sendResultEmail']);
+// });
+
+
+Route::post('/auth/send-login-otp', [LoginOtpController::class, 'sendLoginOtp']);
+Route::post('/auth/login-with-otp', [LoginOtpController::class, 'loginWithOtp']);

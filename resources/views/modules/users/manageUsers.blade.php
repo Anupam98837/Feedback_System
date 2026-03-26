@@ -239,6 +239,7 @@ td .fw-semibold{color:var(--ink)}
             <label class="form-label">Role</label>
             <select id="modal_role" class="form-select">
               <option value="">All Roles</option>
+              <option value="admin">Admin</option>
               <option value="director">Director</option>
               <option value="principal">Principal</option>
               <option value="hod">Head of Department</option>

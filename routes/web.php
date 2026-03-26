@@ -13,8 +13,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/page/{slug}', function () {
     return view('landing.pages.dynamicPage');
 });
+// Route::get('/', function () {
+//     return view('pages.auth.login');
+// });
+
 Route::get('/', function () {
-    return view('pages.auth.login');
+    return view('pages.auth.loginOtp');
 });
 
 

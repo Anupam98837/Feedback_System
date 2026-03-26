@@ -11,36 +11,71 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
+        $now = now();
+
         DB::table('users')->insert([
-            'uuid'                  => Str::uuid(),
-            'name'                  => 'Admin',
-            'slug'                  => 'admin',
-            'email'                 => 'admin@gmail.com',
-            'email_verified_at'     => now(),
+            [
+                'uuid'                     => (string) Str::uuid(),
+                'name'                     => 'Subir Hazra',
+                'slug'                     => 'subir-hazra',
+                'email'                    => 'subir.hazra@msit.edu.in',
+                'email_verified_at'        => $now,
 
-            'phone_number'          => null,
-            'alternative_email'     => null,
-            'alternative_phone_number' => null,
-            'whatsapp_number'       => null,
+                'phone_number'             => null,
+                'alternative_email'        => null,
+                'alternative_phone_number' => null,
+                'whatsapp_number'          => null,
 
-            'password'              => Hash::make('admin@123'),
+                'password'                 => Hash::make('subir@123'),
 
-            'image'                 => null,
-            'address'               => null,
+                'image'                    => null,
+                'address'                  => null,
 
-            'role'                  => 'admin',
-            'role_short_form'       => 'ADM',
+                'role'                     => 'admin',
+                'role_short_form'          => 'ADM',
 
-            'status'                => 'active',
-            'last_login_at'         => null,
-            'last_login_ip'         => null,
+                'status'                   => 'active',
+                'last_login_at'            => null,
+                'last_login_ip'            => null,
 
-            'created_by'            => null,
-            'created_at'            => now(),
-            'updated_at'            => now(),
-            'created_at_ip'         => '127.0.0.1',
+                'created_by'               => null,
+                'created_at'               => $now,
+                'updated_at'               => $now,
+                'created_at_ip'            => '127.0.0.1',
 
-            'metadata'              => json_encode([]),
+                'metadata'                 => json_encode([]),
+            ],
+            [
+                'uuid'                     => (string) Str::uuid(),
+                'name'                     => 'Rictor Bhowmick',
+                'slug'                     => 'rictor-bhowmick',
+                'email'                    => 'rictorbhowmick@hallienz.com',
+                'email_verified_at'        => $now,
+
+                'phone_number'             => null,
+                'alternative_email'        => null,
+                'alternative_phone_number' => null,
+                'whatsapp_number'          => null,
+
+                'password'                 => Hash::make('rictor@123'),
+
+                'image'                    => null,
+                'address'                  => null,
+
+                'role'                     => 'admin',
+                'role_short_form'          => 'ADM',
+
+                'status'                   => 'active',
+                'last_login_at'            => null,
+                'last_login_ip'            => null,
+
+                'created_by'               => null,
+                'created_at'               => $now,
+                'updated_at'               => $now,
+                'created_at_ip'            => '127.0.0.1',
+
+                'metadata'                 => json_encode([]),
+            ],
         ]);
     }
 }
