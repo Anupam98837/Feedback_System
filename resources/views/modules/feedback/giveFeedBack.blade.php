@@ -718,7 +718,9 @@
       ? `<span class="sub-type-pill optional"><i class="fa fa-circle-check" style="opacity:.75"></i>Optional</span>`
       : `<span class="sub-type-pill compulsory"><i class="fa fa-shield" style="opacity:.75"></i>Compulsory</span>`;
 
-    return `<span>${esc(name)}</span> ${codeHtml} ${tpHtml}`;
+    return `<span>${esc(name)}</span> ${codeHtml}`;
+    // return `<span>${esc(name)}</span> ${codeHtml} ${tpHtml}`;
+
   }
 
   /* ======================================================
