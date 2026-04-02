@@ -7,6 +7,8 @@
   <title>Login — {{ config('app.name', 'Hallienz Home Builder') }}</title>
 
   <meta name="csrf-token" content="{{ csrf_token() }}"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('assets/media/images/favicon/msit_logo.jpg') }}">
+
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
@@ -170,6 +172,70 @@
       .lx-sub{
         font-size:.90rem;
       }
+    }
+
+    .lx-google-btn{
+      width:100%;
+      min-height:54px;
+      border-radius:16px;
+      border:1px solid rgba(158,54,58,.16);
+      background:#fff;
+      color:#202124;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      padding:12px 16px;
+      text-decoration:none;
+      font-weight:700;
+      box-shadow:0 8px 22px rgba(0,0,0,.04);
+      transition:all .2s ease;
+      margin-bottom:14px;
+    }
+
+    .lx-google-btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 14px 28px rgba(0,0,0,.08);
+      color:#111827;
+    }
+
+    .lx-google-btn.loading{
+      pointer-events:none;
+      opacity:.82;
+    }
+
+    .lx-google-icon{
+      width:20px;
+      height:20px;
+      flex:0 0 20px;
+      display:block;
+    }
+
+    .lx-divider{
+      position:relative;
+      text-align:center;
+      margin:12px 0 16px;
+    }
+
+    .lx-divider::before{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      top:50%;
+      transform:translateY(-50%);
+      border-top:1px solid rgba(158,54,58,.14);
+    }
+
+    .lx-divider span{
+      position:relative;
+      z-index:1;
+      display:inline-block;
+      padding:0 12px;
+      background:rgba(255,255,255,.92);
+      color:var(--muted-color);
+      font-size:.84rem;
+      font-weight:700;
     }
 
     .lx-label{
@@ -521,6 +587,24 @@
     <form class="lx-card" id="lxo_form" novalidate>
       <div id="lxo_alert" class="alert d-none lx-alert" role="alert"></div>
 
+      <a
+        id="lxo_google_btn"
+        class="lx-google-btn"
+        href="{{ route('auth.google.redirect') }}"
+      >
+        <svg class="lx-google-icon" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.654 32.657 29.195 36 24 36c-6.627 0-12-5.373-12-12S17.373 12 24 12c3.059 0 5.851 1.154 7.972 3.028l5.657-5.657C34.053 6.053 29.277 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+          <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.851 1.154 7.972 3.028l5.657-5.657C34.053 6.053 29.277 4 24 4c-7.682 0-14.347 4.337-17.694 10.691z"/>
+          <path fill="#4CAF50" d="M24 44c5.176 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.141 35.091 26.715 36 24 36c-5.174 0-9.62-3.326-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+          <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.085 5.571l.003-.002 6.19 5.238C36.971 38.529 44 33 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+        </svg>
+        <span id="lxo_google_text">Continue with Google</span>
+      </a>
+
+      <div class="lx-divider">
+        <span>or continue with OTP login</span>
+      </div>
+
       <div class="mb-2">
         <label class="lx-label form-label" for="lxo_email">Institute Email</label>
         <input id="lxo_email"
@@ -644,6 +728,9 @@
   const emailMeta         = document.getElementById('lxo_email_meta');
   const alertEl           = document.getElementById('lxo_alert');
   const keepCb            = document.getElementById('lxo_keep');
+
+  const googleBtn         = document.getElementById('lxo_google_btn');
+  const googleText        = document.getElementById('lxo_google_text');
 
   const gatedSection      = document.getElementById('lxo_gated_section');
   const sendBtn           = document.getElementById('lxo_send_btn');
@@ -1091,57 +1178,57 @@
   }
 
   function resetViewFromEmailChange() {
-  clearAlert();
-  clearOtpBoxes();
-  applySavedCooldown();
+    clearAlert();
+    clearOtpBoxes();
+    applySavedCooldown();
 
-  if (!emailIn.value.trim()) {
-    setEmailMeta('Enter your institute email first.');
-    captchaTip.textContent = 'Locked until allowed domain';
-    captchaHint.textContent = 'Type an allowed email domain to unlock this section.';
-    setBelowSectionLocked(true);
-    resetOtpInputState(true);
+    if (!emailIn.value.trim()) {
+      setEmailMeta('Enter your institute email first.');
+      captchaTip.textContent = 'Locked until allowed domain';
+      captchaHint.textContent = 'Type an allowed email domain to unlock this section.';
+      setBelowSectionLocked(true);
+      resetOtpInputState(true);
+      refreshSendButton();
+      return;
+    }
+
+    if (!validEmail(currentEmail())) {
+      setEmailMeta('Please enter a valid email address.');
+      captchaTip.textContent = 'Locked until allowed domain';
+      captchaHint.textContent = 'Enter a proper email format first.';
+      setBelowSectionLocked(true);
+      resetOtpInputState(true);
+      refreshSendButton();
+      return;
+    }
+
+    if (!hasAllowedDomain(currentEmail())) {
+      setEmailMeta('Your email is not allowed.', 'error');
+      captchaTip.textContent = 'Allowed: msit.edu.in / hallienz.com';
+      captchaHint.textContent = 'Below section stays disabled for other domains.';
+      setBelowSectionLocked(true);
+      resetOtpInputState(true);
+      refreshSendButton();
+      return;
+    }
+
+    setBelowSectionLocked(false);
+    captchaTip.textContent = 'Click image to refresh';
+
+    setEmailMeta(
+      state.captchaSolved
+        ? 'Captcha verified. You can send OTP now.'
+        : 'Allowed email detected. Enter captcha to continue.'
+    );
+
+    if (!state.captchaSolved) {
+      captchaHint.textContent = 'Type the captcha correctly to enable Send OTP.';
+    }
+
+    hydratePendingOtpState();
     refreshSendButton();
-    return;
+    refreshResendButton();
   }
-
-  if (!validEmail(currentEmail())) {
-    setEmailMeta('Please enter a valid email address.');
-    captchaTip.textContent = 'Locked until allowed domain';
-    captchaHint.textContent = 'Enter a proper email format first.';
-    setBelowSectionLocked(true);
-    resetOtpInputState(true);
-    refreshSendButton();
-    return;
-  }
-
-  if (!hasAllowedDomain(currentEmail())) {
-    setEmailMeta('Your email is not allowed.', 'error');
-    captchaTip.textContent = 'Allowed: msit.edu.in / hallienz.com';
-    captchaHint.textContent = 'Below section stays disabled for other domains.';
-    setBelowSectionLocked(true);
-    resetOtpInputState(true);
-    refreshSendButton();
-    return;
-  }
-
-  setBelowSectionLocked(false);
-  captchaTip.textContent = 'Click image to refresh';
-
-  setEmailMeta(
-    state.captchaSolved
-      ? 'Captcha verified. You can send OTP now.'
-      : 'Allowed email detected. Enter captcha to continue.'
-  );
-
-  if (!state.captchaSolved) {
-    captchaHint.textContent = 'Type the captcha correctly to enable Send OTP.';
-  }
-
-  hydratePendingOtpState();
-  refreshSendButton();
-  refreshResendButton();
-}
 
   function generateCaptchaText(length = CAPTCHA_LENGTH) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1272,87 +1359,85 @@
   }
 
   async function sendOtp() {
-  if (!canSendOtp()) {
-    if (!validEmail(currentEmail())) {
-      showAlert('error', 'Please enter a valid email.');
-    } else if (!hasAllowedDomain(currentEmail())) {
-      showAlert('error', 'Your email is not allowed.');
-    } else if (!state.captchaSolved) {
-      showAlert('error', 'Please enter the correct captcha first.');
+    if (!canSendOtp()) {
+      if (!validEmail(currentEmail())) {
+        showAlert('error', 'Please enter a valid email.');
+      } else if (!hasAllowedDomain(currentEmail())) {
+        showAlert('error', 'Your email is not allowed.');
+      } else if (!state.captchaSolved) {
+        showAlert('error', 'Please enter the correct captcha first.');
+      }
+      return;
     }
-    return;
-  }
 
-  clearAlert();
-  state.sendingOtp = true;
-  setBelowSectionLocked(true);
-  refreshSendButton();
-  refreshResendButton();
+    clearAlert();
+    state.sendingOtp = true;
+    setBelowSectionLocked(true);
+    refreshSendButton();
+    refreshResendButton();
 
-  // keep OTP panel hidden until backend success
-  resetOtpInputState(true);
-  otpMeta.textContent = 'Sending OTP...';
-  setOtpPill('fa-solid fa-spinner fa-spin', 'Sending code');
+    resetOtpInputState(true);
+    otpMeta.textContent = 'Sending OTP...';
+    setOtpPill('fa-solid fa-spinner fa-spin', 'Sending code');
 
-  try {
-    const res = await fetch(SEND_LOGIN_OTP_API, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ email: currentEmail() })
-    });
+    try {
+      const res = await fetch(SEND_LOGIN_OTP_API, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ email: currentEmail() })
+      });
 
-    const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      state.sendingOtp = false;
-      setBelowSectionLocked(!isAllowedInstituteEmail(currentEmail()));
-      resetOtpInputState(true); // keep hidden on any failure
+      if (!res.ok) {
+        state.sendingOtp = false;
+        setBelowSectionLocked(!isAllowedInstituteEmail(currentEmail()));
+        resetOtpInputState(true);
 
-      if (res.status === 429) {
-        const seconds = Number(data?.seconds_left || 0);
-        if (seconds > 0) {
-          applyServerCooldown(seconds);
+        if (res.status === 429) {
+          const seconds = Number(data?.seconds_left || 0);
+          if (seconds > 0) {
+            applyServerCooldown(seconds);
+          }
+          otpMeta.textContent = data?.message || 'Please wait before requesting another OTP.';
+          setOtpPill('fa-regular fa-clock', 'Cooldown active');
+          showAlert('warn', data?.message || 'Please wait before requesting another OTP.');
+          refreshSendButton();
+          refreshResendButton();
+          return;
         }
-        otpMeta.textContent = data?.message || 'Please wait before requesting another OTP.';
-        setOtpPill('fa-regular fa-clock', 'Cooldown active');
-        showAlert('warn', data?.message || 'Please wait before requesting another OTP.');
+
+        otpMeta.textContent = data?.message || 'Failed to send OTP.';
+        setOtpPill('fa-solid fa-circle-xmark', 'Unable to send');
+        showAlert('error', data?.message || 'Failed to send OTP.');
         refreshSendButton();
         refreshResendButton();
         return;
       }
 
-      otpMeta.textContent = data?.message || 'Failed to send OTP.';
-      setOtpPill('fa-solid fa-circle-xmark', 'Unable to send');
-      showAlert('error', data?.message || 'Failed to send OTP.');
+      state.sendingOtp = false;
+      setBelowSectionLocked(false);
+
+      prepareOtpEntryState();
+      markOtpSentSuccess();
+
+      otpMeta.textContent = data?.message || 'OTP sent successfully. Enter all 6 digits.';
+      setEmailMeta('OTP sent to your email.', 'success');
+      setOtpPill('fa-solid fa-bolt', 'Auto verify enabled');
+      showAlert('success', data?.message || 'OTP sent successfully.');
       refreshSendButton();
       refreshResendButton();
-      return;
+    } catch (err) {
+      state.sendingOtp = false;
+      setBelowSectionLocked(!isAllowedInstituteEmail(currentEmail()));
+      resetOtpInputState(true);
+      otpMeta.textContent = 'Network error while sending OTP.';
+      setOtpPill('fa-solid fa-triangle-exclamation', 'Network issue');
+      showAlert('error', 'Network error while sending OTP.');
+      refreshSendButton();
+      refreshResendButton();
     }
-
-    state.sendingOtp = false;
-    setBelowSectionLocked(false);
-
-    // show OTP panel only after success
-    prepareOtpEntryState();
-    markOtpSentSuccess();
-
-    otpMeta.textContent = data?.message || 'OTP sent successfully. Enter all 6 digits.';
-    setEmailMeta('OTP sent to your email.', 'success');
-    setOtpPill('fa-solid fa-bolt', 'Auto verify enabled');
-    showAlert('success', data?.message || 'OTP sent successfully.');
-    refreshSendButton();
-    refreshResendButton();
-  } catch (err) {
-    state.sendingOtp = false;
-    setBelowSectionLocked(!isAllowedInstituteEmail(currentEmail()));
-    resetOtpInputState(true); // keep hidden on network error
-    otpMeta.textContent = 'Network error while sending OTP.';
-    setOtpPill('fa-solid fa-triangle-exclamation', 'Network issue');
-    showAlert('error', 'Network error while sending OTP.');
-    refreshSendButton();
-    refreshResendButton();
   }
-}
 
   async function loginWithOtp() {
     const email = currentEmail();
@@ -1488,16 +1573,15 @@
   }
 
   function setEmailMeta(message, type = 'normal') {
-  emailMeta.textContent = message;
-  emailMeta.classList.remove('text-danger', 'text-success');
+    emailMeta.textContent = message;
+    emailMeta.classList.remove('text-danger', 'text-success');
 
-  if (type === 'error') {
-    emailMeta.classList.add('text-danger');
-  } else if (type === 'success') {
-    emailMeta.classList.add('text-success');
+    if (type === 'error') {
+      emailMeta.classList.add('text-danger');
+    } else if (type === 'success') {
+      emailMeta.classList.add('text-success');
+    }
   }
-}
-
 
   function triggerOtpAutoVerify() {
     clearTimeout(state.autoVerifyTimer);
@@ -1508,6 +1592,20 @@
       loginWithOtp();
     }, 160);
   }
+
+  googleBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+
+    googleBtn.classList.add('loading');
+    if (googleText) {
+      googleText.textContent = 'Redirecting to Google...';
+    }
+
+    const url = new URL(googleBtn.getAttribute('href'), window.location.origin);
+    url.searchParams.set('keep', keepCb?.checked ? '1' : '0');
+
+    window.location.href = url.toString();
+  });
 
   emailIn?.addEventListener('input', () => {
     resetViewFromEmailChange();

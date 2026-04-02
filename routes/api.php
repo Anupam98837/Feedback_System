@@ -71,6 +71,7 @@ use App\Http\Controllers\API\UserActivityLogsController;
 use App\Http\Controllers\API\MetaTagController;
 use App\Http\Controllers\API\EmailOtpController;
 use App\Http\Controllers\API\LoginOtpController;
+use App\Http\Controllers\API\GoogleAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -83,6 +84,12 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 
+
+Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle'])
+    ->name('auth.google.redirect');
+
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])
+    ->name('auth.google.callback');
 /*
 |--------------------------------------------------------------------------
 | Auth Routes
