@@ -1506,123 +1506,165 @@ const participatedLabel = String(participated);
     }
 
     function doExportPdf(){
-      const selected = getSelectedExportTargets();
-      if (!selected.length){
-        err('Select at least one target (Overall/Faculty)');
-        return;
-      }
+  const selected = getSelectedExportTargets();
+  if (!selected.length){
+    err('Select at least one target (Overall/Faculty)');
+    return;
+  }
 
-      const post = state.lastDetailPost || {};
-      const ctx  = state.lastDetailCtx || {};
+  const post = state.lastDetailPost || {};
+  const ctx  = state.lastDetailCtx || {};
 
-      const title = safeText(post.title) || 'Feedback Result';
-      const metaRows = buildBasicMetaRows(post, ctx);
+  const title = safeText(post.title) || 'Feedback Result';
+  const metaRows = buildBasicMetaRows(post, ctx);
 
-      const { jsPDF } = (window.jspdf || {});
-      if (!jsPDF){
-        err('PDF library not loaded');
-        return;
-      }
+  const { jsPDF } = (window.jspdf || {});
+  if (!jsPDF){
+    err('PDF library not loaded');
+    return;
+  }
 
-      const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-      const pageW = doc.internal.pageSize.getWidth();
-      const margin = 32;
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 32;
 
-      function addHeaderBlock(pageTitle){
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(14);
-        doc.text(pageTitle, margin, 36);
+  // dynamic header bottom so long text never overlaps table heading
+  let headerBottomY = 112;
 
-        doc.setFont('helvetica','normal');
-        doc.setFontSize(9);
+  function addHeaderBlock(pageTitle){
+    const contentW = pageW - (margin * 2);
+    const colGap = 24;
+    const colW = (contentW - colGap) / 2;
+    const labelW = 82;
+    const valueGap = 6;
+    const lineH = 10;
 
-        let x = margin, y = 58;
-        const colGap = 280;
-        const rowH = 12;
+    // title wrap
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    const titleLines = doc.splitTextToSize(String(pageTitle || 'Feedback Result'), contentW);
+    doc.text(titleLines, margin, 36);
 
-        metaRows.forEach((kv, i) => {
-          const col = (i % 2);
-          const row = Math.floor(i / 2);
-          const xx = x + (col * colGap);
-          const yy = y + (row * rowH);
-          doc.setFont('helvetica','bold');
-          doc.text(String(kv[0]) + ':', xx, yy);
-          doc.setFont('helvetica','normal');
-          doc.text(String(kv[1] ?? '—'), xx + 90, yy);
-        });
+    let y = 36 + (titleLines.length * 14) + 10;
 
-        doc.setDrawColor(200);
-        doc.line(margin, 112, pageW - margin, 112);
-      }
+    function drawMetaCell(label, value, x, topY, width){
+      const safeLabel = String(label || '');
+      const safeValue = String(value ?? '—') || '—';
+      const valueW = Math.max(60, width - labelW - valueGap);
 
-      function addMatrixTable(matrix, sheetLabel){
-        const head = [['Question','Outstanding [5]','Excellent [4]','Good [3]','Fair [2]','Not Satisfactory [1]']];
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(`${safeLabel}:`, x, topY);
 
-        const body = (matrix.rowCounts || []).map(r => {
-          const c = normalizeCountMap(r.counts || {});
-          const q = `${r.idx}. ${r.question}`;
-          return [q, String(c['5']), String(c['4']), String(c['3']), String(c['2']), String(c['1'])];
-        });
+      doc.setFont('helvetica', 'normal');
+      const valueLines = doc.splitTextToSize(safeValue, valueW);
+      doc.text(valueLines, x + labelW + valueGap, topY);
 
-        // ✅ CHANGED: No totals / no ratings. Keep ONLY Avg Grade.
-        const avg = matrix.avgGrade;
-        body.push([
-          `Avg Grade: ${avg !== null ? avg : '—'}/5`,
-          '',
-          '',
-          '',
-          '',
-          '',
-        ]);
-
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(11);
-        doc.text(sheetLabel, margin, 138);
-
-        doc.autoTable({
-          startY: 150,
-          head,
-          body,
-          theme: 'grid',
-          styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
-          headStyles: { fontStyle: 'bold' },
-          columnStyles: {
-            0: { cellWidth: 420 },
-            1: { halign:'center' },
-            2: { halign:'center' },
-            3: { halign:'center' },
-            4: { halign:'center' },
-            5: { halign:'center' },
-          },
-          margin: { left: margin, right: margin },
-          didParseCell: (data) => {
-            // highlight last row (avg row)
-            if (data.section === 'body' && data.row.index === body.length - 1){
-              data.cell.styles.fillColor = [245,245,245];
-              data.cell.styles.fontStyle = 'bold';
-            }
-          }
-        });
-      }
-
-      const ordered = [];
-      if (selected.includes('0')) ordered.push('0');
-      selected.filter(x => x !== '0').forEach(x => ordered.push(x));
-
-      ordered.forEach((fid, idx) => {
-        if (idx > 0) doc.addPage();
-
-        const target = buildExportMatrixForTarget(fid);
-        const sheetLabel = target.isOverall ? 'Overall' : `Faculty: ${target.facShort}`;
-
-        addHeaderBlock(title);
-        addMatrixTable(target.matrix, sheetLabel);
-      });
-
-      const fname = `feedback_export_${slugify(post?.title)}_${nowStamp()}.pdf`;
-      doc.save(fname);
-      ok('PDF exported');
+      return Math.max(1, valueLines.length) * lineH;
     }
+
+    for (let i = 0; i < metaRows.length; i += 2){
+      const left = metaRows[i] || ['', '—'];
+      const right = metaRows[i + 1] || null;
+
+      const leftHeight = drawMetaCell(left[0], left[1], margin, y, colW);
+
+      let rightHeight = 0;
+      if (right){
+        rightHeight = drawMetaCell(
+          right[0],
+          right[1],
+          margin + colW + colGap,
+          y,
+          colW
+        );
+      }
+
+      y += Math.max(leftHeight, rightHeight, lineH) + 8;
+    }
+
+    headerBottomY = y + 4;
+
+    doc.setDrawColor(200);
+    doc.line(margin, headerBottomY, pageW - margin, headerBottomY);
+  }
+
+  function addMatrixTable(matrix, sheetLabel){
+    const head = [[
+      'Question',
+      'Outstanding [5]',
+      'Excellent [4]',
+      'Good [3]',
+      'Fair [2]',
+      'Not Satisfactory [1]'
+    ]];
+
+    const body = (matrix.rowCounts || []).map(r => {
+      const c = normalizeCountMap(r.counts || {});
+      const q = `${r.idx}. ${r.question}`;
+      return [q, String(c['5']), String(c['4']), String(c['3']), String(c['2']), String(c['1'])];
+    });
+
+    const avg = matrix.avgGrade;
+    body.push([
+      `Avg Grade: ${avg !== null ? avg : '—'}/5`,
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]);
+
+    const sheetLabelY = headerBottomY + 20;
+    const tableStartY = sheetLabelY + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(sheetLabel, margin, sheetLabelY);
+
+    doc.autoTable({
+      startY: tableStartY,
+      head,
+      body,
+      theme: 'grid',
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
+      headStyles: { fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 420 },
+        1: { halign:'center' },
+        2: { halign:'center' },
+        3: { halign:'center' },
+        4: { halign:'center' },
+        5: { halign:'center' },
+      },
+      margin: { left: margin, right: margin },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.row.index === body.length - 1){
+          data.cell.styles.fillColor = [245,245,245];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    });
+  }
+
+  const ordered = [];
+  if (selected.includes('0')) ordered.push('0');
+  selected.filter(x => x !== '0').forEach(x => ordered.push(x));
+
+  ordered.forEach((fid, idx) => {
+    if (idx > 0) doc.addPage();
+
+    const target = buildExportMatrixForTarget(fid);
+    const sheetLabel = target.isOverall ? 'Overall' : `Faculty: ${target.facShort}`;
+
+    addHeaderBlock(title);
+    addMatrixTable(target.matrix, sheetLabel);
+  });
+
+  const fname = `feedback_export_${slugify(post?.title)}_${nowStamp()}.pdf`;
+  doc.save(fname);
+  ok('PDF exported');
+}
 
     btnExport?.addEventListener('click', () => {
       if (!state.lastDetailPostKey){
