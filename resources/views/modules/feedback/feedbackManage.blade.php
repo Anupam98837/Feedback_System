@@ -100,6 +100,21 @@
 
   /* Actions */
   .act-btn{height:34px;border-radius:10px}
+  .fp-nowrap{white-space:nowrap}
+  .fp-action-toggle{
+    width:34px;height:34px;border-radius:10px;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+  .fp-action-menu .dropdown-menu{
+    min-width:180px;
+    border-radius:14px;
+    border:1px solid var(--line-strong);
+    box-shadow:var(--shadow-2);
+  }
+  .fp-action-menu .dropdown-item{
+    display:flex;align-items:center;gap:10px;
+    font-size:14px;
+  }
 
   /* Dark tweaks */
   html.theme-dark .panel,
@@ -121,13 +136,6 @@
     <div class="col-12 col-xl d-flex align-items-center flex-wrap gap-2">
 
       <div class="d-flex align-items-center gap-2">
-        <label class="text-muted small mb-0 fw-semibold">
-          <i class="fa-solid fa-clipboard-list me-2"></i>Manage Feedback Posts
-        </label>
-        <span class="count-chip js-total-chip">—</span>
-      </div>
-
-      <div class="d-flex align-items-center gap-2">
         <label class="text-muted small mb-0">Per Page</label>
         <select class="form-select js-per-page" style="width:110px;">
           <option>10</option><option selected>20</option><option>30</option><option>50</option><option>100</option>
@@ -143,9 +151,45 @@
 
     <div class="col-12 col-xxl-auto ms-xxl-auto d-flex justify-content-xxl-end gap-2">
       <button class="btn btn-light js-refresh"><i class="fa fa-rotate me-1"></i>Refresh</button>
+      <button class="btn btn-light js-reset-filters"><i class="fa fa-filter-circle-xmark me-1"></i>Reset Filters</button>
       <a href="{{ $fpCreateUrl }}" class="btn btn-primary js-new">
         <i class="fa fa-plus me-1"></i>New Post
       </a>
+    </div>
+
+    <div class="col-12">
+      <div class="row g-2">
+        <div class="col-12 col-md-6 col-xl-3">
+          <label class="small text-muted mb-1">Course</label>
+          <select class="form-select js-filter-course">
+            <option value="">All Courses</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="small text-muted mb-1">Semester</label>
+          <select class="form-select js-filter-semester">
+            <option value="">All Semesters</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="small text-muted mb-1">Section</label>
+          <select class="form-select js-filter-section">
+            <option value="">All Sections</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="small text-muted mb-1">Academic Year</label>
+          <select class="form-select js-filter-academic-year">
+            <option value="">All Academic Years</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-6 col-xl-1">
+          <label class="small text-muted mb-1">Year</label>
+          <select class="form-select js-filter-year">
+            <option value="">All Years</option>
+          </select>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -186,15 +230,16 @@
                 <tr>
                   <th>POST</th>
                   <th style="width:20%;">SCOPE</th>
-                  <th style="width:180px;">ASSIGNMENTS</th>
-                  <th style="width:170px;">PUBLISH / EXPIRE</th>
+                  <th style="width:140px;">ACADEMIC YEAR</th>
+                  <th style="width:90px;">YEAR</th>
+                  <th class="fp-nowrap" style="width:220px;">PUBLISH / EXPIRE</th>
                   <th style="width:150px;">UPDATED</th>
-                  <th class="text-end" style="width:240px;">ACTIONS</th>
+                  <th class="text-end" style="width:80px;">ACTIONS</th>
                 </tr>
               </thead>
               <tbody class="js-rows-active">
                 <tr class="js-loader-active" style="display:none;">
-                  <td colspan="6" class="p-0">
+                  <td colspan="7" class="p-0">
                     <div class="p-4">
                       <div class="placeholder-wave">
                         <div class="placeholder col-12 mb-2" style="height:18px;"></div>
@@ -230,15 +275,16 @@
                 <tr>
                   <th>POST</th>
                   <th style="width:20%;">SCOPE</th>
-                  <th style="width:180px;">ASSIGNMENTS</th>
-                  <th style="width:170px;">PUBLISH / EXPIRE</th>
+                  <th style="width:140px;">ACADEMIC YEAR</th>
+                  <th style="width:90px;">YEAR</th>
+                  <th class="fp-nowrap" style="width:220px;">PUBLISH / EXPIRE</th>
                   <th style="width:150px;">UPDATED</th>
-                  <th class="text-end" style="width:240px;">ACTIONS</th>
+                  <th class="text-end" style="width:80px;">ACTIONS</th>
                 </tr>
               </thead>
               <tbody class="js-rows-archived">
                 <tr class="js-loader-archived" style="display:none;">
-                  <td colspan="6" class="p-0">
+                  <td colspan="7" class="p-0">
                     <div class="p-4">
                       <div class="placeholder-wave">
                         <div class="placeholder col-12 mb-2" style="height:18px;"></div>
@@ -274,15 +320,16 @@
                 <tr>
                   <th>POST</th>
                   <th style="width:20%;">SCOPE</th>
-                  <th style="width:180px;">ASSIGNMENTS</th>
-                  <th style="width:170px;">DELETED AT</th>
+                  <th style="width:140px;">ACADEMIC YEAR</th>
+                  <th style="width:90px;">YEAR</th>
+                  <th class="fp-nowrap" style="width:220px;">DELETED AT</th>
                   <th style="width:150px;">UPDATED</th>
-                  <th class="text-end" style="width:240px;">ACTIONS</th>
+                  <th class="text-end" style="width:80px;">ACTIONS</th>
                 </tr>
               </thead>
               <tbody class="js-rows-bin">
                 <tr class="js-loader-bin" style="display:none;">
-                  <td colspan="6" class="p-0">
+                  <td colspan="7" class="p-0">
                     <div class="p-4">
                       <div class="placeholder-wave">
                         <div class="placeholder col-12 mb-2" style="height:18px;"></div>
@@ -353,6 +400,21 @@
   const API_BASE   = ROOT.dataset.apiBase;
   const API_ME     = ROOT.dataset.apiMe;
   const EDIT_PATTERN = ROOT.dataset.editPattern;
+  const API = {
+    courses: () => '/api/courses',
+    semestersCandidates: (courseId) => ([
+      `/api/course-semesters?per_page=200&page=1&course_id=${encodeURIComponent(courseId)}`,
+      `/api/course-semesters?course_id=${encodeURIComponent(courseId)}`,
+      `/api/semesters?per_page=200&page=1&course_id=${encodeURIComponent(courseId)}`,
+      `/api/semesters?course_id=${encodeURIComponent(courseId)}`
+    ]),
+    sectionsCurrent: (semesterId, courseId='') => {
+      const usp = new URLSearchParams();
+      if (semesterId) usp.set('semester_id', semesterId);
+      if (courseId) usp.set('course_id', courseId);
+      return `/api/course-semester-sections/current?${usp.toString()}`;
+    }
+  };
 
   const qs  = (sel) => ROOT.querySelector(sel);
   const esc = (s) => {
@@ -415,6 +477,91 @@
     return [];
   }
 
+  function idNum(v){
+    const n = parseInt(String(v ?? '').trim(), 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function uniqBy(rows, keyFn){
+    const out = [];
+    const seen = new Set();
+    (rows || []).forEach(row => {
+      const key = keyFn(row);
+      if(key === null || key === undefined || seen.has(String(key))) return;
+      seen.add(String(key));
+      out.push(row);
+    });
+    return out;
+  }
+
+  function normalizeList(js){
+    if(Array.isArray(js)) return js;
+    if(Array.isArray(js?.data)) return js.data;
+    if(Array.isArray(js?.data?.data)) return js.data.data;
+    if(Array.isArray(js?.items)) return js.items;
+    return [];
+  }
+
+  async function safeFetchList(url){
+    try{
+      const res = await fetch(url, {
+        cache:'no-store',
+        headers:{
+          'Authorization': 'Bearer ' + TOKEN,
+          'Accept':'application/json',
+          'Cache-Control':'no-cache',
+          'Pragma':'no-cache'
+        }
+      });
+      const js = await res.json().catch(()=> ({}));
+      if(!res.ok) return null;
+      return normalizeList(js);
+    }catch(_){
+      return null;
+    }
+  }
+
+  async function fetchFirstWorking(urls){
+    for(const url of (urls || [])){
+      const rows = await safeFetchList(url);
+      if(Array.isArray(rows)) return rows;
+    }
+    return null;
+  }
+
+  function setSelectOptions(sel, rows, labelKeys=['title','name'], placeholder='All'){
+    if(!sel) return;
+
+    const current = String(sel.value || '');
+    sel.innerHTML = '';
+
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = placeholder;
+    sel.appendChild(defaultOpt);
+
+    (rows || []).forEach(r => {
+      const id = idNum(r?.id ?? r?.course_id ?? r?.semester_id ?? r?.section_id);
+      if(!id) return;
+
+      const label =
+        labelKeys.map(k => r?.[k]).find(Boolean) ||
+        r?.label ||
+        r?.code ||
+        (`#${id}`);
+
+      const opt = document.createElement('option');
+      opt.value = String(id);
+      opt.textContent = String(label);
+      sel.appendChild(opt);
+    });
+
+    if(current){
+      const match = sel.querySelector(`option[value="${CSS.escape(current)}"]`);
+      if(match) sel.value = current;
+    }
+  }
+
   // ===== Permissions (only staff can toggle/delete/restore)
   const state = {
     role: '',
@@ -423,6 +570,18 @@
 
     q: '',
     per: 20,
+    filters: {
+      course_id: '',
+      semester_id: '',
+      section_id: '',
+      academic_year: '',
+      year: '',
+    },
+    courseOptions: [],
+    semesterOptions: [],
+    sectionOptions: [],
+    academicYearOptions: [],
+    yearOptions: [],
 
     active:   { page: 1, loaded:false, dirty:true },
     archived: { page: 1, loaded:false, dirty:true },
@@ -449,6 +608,12 @@
   const perSel = qs('.js-per-page');
   const qInput = qs('.js-q');
   const btnRefresh = qs('.js-refresh');
+  const btnResetFilters = qs('.js-reset-filters');
+  const filterCourse = qs('.js-filter-course');
+  const filterSemester = qs('.js-filter-semester');
+  const filterSection = qs('.js-filter-section');
+  const filterAcademicYear = qs('.js-filter-academic-year');
+  const filterYear = qs('.js-filter-year');
 
   // active
   const rowsActive = qs('.js-rows-active');
@@ -478,26 +643,29 @@
     });
   }
 
+  function scopeEntry(label, title, id){
+    const cleanTitle = String(title || '').trim();
+    if(cleanTitle) return `${label}: ${cleanTitle}`;
+    return id ? `${label}: #${id}` : '';
+  }
+
   function scopeText(r){
+    const scope = r?.scope || {};
     const parts = [];
-    if(r.course_id) parts.push('Course: #' + r.course_id);
-    if(r.semester_id) parts.push('Sem: #' + r.semester_id);
-    if(r.subject_id) parts.push('Sub: #' + r.subject_id);
-    if(r.section_id) parts.push('Sec: #' + r.section_id);
+    const course = scopeEntry('Course', scope?.course?.title || r?.course_title, r?.course_id);
+    const semester = scopeEntry('Sem', scope?.semester?.title || r?.semester_title, r?.semester_id);
+    const subject = scopeEntry('Sub', scope?.subject?.title || r?.subject_title, r?.subject_id);
+    const section = scopeEntry('Sec', scope?.section?.title || r?.section_title, r?.section_id);
+    if(course) parts.push(course);
+    if(semester) parts.push(semester);
+    if(subject) parts.push(subject);
+    if(section) parts.push(section);
     return parts.length ? parts.join(' • ') : '—';
   }
-
-  function countsText(r){
-    const q = pickArray(r.question_ids).length;
-    const f = pickArray(r.faculty_ids).length;
-    const s = pickArray(r.student_ids).length;
-    return `${q}Q • ${f}F • ${s}S`;
-  }
-
   function publishText(r){
     const p = r.publish_at ? fmtDate(r.publish_at) : '—';
     const e = r.expire_at ? fmtDate(r.expire_at) : '—';
-    return `${p}<div class="small text-muted mt-1">→ ${e}</div>`;
+    return `<span class="fp-nowrap">${p} <span class="small text-muted">→ ${e}</span></span>`;
   }
 
   function actionButtons(r, mode){
@@ -506,35 +674,44 @@
 
     if(mode === 'bin'){
       return `
-        <button class="btn btn-light btn-sm act-btn" data-act="restore" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
-          <i class="fa fa-rotate-left me-1"></i>Restore
-        </button>
-        ${can ? `
-          <button class="btn btn-light btn-sm act-btn text-danger" data-act="force" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
-            <i class="fa fa-skull-crossbones me-1"></i>Delete
+        <div class="dropdown fp-action-menu">
+          <button class="btn btn-light btn-sm act-btn fp-action-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
+            <i class="fa fa-ellipsis-vertical"></i>
           </button>
-        ` : ''}
+          <div class="dropdown-menu dropdown-menu-end">
+            <button class="dropdown-item" data-act="restore" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
+              <i class="fa fa-rotate-left"></i><span>Restore</span>
+            </button>
+            ${can ? `
+              <button class="dropdown-item text-danger" data-act="force" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
+                <i class="fa fa-skull-crossbones"></i><span>Delete Permanently</span>
+              </button>
+            ` : ''}
+          </div>
+        </div>
       `;
     }
 
-    const statusBtn = can ? `
-      <button class="btn btn-light btn-sm act-btn" data-act="toggle" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
-        <i class="fa ${String(r.status||'active')==='active'?'fa-toggle-on text-success':'fa-toggle-off'}"></i>
-      </button>
-    ` : '';
-
-    const deleteBtn = can ? `
-      <button class="btn btn-light btn-sm act-btn text-danger" data-act="delete" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
-        <i class="fa fa-trash"></i>
-      </button>
-    ` : '';
-
     return `
-      <a class="btn btn-light btn-sm act-btn" href="${editUrl(r)}" title="Edit">
-        <i class="fa fa-pen"></i>
-      </a>
-      ${statusBtn}
-      ${deleteBtn}
+      <div class="dropdown fp-action-menu">
+        <button class="btn btn-light btn-sm act-btn fp-action-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
+          <i class="fa fa-ellipsis-vertical"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end">
+          <a class="dropdown-item" href="${editUrl(r)}">
+            <i class="fa fa-pen"></i><span>Edit</span>
+          </a>
+          ${can ? `
+            <button class="dropdown-item" data-act="toggle" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
+              <i class="fa ${String(r.status||'active')==='active'?'fa-toggle-on text-success':'fa-toggle-off'}"></i>
+              <span>${String(r.status||'active')==='active' ? 'Archive' : 'Activate'}</span>
+            </button>
+            <button class="dropdown-item text-danger" data-act="delete" data-id="${esc(r.uuid || r.id)}" data-title="${esc(r.title||'')}">
+              <i class="fa fa-trash"></i><span>Move To Bin</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
     `;
   }
 
@@ -545,26 +722,23 @@
       ? `<span class="badge badge-good">Active</span>`
       : `<span class="badge badge-warn">Inactive</span>`;
 
-    const subLine = r.uuid ? `<div class="small text-muted mt-1"><i class="fa fa-fingerprint me-1 opacity-75"></i>${esc(r.uuid)}</div>` : '';
-
     tr.innerHTML = `
       <td>
         <div class="fw-semibold">${esc(r.title || '-')} ${statusBadge}</div>
         ${r.short_title ? `<div class="small text-muted mt-1">${esc(r.short_title)}</div>` : ''}
-        ${subLine}
       </td>
 
       <td class="small text-muted">
         ${esc(scopeText(r))}
-        ${r.department_id ? `<div class="mt-1"><span class="badge badge-soft">Dept: #${esc(r.department_id)}</span></div>` : ''}
+        ${(r.department_title || r.department_id) ? `<div class="mt-1"><span class="badge badge-soft">Dept: ${esc(r.department_title || ('#' + r.department_id))}</span></div>` : ''}
       </td>
 
-      <td>
-        <span class="badge badge-soft">${esc(countsText(r))}</span>
-      </td>
+      <td class="small fp-nowrap">${esc(r.academic_year || '—')}</td>
 
-      <td class="small">
-        ${mode === 'bin' ? '-' : publishText(r)}
+      <td class="small">${esc(r.year ?? '—')}</td>
+
+      <td class="small fp-nowrap">
+        ${mode === 'bin' ? esc(fmtDate(r.deleted_at)) : publishText(r)}
       </td>
 
       <td class="small">${fmtDate(r.updated_at || r.created_at)}</td>
@@ -574,6 +748,165 @@
       </td>
     `;
     return tr;
+  }
+
+  function buildListParams(page){
+    const usp = new URLSearchParams();
+    usp.set('per_page', state.per);
+    usp.set('page', page);
+    if(state.q) usp.set('q', state.q);
+    if(state.filters.course_id) usp.set('course_id', state.filters.course_id);
+    if(state.filters.semester_id) usp.set('semester_id', state.filters.semester_id);
+    if(state.filters.section_id) usp.set('section_id', state.filters.section_id);
+    if(state.filters.academic_year) usp.set('academic_year', state.filters.academic_year);
+    if(state.filters.year) usp.set('year', state.filters.year);
+    return usp;
+  }
+
+  function buildScopeOnlyParams(){
+    const usp = new URLSearchParams();
+    usp.set('per_page', '500');
+    usp.set('page', '1');
+    if(state.filters.course_id) usp.set('course_id', state.filters.course_id);
+    if(state.filters.semester_id) usp.set('semester_id', state.filters.semester_id);
+    if(state.filters.section_id) usp.set('section_id', state.filters.section_id);
+    return usp;
+  }
+
+  function markAllDirty(){
+    state.active.page = 1;
+    state.archived.page = 1;
+    state.bin.page = 1;
+    state.active.dirty = true;
+    state.archived.dirty = true;
+    state.bin.dirty = true;
+  }
+
+  async function loadCourses(){
+    const rows = await safeFetchList(API.courses());
+    if(!rows) return;
+
+    state.courseOptions = uniqBy(rows.map(r => ({
+      id: idNum(r?.id ?? r?.course_id),
+      title: r?.title ?? r?.name ?? r?.course_name ?? r?.course_title ?? null,
+    })).filter(x => x.id), x => x.id);
+
+    setSelectOptions(filterCourse, state.courseOptions, ['title'], 'All Courses');
+  }
+
+  async function loadSemesters(courseId){
+    state.semesterOptions = [];
+    state.sectionOptions = [];
+    setSelectOptions(filterSemester, [], ['title'], 'All Semesters');
+    setSelectOptions(filterSection, [], ['title'], 'All Sections');
+
+    if(!courseId) return;
+
+    const raw = await fetchFirstWorking(API.semestersCandidates(courseId));
+    if(!raw) return;
+
+    const normalized = raw.map(r => {
+      const id = idNum(r?.semester_id ?? r?.sem_id ?? r?.semesterId ?? r?.id);
+      const title =
+        r?.semester_title ??
+        r?.semester_name ??
+        r?.title ??
+        r?.name ??
+        r?.code ??
+        (id ? `Semester #${id}` : '');
+      const rowCourseId = String(r?.course_id ?? r?.courseId ?? '').trim();
+
+      return { id, title, course_id: rowCourseId };
+    }).filter(x => x.id);
+
+    const filtered = normalized.filter(x => !x.course_id || x.course_id === String(courseId));
+    state.semesterOptions = uniqBy(filtered, x => x.id);
+    setSelectOptions(filterSemester, state.semesterOptions, ['title'], 'All Semesters');
+  }
+
+  async function loadSections(semesterId, courseId=''){
+    state.sectionOptions = [];
+    setSelectOptions(filterSection, [], ['title'], 'All Sections');
+
+    if(!semesterId) return;
+
+    const rows = await safeFetchList(API.sectionsCurrent(semesterId, courseId));
+    if(!rows) return;
+
+    state.sectionOptions = uniqBy(rows.map(r => ({
+      id: idNum(r?.id ?? r?.section_id),
+      title:
+        r?.title ??
+        r?.section_title ??
+        r?.name ??
+        r?.section_name ??
+        r?.code ??
+        r?.section_code ??
+        null,
+    })).filter(x => x.id), x => x.id);
+
+    setSelectOptions(filterSection, state.sectionOptions, ['title'], 'All Sections');
+  }
+
+  function setSimpleOptions(sel, values, placeholder){
+    if(!sel) return;
+    const current = String(sel.value || '');
+    sel.innerHTML = '';
+
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = placeholder;
+    sel.appendChild(defaultOpt);
+
+    (values || []).forEach(value => {
+      const opt = document.createElement('option');
+      opt.value = String(value);
+      opt.textContent = String(value);
+      sel.appendChild(opt);
+    });
+
+    if(current && (values || []).map(String).includes(current)){
+      sel.value = current;
+    }
+  }
+
+  async function loadExistingYearOptions(){
+    const paramsActive = buildScopeOnlyParams();
+    paramsActive.set('active', '1');
+    const paramsArchived = buildScopeOnlyParams();
+    paramsArchived.set('active', '0');
+    const paramsBin = buildScopeOnlyParams();
+
+    const [activeRows, archivedRows, binRows] = await Promise.all([
+      safeFetchList(API_BASE + '?' + paramsActive.toString()),
+      safeFetchList(API_BASE + '?' + paramsArchived.toString()),
+      safeFetchList(API_BASE + '/trash?' + paramsBin.toString()),
+    ]);
+
+    const allRows = [
+      ...(Array.isArray(activeRows) ? activeRows : []),
+      ...(Array.isArray(archivedRows) ? archivedRows : []),
+      ...(Array.isArray(binRows) ? binRows : []),
+    ];
+
+    state.academicYearOptions = Array.from(
+      new Set(
+        allRows
+          .map(r => String(r?.academic_year || '').trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
+
+    state.yearOptions = Array.from(
+      new Set(
+        allRows
+          .map(r => String(r?.year ?? '').trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => Number(b) - Number(a));
+
+    setSimpleOptions(filterAcademicYear, state.academicYearOptions, 'All Academic Years');
+    setSimpleOptions(filterYear, state.yearOptions, 'All Years');
   }
 
   function buildPager(pagerEl, cur, pages, onPage){
@@ -625,11 +958,8 @@
       page = state.active.page;
       tbody = rowsActive; loader = loaderActive; empty = emptyActive; meta = metaActive; pager = pagerActive;
 
-      const usp = new URLSearchParams();
-      usp.set('per_page', per);
-      usp.set('page', page);
+      const usp = buildListParams(page);
       usp.set('active', '1');
-      if(q) usp.set('q', q);
       usp.set('sort', 'updated_at');
       usp.set('direction', 'desc');
       url = API_BASE + '?' + usp.toString();
@@ -639,11 +969,8 @@
       page = state.archived.page;
       tbody = rowsArchived; loader = loaderArchived; empty = emptyArchived; meta = metaArchived; pager = pagerArchived;
 
-      const usp = new URLSearchParams();
-      usp.set('per_page', per);
-      usp.set('page', page);
+      const usp = buildListParams(page);
       usp.set('active', '0');
-      if(q) usp.set('q', q);
       usp.set('sort', 'updated_at');
       usp.set('direction', 'desc');
       url = API_BASE + '?' + usp.toString();
@@ -653,10 +980,7 @@
       page = state.bin.page;
       tbody = rowsBin; loader = loaderBin; empty = emptyBin; meta = metaBin; pager = pagerBin;
 
-      const usp = new URLSearchParams();
-      usp.set('per_page', per);
-      usp.set('page', page);
-      if(q) usp.set('q', q);
+      const usp = buildListParams(page);
       url = API_BASE + '/trash?' + usp.toString();
     }
 
@@ -688,13 +1012,6 @@
         if(mode==='bin') state.bin.page = t;
         loadList(mode);
       });
-
-      // total chip (rough): active + archived total might vary; update best-effort
-      if(state.totalChip){
-        if(mode === 'active') state.totalChip.textContent = `Active: ${total}`;
-        if(mode === 'archived') state.totalChip.textContent = `Archived: ${total}`;
-        if(mode === 'bin') state.totalChip.textContent = `Bin: ${total}`;
-      }
 
       if(mode==='active'){ state.active.loaded=true; state.active.dirty=false; }
       if(mode==='archived'){ state.archived.loaded=true; state.archived.dirty=false; }
@@ -834,24 +1151,94 @@
     clearTimeout(qTimer);
     qTimer = setTimeout(()=>{
       state.q = String(qInput.value || '').trim();
-      state.active.page = 1; state.archived.page = 1; state.bin.page = 1;
-      state.active.dirty = true; state.archived.dirty = true; state.bin.dirty = true;
+      markAllDirty();
       refreshVisible();
     }, 280);
   });
 
   perSel.addEventListener('change', ()=>{
     state.per = Math.max(5, Number(perSel.value || 20));
-    state.active.page = 1; state.archived.page = 1; state.bin.page = 1;
-    state.active.dirty = true; state.archived.dirty = true; state.bin.dirty = true;
+    markAllDirty();
     refreshVisible();
   });
 
   btnRefresh.addEventListener('click', ()=>{
-    state.active.dirty = true;
-    state.archived.dirty = true;
-    state.bin.dirty = true;
+    markAllDirty();
+    loadExistingYearOptions().finally(() => refreshVisible());
+  });
+
+  btnResetFilters?.addEventListener('click', async ()=>{
+    state.filters = {
+      course_id: '',
+      semester_id: '',
+      section_id: '',
+      academic_year: '',
+      year: '',
+    };
+
+    if(filterCourse) filterCourse.value = '';
+    if(filterSemester) filterSemester.value = '';
+    if(filterSection) filterSection.value = '';
+    if(filterAcademicYear) filterAcademicYear.value = '';
+    if(filterYear) filterYear.value = '';
+
+    await loadSemesters('');
+    await loadSections('');
+    await loadExistingYearOptions();
+
+    markAllDirty();
     refreshVisible();
+  });
+
+  filterCourse?.addEventListener('change', async ()=>{
+    state.filters.course_id = (filterCourse.value || '').trim();
+    state.filters.semester_id = '';
+    state.filters.section_id = '';
+
+    if(filterSemester) filterSemester.value = '';
+    if(filterSection) filterSection.value = '';
+
+    await loadSemesters(state.filters.course_id);
+    await loadExistingYearOptions();
+    markAllDirty();
+    refreshVisible();
+  });
+
+  filterSemester?.addEventListener('change', async ()=>{
+    state.filters.semester_id = (filterSemester.value || '').trim();
+    state.filters.section_id = '';
+
+    if(filterSection) filterSection.value = '';
+
+    await loadSections(state.filters.semester_id, state.filters.course_id);
+    await loadExistingYearOptions();
+    markAllDirty();
+    refreshVisible();
+  });
+
+  filterSection?.addEventListener('change', async ()=>{
+    state.filters.section_id = (filterSection.value || '').trim();
+    await loadExistingYearOptions();
+    markAllDirty();
+    refreshVisible();
+  });
+
+  filterAcademicYear?.addEventListener('input', ()=>{
+    clearTimeout(qTimer);
+    qTimer = setTimeout(()=>{
+      state.filters.academic_year = String(filterAcademicYear.value || '').trim();
+      markAllDirty();
+      refreshVisible();
+    }, 280);
+  });
+
+  filterYear?.addEventListener('input', ()=>{
+    clearTimeout(qTimer);
+    qTimer = setTimeout(()=>{
+      state.filters.year = String(filterYear.value || '').trim();
+      markAllDirty();
+      refreshVisible();
+    }, 280);
   });
 
   // lazy load when tab opened
@@ -866,6 +1253,8 @@
   (async ()=>{
     await loadMe();
     state.per = Math.max(5, Number(perSel.value || 20));
+    await loadCourses();
+    await loadExistingYearOptions();
     await loadList('active');
   })();
 

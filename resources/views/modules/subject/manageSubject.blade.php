@@ -192,6 +192,13 @@ td.col-sem .sem-sub{
             <i class="fa fa-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);opacity:.6;"></i>
           </div>
 
+          <div class="d-flex align-items-center gap-2">
+            <label class="text-muted small mb-0">Course</label>
+            <select id="top_course_filter" class="form-select" style="width:220px;">
+              <option value="">All Courses</option>
+            </select>
+          </div>
+
           <button id="btnFilter" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
             <i class="fa fa-sliders me-1"></i>Filter
           </button>
@@ -702,6 +709,7 @@ td.col-sem .sem-sub{
 
     const perPageSel = $('perPage');
     const searchInput = $('searchInput');
+    const topCourseFilter = $('top_course_filter');
     const btnReset = $('btnReset');
     const btnApplyFilters = $('btnApplyFilters');
     const writeControls = $('writeControls');
@@ -1184,6 +1192,18 @@ td.col-sem .sem-sub{
       reloadCurrent();
     }, 320));
 
+    topCourseFilter?.addEventListener('change', () => {
+      const courseId = topCourseFilter.value || '';
+      state.filters.course_id = courseId;
+      state.filters.course_semester_id = '';
+
+      if (modalCourse) modalCourse.value = courseId;
+      applySemesterFilterToSelect(modalSemester, courseId, '');
+
+      state.tabs.active.page = state.tabs.inactive.page = state.tabs.trash.page = 1;
+      reloadCurrent();
+    });
+
     perPageSel?.addEventListener('change', () => {
       state.perPage = parseInt(perPageSel.value, 10) || 20;
       state.tabs.active.page = state.tabs.inactive.page = state.tabs.trash.page = 1;
@@ -1209,6 +1229,7 @@ td.col-sem .sem-sub{
       state.filters.subject_type = (modalType?.value || '').trim();
 
       state.tabs.active.page = state.tabs.inactive.page = state.tabs.trash.page = 1;
+      if (topCourseFilter) topCourseFilter.value = state.filters.course_id || '';
       filterModal && filterModal.hide();
       reloadCurrent();
     });
@@ -1224,6 +1245,7 @@ td.col-sem .sem-sub{
       if (modalSemester) modalSemester.value = '';
       if (modalType) modalType.value = '';
       if (modalSort) modalSort.value = '-updated_at';
+      if (topCourseFilter) topCourseFilter.value = '';
 
       applySemesterFilterToSelect(modalSemester, '', '');
 
@@ -1256,6 +1278,11 @@ td.col-sem .sem-sub{
       }).join('');
       if (courseSel) courseSel.innerHTML = `<option value="">Select course</option>${opts}`;
       if (modalCourse) modalCourse.innerHTML = `<option value="">All</option>${opts}`;
+      if (topCourseFilter) topCourseFilter.innerHTML = `<option value="">All Courses</option>${opts}`;
+
+      const selected = state.filters.course_id || '';
+      if (modalCourse) modalCourse.value = selected;
+      if (topCourseFilter) topCourseFilter.value = selected;
     }
 
     async function loadDepartments(){

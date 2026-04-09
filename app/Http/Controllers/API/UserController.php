@@ -813,7 +813,10 @@ class UserController extends Controller
 
     $search = trim((string) $request->query('q', ''));
     $role   = $request->query('role');
+    $roles  = trim((string) $request->query('roles', ''));
     $status = $request->query('status');
+    $departmentId = (int) $request->query('department_id', 0);
+    $courseId     = (int) $request->query('course_id', 0);
 
     $hasNameShort = Schema::hasColumn('users', 'name_short_form');
     $hasEmpId     = Schema::hasColumn('users', 'employee_id');
@@ -822,6 +825,14 @@ class UserController extends Controller
     $hasUpiTable  = Schema::hasTable('user_personal_information');
     $upiHasDept   = $hasUpiTable && Schema::hasColumn('user_personal_information', 'department_id');
     $upiHasDel    = $hasUpiTable && Schema::hasColumn('user_personal_information', 'deleted_at');
+    $hasSadTable  = Schema::hasTable('student_academic_details');
+    $sadHasDel    = $hasSadTable && Schema::hasColumn('student_academic_details', 'deleted_at');
+    $sadHasDept   = $hasSadTable && Schema::hasColumn('student_academic_details', 'department_id');
+    $sadHasCourse = $hasSadTable && Schema::hasColumn('student_academic_details', 'course_id');
+    $sadHasSem    = $hasSadTable && Schema::hasColumn('student_academic_details', 'semester_id');
+    $sadHasSec    = $hasSadTable && Schema::hasColumn('student_academic_details', 'section_id');
+    $sadHasAcademicYear = $hasSadTable && Schema::hasColumn('student_academic_details', 'academic_year');
+    $sadHasYear         = $hasSadTable && Schema::hasColumn('student_academic_details', 'year');
 
     // ✅ Base query (users + optional UPI)
     $query = DB::table('users as u')
@@ -841,9 +852,30 @@ class UserController extends Controller
         });
     }
 
+    if ($hasSadTable) {
+        $query->leftJoin('student_academic_details as sad', 'sad.user_id', '=', 'u.id');
+        $query->where(function ($w) use ($sadHasDel) {
+            $w->whereNull('sad.id');
+            if ($sadHasDel) {
+                $w->orWhereNull('sad.deleted_at');
+            } else {
+                $w->orWhere('sad.id', '>', 0);
+            }
+        });
+    }
+
     // ✅ SELECT only safe columns (prefixed)
     $cols = $this->userSelectColumns();
-    $query->select(array_map(fn ($c) => "u.$c", $cols));
+    $selects = array_map(fn ($c) => "u.$c", $cols);
+
+    if ($sadHasDept) $selects[] = DB::raw('sad.department_id as academic_department_id');
+    if ($sadHasCourse) $selects[] = DB::raw('sad.course_id as academic_course_id');
+    if ($sadHasSem) $selects[] = DB::raw('sad.semester_id as academic_semester_id');
+    if ($sadHasSec) $selects[] = DB::raw('sad.section_id as academic_section_id');
+    if ($sadHasAcademicYear) $selects[] = DB::raw('sad.academic_year as academic_year');
+    if ($sadHasYear) $selects[] = DB::raw('sad.year as academic_year_number');
+
+    $query->select($selects);
 
     // ✅ department scoping (FIX: support both users.department_id and upi.department_id)
     if ($ac['mode'] === 'department') {
@@ -864,8 +896,38 @@ class UserController extends Controller
         $query->where('u.role', $role);
     }
 
+    if ($roles !== '') {
+        $roleList = collect(explode(',', $roles))
+            ->map(fn ($x) => strtolower(trim((string) $x)))
+            ->filter()
+            ->values()
+            ->all();
+
+        if (!empty($roleList)) {
+            $query->whereIn('u.role', $roleList);
+        }
+    }
+
     if ($status && $status !== 'all') {
         $query->where('u.status', $status);
+    }
+
+    if ($departmentId > 0) {
+        $query->where(function ($w) use ($departmentId, $upiHasDept, $sadHasDept) {
+            $w->where('u.department_id', $departmentId);
+
+            if ($upiHasDept) {
+                $w->orWhere('upi.department_id', $departmentId);
+            }
+
+            if ($sadHasDept) {
+                $w->orWhere('sad.department_id', $departmentId);
+            }
+        });
+    }
+
+    if ($courseId > 0 && $sadHasCourse) {
+        $query->where('sad.course_id', $courseId);
     }
 
     // ✅ search
@@ -881,6 +943,7 @@ class UserController extends Controller
     }
 
     $users = $query
+        ->distinct('u.id')
         ->orderBy('u.id', 'desc')
         ->limit(200)
         ->get();
@@ -2741,10 +2804,8 @@ class UserController extends Controller
             return $try;
         };
 
-        // ✅ always student short form
-        $roleShort = function() {
-            return 'STD';
-        };
+        $scope = strtolower(trim((string) $request->input('scope', 'student')));
+        $isFacultyImport = ($scope === 'faculty');
 
         // ✅ resolve id from uuid helper
         $idFromUuid = function(string $table, ?string $uuid): ?int {
@@ -2789,20 +2850,35 @@ class UserController extends Controller
                 $nameShort = $getAny($row, ['name_short_form', 'short_name', 'name_short', 'initials']);
                 $empId     = $getAny($row, ['employee_id', 'emp_id', 'employeeid']);
 
-                // ✅ FORCE role student (because this import page is only for students)
-                $role  = 'student';
-                $short = $roleShort();
+                if ($isFacultyImport) {
+                    [$role, $short] = $this->normalizeRole((string) ($getAny($row, ['role']) ?? 'faculty'));
+
+                    if (!in_array($role, ['faculty', 'hod', 'technical_assistant', 'placement_officer'], true)) {
+                        $role = 'faculty';
+                        $short = self::ROLE_SHORT_MAP[$role] ?? 'FAC';
+                    }
+                } else {
+                    $role  = 'student';
+                    $short = self::ROLE_SHORT_MAP['student'] ?? 'STD';
+                }
 
                 // status
                 $stRaw  = strtolower((string)($getAny($row, ['status']) ?? 'active'));
                 $status = ($stRaw === 'inactive') ? 'inactive' : 'active';
 
-                // department_id (optional)
-                $dep = $getAny($row, ['department_id', 'dept_id', 'department']);
+                // department_id / department_uuid (optional, uuid preferred for templates)
                 $departmentId = null;
-                if ($dep !== null) {
-                    $depInt = (int)$dep;
-                    $departmentId = $depInt > 0 ? $depInt : null;
+                $departmentUuid = $getAny($row, ['department_uuid']);
+                if ($departmentUuid !== null) {
+                    $departmentId = $idFromUuid('departments', $departmentUuid);
+                }
+
+                if (!$departmentId) {
+                    $dep = $getAny($row, ['department_id', 'dept_id', 'department']);
+                    if ($dep !== null) {
+                        $depInt = (int)$dep;
+                        $departmentId = $depInt > 0 ? $depInt : null;
+                    }
                 }
 
                 // ✅ FORCE department_id if actor is department-scoped
@@ -2988,7 +3064,7 @@ class UserController extends Controller
                         $finalDeptId = $departmentId ?: ($hasDept ? (int) (DB::table('users')->where('id', $userId)->value('department_id') ?? 0) : 0);
                         if ($finalDeptId <= 0) {
                             $academicSkipped++;
-                            $errors[] = ['row' => $rowNum, 'error' => 'Academic skipped: department_id missing'];
+                            $errors[] = ['row' => $rowNum, 'error' => 'Academic skipped: department_uuid/department_id missing'];
                             continue;
                         }
 

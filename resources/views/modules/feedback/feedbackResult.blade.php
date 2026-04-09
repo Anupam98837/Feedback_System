@@ -22,9 +22,12 @@
 .table tbody tr:hover{background:var(--page-hover)}
 td .fw-semibold{color:var(--ink)}
 .small{font-size:12.5px}
+.fr-skel-line{height:12px;border-radius:999px;background:linear-gradient(90deg,#00000010,#00000006,#00000010);}
+.fr-skel-line + .fr-skel-line{margin-top:8px;}
 
-.table-responsive > .table{ width:max-content; min-width:1100px; }
+.table-responsive > .table{ width:max-content; min-width:980px; }
 .table-responsive th, .table-responsive td{ white-space:nowrap; }
+.fr-nowrap{ white-space:nowrap; }
 
 /* Tabs */
 .nav.nav-tabs{border-color:var(--line-strong)}
@@ -168,21 +171,58 @@ td .fw-semibold{color:var(--ink)}
             <i class="fa fa-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);opacity:.6;"></i>
           </div>
 
-          <button id="btnFilter" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-            <i class="fa fa-sliders me-1"></i>Filter
-          </button>
-
           <button id="btnReset" class="btn btn-light">
             <i class="fa fa-rotate-left me-1"></i>Reset
           </button>
 
         </div>
 
-        <div class="col-12 col-lg-auto ms-lg-auto d-flex justify-content-lg-end">
-          <div class="toolbar-buttons">
-            <button id="btnRefresh" class="btn btn-primary">
-              <i class="fa fa-rotate me-1"></i> Refresh
-            </button>
+        <div class="col-12 col-lg-auto ms-lg-auto d-flex justify-content-lg-end"></div>
+
+        <div class="col-12">
+          <div class="row g-2">
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="small text-muted mb-1">Department</label>
+              <select id="f_department" class="form-select">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="small text-muted mb-1">Course</label>
+              <select id="f_course" class="form-select">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="small text-muted mb-1">Semester</label>
+              <select id="f_semester" class="form-select">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="small text-muted mb-1">Subject</label>
+              <select id="f_subject" class="form-select">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-1">
+              <label class="small text-muted mb-1">Section</label>
+              <select id="f_section" class="form-select">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="small text-muted mb-1">Academic Year</label>
+              <select id="f_academic_year" class="form-select">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-1">
+              <label class="small text-muted mb-1">Year</label>
+              <select id="f_year" class="form-select">
+                <option value="">All</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -194,19 +234,16 @@ td .fw-semibold{color:var(--ink)}
             <table class="table table-hover table-borderless align-middle mb-0">
               <thead class="sticky-top">
                 <tr>
-                  <th style="width:360px;">Feedback Post</th>
-                  <th style="width:210px;">Department</th>
-                  <th style="width:210px;">Course</th>
-                  <th style="width:170px;">Semester</th>
-                  <th style="width:250px;">Subject</th>
-                  <th style="width:140px;">Section</th>
-                  <th style="width:170px;">Publish</th>
-                  {{-- ✅ Removed Expire --}}
-                  <th style="width:170px;" class="text-end">Action</th>
+                  <th style="width:320px;">Post</th>
+                  <th style="width:340px;">Scope</th>
+                  <th style="width:140px;">Academic Year</th>
+                  <th style="width:90px;">Year</th>
+                  <th style="width:220px;">Publish / Expire</th>
+                  <th style="width:80px;" class="text-end">Action</th>
                 </tr>
               </thead>
               <tbody id="tbody-posts">
-                <tr><td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>
+                <tr><td colspan="6" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -238,84 +275,6 @@ td .fw-semibold{color:var(--ink)}
       </div>
     </div>
 
-  </div>
-</div>
-
-{{-- Filter Modal --}}
-<div class="modal fade" id="filterModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fa fa-sliders me-2"></i>Filter Feedback Results</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="row g-3">
-
-          <div class="col-md-6">
-            <label class="form-label">Department</label>
-            <select id="f_department" class="form-select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">Course</label>
-            <select id="f_course" class="form-select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">Semester</label>
-            <select id="f_semester" class="form-select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">Subject</label>
-            <select id="f_subject" class="form-select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">Section</label>
-            <select id="f_section" class="form-select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="col-md-3">
-            <label class="form-label">Academic Year</label>
-            <input id="f_academic_year" class="form-control" placeholder="e.g. 2025-26">
-          </div>
-
-          <div class="col-md-3">
-            <label class="form-label">Year</label>
-            <input id="f_year" class="form-control" inputmode="numeric" placeholder="e.g. 2026">
-          </div>
-
-        </div>
-
-        <div class="alert alert-light mt-3 mb-0" style="border:1px dashed var(--line-soft);border-radius:14px;">
-          <div class="small text-muted">
-            <i class="fa fa-circle-info me-1"></i>
-            Lists are auto-built from the latest loaded results. Hit <b>Refresh</b> after changing filters.
-          </div>
-        </div>
-
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" id="btnApplyFilters" class="btn btn-primary">
-          <i class="fa fa-check me-1"></i>Apply Filters
-        </button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -635,9 +594,6 @@ td .fw-semibold{color:var(--ink)}
     const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     if (!token) { window.location.href = '/'; return; }
 
-    const globalLoading = $('globalLoading');
-    const showLoading = (v) => globalLoading?.classList.toggle('is-show', !!v);
-
     const toastOkEl = $('toastSuccess');
     const toastErrEl = $('toastError');
     const toastOk = toastOkEl ? new bootstrap.Toast(toastOkEl) : null;
@@ -653,13 +609,11 @@ td .fw-semibold{color:var(--ink)}
     const perPageSel  = $('perPage');
     const searchInput = $('searchInput');
     const btnReset    = $('btnReset');
-    const btnRefresh  = $('btnRefresh');
-    const btnApply    = $('btnApplyFilters');
-
     const tbody = $('tbody-posts');
     const empty = $('empty-posts');
     const pager = $('pager-posts');
     const info  = $('resultsInfo-posts');
+    let searchRenderTimer = null;
 
     // Filters modal fields
     const fDept   = $('f_department');
@@ -669,8 +623,6 @@ td .fw-semibold{color:var(--ink)}
     const fSec    = $('f_section');
     const fAcad   = $('f_academic_year');
     const fYear   = $('f_year');
-
-    const filterModalEl = $('filterModal');
 
     // Detail modal fields
     const detailModalEl = $('detailModal');
@@ -729,12 +681,11 @@ td .fw-semibold{color:var(--ink)}
     }
 
     // Always use getOrCreateInstance (prevents instance mismatch)
-    const filterModal = filterModalEl ? bootstrap.Modal.getOrCreateInstance(filterModalEl) : null;
     const detailModal = detailModalEl ? bootstrap.Modal.getOrCreateInstance(detailModalEl) : null;
     const exportModal = exportModalEl ? bootstrap.Modal.getOrCreateInstance(exportModalEl) : null;
 
     // Cleanup on any modal hidden (safety net)
-    [filterModalEl, detailModalEl, exportModalEl].forEach(elm => {
+    [detailModalEl, exportModalEl].forEach(elm => {
       if (!elm) return;
       elm.addEventListener('hidden.bs.modal', () => {
         // allow Bootstrap to finish its own cleanup first, then force-remove any leftovers
@@ -769,7 +720,9 @@ td .fw-semibold{color:var(--ink)}
         semMap: new Map(),
         subMap: new Map(),
         subTitleMap: new Map(),
-        secMap: new Map()
+        secMap: new Map(),
+        acadYearMap: new Map(),
+        yearMap: new Map()
       },
 
       // detail tabs
@@ -821,7 +774,14 @@ td .fw-semibold{color:var(--ink)}
 
     function setLoadingRow(){
       if (!tbody) return;
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>`;
+      tbody.innerHTML = Array.from({ length: 5 }).map(() => `
+        <tr>
+          <td colspan="6" style="padding:16px 18px;">
+            <div class="fr-skel-line" style="width:26%;"></div>
+            <div class="fr-skel-line" style="width:48%;"></div>
+          </td>
+        </tr>
+      `).join('');
     }
 
     function setEmpty(show){
@@ -867,6 +827,8 @@ td .fw-semibold{color:var(--ink)}
       const subSet = new Map();
       const subTitleSet = new Map();
       const secSet = new Map();
+      const acadYearSet = new Map();
+      const yearSet = new Map();
 
       hierarchy.forEach(dept => {
         const dId = dept?.department_id ?? '';
@@ -902,6 +864,11 @@ td .fw-semibold{color:var(--ink)}
                   const postId = post?.feedback_post_id;
                   if (!postId) return;
 
+                  const academicYear = (post?.academic_year ?? '').toString().trim();
+                  const year = (post?.year ?? '').toString().trim();
+                  if (academicYear) acadYearSet.set(academicYear, academicYear);
+                  if (year) yearSet.set(year, year);
+
                   const ctx = {
                     department_id: dept?.department_id ?? null,
                     department_name: dept?.department_name ?? null,
@@ -931,6 +898,7 @@ td .fw-semibold{color:var(--ink)}
                     title: post?.title ?? '—',
                     short_title: post?.short_title ?? '',
                     publish_at: post?.publish_at ?? '',
+                    expire_at: post?.expire_at ?? '',
                     description: post?.description ?? '',
                     academic_year: post?.academic_year ?? '',
                     year: post?.year ?? '',
@@ -954,6 +922,8 @@ td .fw-semibold{color:var(--ink)}
       state.optionCache.subMap = subSet;
       state.optionCache.subTitleMap = subTitleSet;
       state.optionCache.secMap = secSet;
+      state.optionCache.acadYearMap = acadYearSet;
+      state.optionCache.yearMap = yearSet;
 
       const fillSel = (sel, map, titleMap=null) => {
         if (!sel) return;
@@ -972,6 +942,8 @@ td .fw-semibold{color:var(--ink)}
       fillSel(fSem, semSet);
       fillSel(fSub, subSet, subTitleSet);
       fillSel(fSec, secSet);
+      fillSel(fAcad, acadYearSet);
+      fillSel(fYear, yearSet);
 
       state.total = state.flatPosts.length;
     }
@@ -985,7 +957,9 @@ td .fw-semibold{color:var(--ink)}
           r.title, r.short_title, r.uuid,
           r.ctx?.department_name, r.ctx?.course_name, r.ctx?.semester_name,
           r.ctx?.subject_name, r.ctx?.subject_code,
-          r.ctx?.section_name
+          r.ctx?.section_name,
+          r.academic_year,
+          r.year
         ].map(x => (x ?? '').toString().toLowerCase());
         return parts.some(p => p.includes(q));
       });
@@ -1013,21 +987,30 @@ td .fw-semibold{color:var(--ink)}
       setEmpty(false);
 
       tbody.innerHTML = pageRows.map(r => {
-        const d = r.ctx?.department_name ?? '—';
-        const c = r.ctx?.course_name ?? '—';
-        const s = r.ctx?.semester_name ?? '—';
+        const d = (r.ctx?.department_name ?? '').toString().trim();
+        const c = (r.ctx?.course_name ?? '').toString().trim();
+        const s = (r.ctx?.semester_name ?? '').toString().trim();
 
         const subName = (r.ctx?.subject_name ?? '').toString().trim();
         const subCode = (r.ctx?.subject_code ?? '').toString().trim();
-        const subHtml = subCode
-          ? `<div>${esc(subName || '—')}</div><div class="small text-muted mt-1"><i class="fa-solid fa-tag me-1"></i>${esc(subCode)}</div>`
-          : `${esc(subName || '—')}`;
+        const sec = (r.ctx?.section_name ?? '').toString().trim();
 
-        const sec = (r.ctx?.section_name ?? '—') || '—';
+        const scopeParts = [];
+        if (c) scopeParts.push(`Course: ${c}`);
+        if (s) scopeParts.push(`Sem: ${s}`);
+        if (subName || subCode){
+          const subLabel = subCode ? `${subName || '—'} (${subCode})` : (subName || '—');
+          scopeParts.push(`Sub: ${subLabel}`);
+        }
+        if (sec) scopeParts.push(`Sec: ${sec}`);
+        const scopeHtml = scopeParts.length ? `<div class="small text-muted">${esc(scopeParts.join(' • '))}</div>` : `<div class="small text-muted">—</div>`;
+        const deptHtml = d ? `<div class="mt-2"><span class="pill"><i class="fa-solid fa-building"></i>${esc(d)}</span></div>` : '';
 
         const title = (r.title || '—').toString();
         const st = (r.short_title || '').toString().trim();
         const subtitle = st ? `<div class="small text-muted mt-1"><i class="fa-regular fa-note-sticky me-1"></i>${esc(st)}</div>` : '';
+        const publish = prettyDate(r.publish_at);
+        const expire = prettyDate(r.expire_at);
 
         return `
           <tr class="tr-click" data-post="${esc(r.key)}" title="Click to view details">
@@ -1035,12 +1018,13 @@ td .fw-semibold{color:var(--ink)}
               <div class="fw-semibold">${esc(title)}</div>
               ${subtitle}
             </td>
-            <td>${esc(d)}</td>
-            <td>${esc(c)}</td>
-            <td>${esc(s)}</td>
-            <td>${subHtml}</td>
-            <td>${esc(sec)}</td>
-            <td>${esc(prettyDate(r.publish_at))}</td>
+            <td>
+              ${scopeHtml}
+              ${deptHtml}
+            </td>
+            <td class="fr-nowrap">${esc(r.academic_year || '—')}</td>
+            <td>${esc((r.year ?? '') !== '' ? r.year : '—')}</td>
+            <td class="fr-nowrap">${esc(publish)} <span class="small text-muted">→ ${esc(expire)}</span></td>
             <td class="text-end">
               <button type="button" class="btn btn-light btn-sm" data-action="view" data-post="${esc(r.key)}">
                 <i class="fa fa-eye"></i>
@@ -1695,7 +1679,6 @@ const participatedLabel = String(participated);
 
     async function loadResults(){
       setLoadingRow();
-      showLoading(true);
 
       try{
         const qs = buildParams();
@@ -1719,8 +1702,6 @@ const participatedLabel = String(participated);
         setEmpty(true);
         renderPager();
         err(ex?.name === 'AbortError' ? 'Request timed out' : (ex.message || 'Failed'));
-      }finally{
-        showLoading(false);
       }
     }
 
@@ -1778,17 +1759,19 @@ const participatedLabel = String(participated);
     searchInput?.addEventListener('input', debounce(() => {
       state.q = (searchInput.value || '').trim();
       state.page = 1;
-      renderTable();
+      setLoadingRow();
+      clearTimeout(searchRenderTimer);
+      searchRenderTimer = setTimeout(() => renderTable(), 120);
     }, 250));
 
     perPageSel?.addEventListener('change', () => {
       state.perPage = parseInt(perPageSel.value, 10) || 20;
       state.page = 1;
+      setLoadingRow();
       renderTable();
     });
 
-    // Filter apply/reset/refresh
-    btnApply?.addEventListener('click', () => {
+    function syncFiltersFromInputs(){
       state.filters.department_id = (fDept?.value || '').trim();
       state.filters.course_id = (fCourse?.value || '').trim();
       state.filters.semester_id = (fSem?.value || '').trim();
@@ -1796,28 +1779,16 @@ const participatedLabel = String(participated);
       state.filters.section_id = (fSec?.value || '').trim();
       state.filters.academic_year = (fAcad?.value || '').trim();
       state.filters.year = (fYear?.value || '').trim();
+    }
 
+    function applyTopFilters(){
+      syncFiltersFromInputs();
       state.page = 1;
+      loadResults();
+    }
 
-      // ✅ FIX: hide modal first, then load results AFTER hidden (prevents stuck backdrop)
-      if (filterModalEl && filterModal){
-        let done = false;
-        const fireOnce = () => {
-          if (done) return;
-          done = true;
-          cleanupOrphanBackdrops();
-          loadResults();
-        };
-
-        filterModalEl.addEventListener('hidden.bs.modal', fireOnce, { once: true });
-        filterModal.hide();
-
-        // failsafe: if hidden event doesn't fire (rare), cleanup + load anyway
-        setTimeout(fireOnce, 600);
-      } else {
-        cleanupOrphanBackdrops();
-        loadResults();
-      }
+    [fDept, fCourse, fSem, fSub, fSec, fAcad, fYear].forEach(el => {
+      el?.addEventListener('change', () => applyTopFilters());
     });
 
     btnReset?.addEventListener('click', () => {
@@ -1849,10 +1820,9 @@ const participatedLabel = String(participated);
       // ✅ NEW
       if (attMin) attMin.value = '';
 
+      syncFiltersFromInputs();
       loadResults();
     });
-
-    btnRefresh?.addEventListener('click', () => loadResults());
 
     async function applyAttendanceFromModal(){
       const val = clampAttendance(attMin ? attMin.value : '');
@@ -1899,12 +1869,10 @@ const participatedLabel = String(participated);
 
     // Init
     (async () => {
-      showLoading(true);
       try{
         await loadResults();
         ok('Loaded feedback results');
       }catch(_){}
-      finally{ showLoading(false); }
     })();
   });
 })();

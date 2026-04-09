@@ -292,10 +292,17 @@
     }
 
     .w3-content{
+      width:100%;
       padding:16px;
-      max-width:1280px;
-      margin-inline:auto;
+      max-width:none;
+      margin:0;
       transition:padding .28s ease;
+    }
+
+    .w3-content > .panel{
+      width:100%;
+      max-width:none;
+      margin:0;
     }
 
     @media (min-width: 992px){
@@ -614,8 +621,8 @@
 
 <div id="sidebarOverlay" class="w3-overlay" aria-hidden="true"></div>
 
-<main class="w3-content mx-auto">
-  <section class="panel mx-auto">@yield('content')</section>
+<main class="w3-content">
+  <section class="panel">@yield('content')</section>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

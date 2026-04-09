@@ -2165,6 +2165,7 @@ Route::middleware('checkRole')
         Route::get('/',        [StudentSubjectController::class, 'index']);
         Route::get('/current', [StudentSubjectController::class, 'current']);
         Route::get('/trash',   [StudentSubjectController::class, 'trash']);
+        Route::get('/import-template', [StudentSubjectController::class, 'importTemplate']);
 
         Route::get('/{idOrUuid}', [StudentSubjectController::class, 'show'])
             ->where('idOrUuid', '[0-9]+|[0-9a-fA-F\-]{36}');
@@ -2175,6 +2176,7 @@ Route::middleware('checkRole:admin,director,principal,hod,faculty,technical_assi
     ->prefix('student-subjects')
     ->group(function () {
         Route::post('/', [StudentSubjectController::class, 'store']);
+        Route::post('/import-csv', [StudentSubjectController::class, 'importCsv']);
 
         Route::match(['put','patch'], '/{idOrUuid}', [StudentSubjectController::class, 'update'])
             ->where('idOrUuid', '[0-9]+|[0-9a-fA-F\-]{36}');

@@ -42,6 +42,54 @@
     padding: 16px 20px;
 }
 
+.ssa-card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+}
+
+.ssa-search{
+    position:relative;
+    min-width:280px;
+    max-width:360px;
+    width:100%;
+}
+
+.ssa-search i{
+    position:absolute;
+    left:12px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#94a3b8;
+    pointer-events:none;
+}
+
+.ssa-search input{
+    width:100%;
+    height:40px;
+    border-radius:10px;
+    border:1px solid var(--ssa-border);
+    background:#fff;
+    padding:0 14px 0 38px;
+    font-size:14px;
+    color:#1e293b;
+}
+
+.ssa-search input:focus{
+    outline:none;
+    border-color:var(--ssa-primary);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--ssa-primary) 12%, transparent);
+}
+
+@media(max-width: 640px){
+    .ssa-search{
+        max-width:none;
+        min-width:100%;
+    }
+}
+
 .loading-overlay {
     position: fixed; inset: 0;
     background: rgba(255, 255, 255, 0.7);
@@ -74,7 +122,7 @@
 
 .ssa-form {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
     margin-top: 20px;
 }
@@ -264,6 +312,32 @@ input[type="checkbox"] {
 .empty-state i { font-size: 40px; margin-bottom: 16px; opacity: 0.5; }
 .empty-state .title { font-size: 18px; font-weight: 700; color: #334155; }
 
+.ssa-import-note{
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+.ssa-upload-box{
+    border: 1px dashed var(--ssa-border);
+    border-radius: 12px;
+    background: var(--ssa-bg-light);
+    padding: 16px;
+}
+
+.ssa-upload-box input[type="file"]{
+    display: block;
+    width: 100%;
+}
+
+.ssa-import-feedback{
+    min-height: 24px;
+    font-size: 13px;
+}
+
+.ssa-import-feedback.is-error{ color: #b91c1c; }
+.ssa-import-feedback.is-success{ color: #166534; }
+
 </style>
 @endpush
 
@@ -288,6 +362,9 @@ input[type="checkbox"] {
         <span class="count-badge" id="badgeSummary">
             <i class="fa fa-chart-simple"></i> —
         </span>
+        <button id="btnImport" class="btn btn-outline-primary px-3" disabled>
+          <i class="fa fa-file-import me-2"></i>Import CSV
+        </button>
         <button id="btnRefresh" class="btn btn-outline-secondary px-3">
           <i class="fa fa-arrows-rotate"></i>
         </button>
@@ -323,9 +400,17 @@ input[type="checkbox"] {
 
   {{-- Table Card --}}
   <div class="ssa-card">
-    <div class="card-header d-flex align-items-center justify-content-between">
-      <div class="fw-bold text-secondary"><i class="fa fa-list-check me-2"></i>Attendance Matrix</div>
-      <div class="badge bg-light text-dark border fw-normal">Toggle checkboxes to include subjects</div>
+    <div class="card-header">
+      <div class="ssa-card-head">
+        <div class="fw-bold text-secondary"><i class="fa fa-list-check me-2"></i>Attendance Matrix</div>
+        <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+          <div class="ssa-search">
+            <i class="fa fa-search"></i>
+            <input id="studentSearchInput" type="search" placeholder="Search student by name or roll no">
+          </div>
+          <div class="badge bg-light text-dark border fw-normal">Toggle checkboxes to include subjects</div>
+        </div>
+      </div>
     </div>
 
     <div class="card-body p-0">
@@ -356,6 +441,42 @@ input[type="checkbox"] {
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fa fa-file-import text-danger me-2"></i>Import Attendance CSV</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="ssa-import-note mb-3">
+          Download the latest template for the selected course and semester. Update only the attendance columns and upload the CSV to replace the current scope attendance mapping.
+        </div>
+
+        <div class="d-grid gap-2 mb-3">
+          <button id="btnDownloadTemplate" type="button" class="btn btn-outline-primary">
+            <i class="fa fa-download me-2"></i>Download Template
+          </button>
+        </div>
+
+        <div class="ssa-upload-box">
+          <label for="csvFileInput" class="form-label fw-semibold mb-2">Upload CSV</label>
+          <input id="csvFileInput" type="file" class="form-control" accept=".csv,text/csv">
+          <div class="form-text mt-2">The uploaded CSV replaces the current attendance values for this selected scope.</div>
+        </div>
+
+        <div id="importFeedback" class="ssa-import-feedback mt-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="btnUploadCsv">
+          <i class="fa fa-cloud-arrow-up me-2"></i>Import CSV
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -368,14 +489,29 @@ input[type="checkbox"] {
   const $ = (id) => document.getElementById(id);
 
   const API = {
-    courses: () => '/api/courses',
+    courses: () => '/api/courses?per_page=200&sort=title&direction=asc',
     semestersByCourse: (courseId) => `/api/courses/${encodeURIComponent(courseId)}/semesters`,
     subjectsByScope: (deptId, courseId, semesterId) =>
       `/api/subjects/current?department_id=${encodeURIComponent(deptId)}&course_id=${encodeURIComponent(courseId)}&semester_id=${encodeURIComponent(semesterId)}`,
-    studentsByScope: (courseId, semesterId) =>
-      `/api/student-academic-details/by-academics?course_id=${encodeURIComponent(courseId)}&semester_id=${encodeURIComponent(semesterId)}`,
+    studentsByScope: (departmentId, courseId, semesterId) => {
+      const params = new URLSearchParams({
+        course_id: String(courseId),
+        semester_id: String(semesterId),
+      });
+      if (departmentId) params.set('department_id', String(departmentId));
+      return `/api/student-academic-details/by-academics?${params.toString()}`;
+    },
     mappingCurrent: (departmentId, courseId, semesterId) =>
       `/api/student-subjects/current?department_id=${encodeURIComponent(departmentId)}&course_id=${encodeURIComponent(courseId)}&semester_id=${encodeURIComponent(semesterId)}`,
+    importTemplate: (departmentId, courseId, semesterId) => {
+      const params = new URLSearchParams({
+        course_id: String(courseId),
+        semester_id: String(semesterId),
+      });
+      if (departmentId) params.set('department_id', String(departmentId));
+      return `/api/student-subjects/import-template?${params.toString()}`;
+    },
+    importCsv: () => '/api/student-subjects/import-csv',
     store: () => '/api/student-subjects',
     update: (idOrUuid) => `/api/student-subjects/${encodeURIComponent(idOrUuid)}`,
   };
@@ -430,6 +566,8 @@ input[type="checkbox"] {
   const toastErr = $('toastError') ? new bootstrap.Toast($('toastError')) : null;
   const ok  = (m) => { $('toastSuccessText').textContent = m || 'Done'; toastOk && toastOk.show(); };
   const err = (m) => { $('toastErrorText').textContent = m || 'Something went wrong'; toastErr && toastErr.show(); };
+  const importModalEl = $('importModal');
+  const importModal = importModalEl ? new bootstrap.Modal(importModalEl) : null;
 
   /**
    * ✅ Page State
@@ -443,8 +581,10 @@ input[type="checkbox"] {
     departmentId: null,
     selectedCourseId: null,
     selectedSemesterId: null,
+    studentSearch: '',
     matrix: new Map(),
     saving: false,
+    importing: false,
   };
 
   function courseLabel(c){ return String(c?.title || c?.name || c?.course_title || `Course #${c?.id}`); }
@@ -472,9 +612,28 @@ input[type="checkbox"] {
 
   function studentName(st){ return String(st?.name || st?.student_name || st?.full_name || 'Student'); }
   function studentRoll(st){ return String(st?.roll_no ?? st?.academic_details?.roll_no ?? '').trim(); }
+  function studentMatchesSearch(st, q){
+    const query = String(q || '').trim().toLowerCase();
+    if (!query) return true;
 
+    const hay = [
+      studentName(st),
+      studentRoll(st),
+      st?.registration_no,
+      st?.academic_details?.registration_no,
+      st?.email,
+    ]
+      .map(v => String(v || '').toLowerCase())
+      .filter(Boolean);
+
+    return hay.some(v => v.includes(query));
+  }
   function resolveDepartmentIdFromCourse(course){
     return idNum(course?.department_id) || idNum(course?.department?.id) || idNum(course?.dept_id);
+  }
+
+  function filteredStudents(){
+    return (state.students || []).filter(st => studentMatchesSearch(st, state.studentSearch));
   }
 
   function keyOf(studentId, subjectId){ return String(studentId) + '_' + String(subjectId); }
@@ -494,7 +653,37 @@ input[type="checkbox"] {
     document.querySelectorAll('.cell-error').forEach(x => x.classList.remove('cell-error'));
   }
 
+  function hasScopeSelections(){
+    return !!state.selectedCourseId && !!state.selectedSemesterId;
+  }
+
+  function hasImportableScope(){
+    return hasScopeSelections() && state.students.length > 0 && state.subjects.length > 0;
+  }
+
+  function setImportFeedback(message = '', type = ''){
+    const box = $('importFeedback');
+    if (!box) return;
+    box.textContent = message;
+    box.className = 'ssa-import-feedback mt-3' + (type ? ` is-${type}` : '');
+  }
+
+  function clearImportState(){
+    const file = $('csvFileInput');
+    if (file) file.value = '';
+    setImportFeedback('');
+  }
+
+  function updateActionState(){
+    const canUseScope = hasScopeSelections();
+    if ($('semesterSelect')) $('semesterSelect').disabled = !state.selectedCourseId;
+    if ($('btnImport')) $('btnImport').disabled = !hasImportableScope();
+    if ($('btnDownloadTemplate')) $('btnDownloadTemplate').disabled = !canUseScope;
+    if ($('btnUploadCsv')) $('btnUploadCsv').disabled = !canUseScope || state.importing;
+  }
+
   function updateSummaryBadge(){
+    const visibleStudents = filteredStudents();
     let selected = 0;
     state.students.forEach(st => {
       const sid = idNum(st?.student_id ?? st?.id);
@@ -503,7 +692,10 @@ input[type="checkbox"] {
         if (getCell(sid, subid).checked) selected++;
       });
     });
-    $('badgeSummary').innerHTML = `<i class="fa fa-user-graduate me-1"></i> ${state.students.length} • <i class="fa fa-book me-1"></i> ${state.subjects.length} • <i class="fa fa-check-to-slot me-1"></i> ${selected}`;
+    const studentCount = state.studentSearch
+      ? `${visibleStudents.length}/${state.students.length}`
+      : `${state.students.length}`;
+    $('badgeSummary').innerHTML = `<i class="fa fa-user-graduate me-1"></i> ${studentCount} • <i class="fa fa-book me-1"></i> ${state.subjects.length} • <i class="fa fa-check-to-slot me-1"></i> ${selected}`;
   }
 
   function setEmpty(on){
@@ -515,11 +707,13 @@ input[type="checkbox"] {
    * ✅ Render Table
    */
   function renderTable(){
-    if (!state.selectedCourseId || !state.selectedSemesterId){
+    const visibleStudents = filteredStudents();
+
+    if (!hasScopeSelections()){
       setEmpty(true);
       $('tableRoot').innerHTML = '';
-      $('infoLine').textContent = 'Please select parameters.';
-      $('semesterSelect').disabled = !state.selectedCourseId;
+      $('infoLine').textContent = 'Please select course and semester.';
+      updateActionState();
       return;
     }
 
@@ -527,6 +721,16 @@ input[type="checkbox"] {
       setEmpty(false);
       $('tableRoot').innerHTML = `<div class="empty-state"><i class="fa fa-circle-exclamation text-warning"></i><div class="title">Data Not Available</div><div class="subtitle">Check if students and subjects are mapped to this semester.</div></div>`;
       updateSummaryBadge();
+      updateActionState();
+      return;
+    }
+
+    if (!visibleStudents.length){
+      setEmpty(false);
+      $('tableRoot').innerHTML = `<div class="empty-state"><i class="fa fa-magnifying-glass text-warning"></i><div class="title">No Students Found</div><div class="subtitle">Try a different student name or roll number.</div></div>`;
+      $('infoLine').textContent = `Loaded ${state.students.length} students and ${state.subjects.length} subjects. Search matched 0 students.`;
+      updateSummaryBadge();
+      updateActionState();
       return;
     }
 
@@ -571,7 +775,7 @@ input[type="checkbox"] {
             </tr>
           </thead>
           <tbody>
-            ${state.students.map(st => {
+            ${visibleStudents.map(st => {
               const sid = idNum(st?.student_id ?? st?.id);
               return `
                 <tr data-sid="${esc(String(sid))}">
@@ -600,13 +804,15 @@ input[type="checkbox"] {
 
     syncAllHeaderCheckboxes();
     updateSummaryBadge();
+    updateActionState();
   }
 
   function syncAllHeaderCheckboxes(){
+    const visibleStudents = filteredStudents();
     document.querySelectorAll('.chk-sub-all').forEach(h => {
       const subid = idNum(h.dataset.subid);
-      let total = state.students.length, on = 0;
-      state.students.forEach(st => { if (getCell(idNum(st?.student_id ?? st?.id), subid).checked) on++; });
+      let total = visibleStudents.length, on = 0;
+      visibleStudents.forEach(st => { if (getCell(idNum(st?.student_id ?? st?.id), subid).checked) on++; });
       h.indeterminate = (on > 0 && on < total);
       h.checked = (total > 0 && on === total);
     });
@@ -622,37 +828,159 @@ input[type="checkbox"] {
 
   async function loadCourses(){
     const res = await fetchWithTimeout(API.courses(), { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to load courses');
+
     state.courses = normalizeList(await res.json());
     $('courseSelect').innerHTML = `<option value="">Select Course</option>` + state.courses.map(c => `<option value="${esc(String(c.id))}">${esc(courseLabel(c))}</option>`).join('');
+    updateActionState();
   }
 
   async function loadSemesters(courseId){
     const res = await fetchWithTimeout(API.semestersByCourse(courseId), { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to load semesters');
     state.semesters = normalizeList(await res.json());
     $('semesterSelect').innerHTML = `<option value="">Select Semester</option>` + state.semesters.map(s => `<option value="${esc(String(s.id))}">${esc(semesterLabel(s))}</option>`).join('');
     $('semesterSelect').disabled = false;
+    updateActionState();
   }
 
   async function loadAll(){
-    if (!state.selectedCourseId || !state.selectedSemesterId) return;
+    if (!hasScopeSelections()) return;
     showLoading(true);
     try {
-      const resSt = await fetchWithTimeout(API.studentsByScope(state.selectedCourseId, state.selectedSemesterId), { headers: authHeaders() });
+      const selectedCourse = state.courses.find(c => idNum(c?.id) === state.selectedCourseId) || null;
+      const resSt = await fetchWithTimeout(
+        API.studentsByScope(state.departmentId, state.selectedCourseId, state.selectedSemesterId),
+        { headers: authHeaders() }
+      );
+      if (!resSt.ok) throw new Error('Failed to load students');
       state.students = normalizeList(await resSt.json()).filter(x => x?.has_academic_details).map(x => ({
         ...x, student_id: idNum(x?.student_id) || idNum(x?.user_id) || idNum(x?.id),
         dept_id: idNum(x?.academic_details?.department_id)
       }));
-      state.departmentId = state.students[0]?.dept_id || resolveDepartmentIdFromCourse(state.courses.find(c => idNum(c.id) === state.selectedCourseId));
+      state.departmentId = state.students[0]?.dept_id || resolveDepartmentIdFromCourse(selectedCourse);
+      if (!state.departmentId) throw new Error('Failed to resolve department for the selected course');
 
       const resSub = await fetchWithTimeout(API.subjectsByScope(state.departmentId, state.selectedCourseId, state.selectedSemesterId), { headers: authHeaders() });
+      if (!resSub.ok) throw new Error('Failed to load subjects');
       state.subjects = normalizeList(await resSub.json());
 
       const resMap = await fetchWithTimeout(API.mappingCurrent(state.departmentId, state.selectedCourseId, state.selectedSemesterId), { headers: authHeaders() });
+      if (!resMap.ok) throw new Error('Failed to load attendance mapping');
       state.mapping = normalizeList(await resMap.json())[0] || null;
       if (state.mapping) applyExistingMapping(state.mapping); else state.matrix.clear();
 
+      const searchNote = state.studentSearch ? ` Search matched ${filteredStudents().length} students.` : '';
+      $('infoLine').textContent = `Loaded ${state.students.length} students and ${state.subjects.length} subjects for import or direct editing.${searchNote}`;
       renderTable();
     } catch(ex) { err(ex.message); } finally { showLoading(false); }
+  }
+
+  async function readJsonSafe(res){
+    try { return await res.json(); } catch(_){ return null; }
+  }
+
+  function extractFilename(res, fallback){
+    const header = res.headers.get('content-disposition') || '';
+    const utfMatch = header.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utfMatch?.[1]) return decodeURIComponent(utfMatch[1]);
+    const plainMatch = header.match(/filename="?([^"]+)"?/i);
+    return plainMatch?.[1] || fallback;
+  }
+
+  async function downloadTemplate(){
+    if (!hasScopeSelections()) return err('Select course and semester first.');
+
+    showLoading(true);
+    setImportFeedback('');
+
+    try {
+      const res = await fetchWithTimeout(
+        API.importTemplate(state.departmentId, state.selectedCourseId, state.selectedSemesterId),
+        { headers: authHeaders() },
+        30000
+      );
+
+      if (!res.ok) {
+        const payload = await readJsonSafe(res);
+        throw new Error(payload?.message || 'Template download failed');
+      }
+
+      const blob = await res.blob();
+      const fileName = extractFilename(
+        res,
+        `student-subject-attendance-template-${state.selectedCourseId}-${state.selectedSemesterId}.csv`
+      );
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      setImportFeedback('Template downloaded successfully.', 'success');
+    } catch (ex) {
+      setImportFeedback(ex.message || 'Template download failed.', 'error');
+      err(ex.message);
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function importSummaryText(payload){
+    const summary = payload?.import_summary;
+    if (!summary) return payload?.message || 'CSV imported successfully.';
+    return `Imported ${summary.parsed_records || 0} attendance records from ${summary.processed_rows || 0} rows.`;
+  }
+
+  async function uploadCsv(){
+    const file = $('csvFileInput')?.files?.[0];
+    if (!file) return setImportFeedback('Choose a CSV file to import.', 'error');
+    if (!hasScopeSelections()) return setImportFeedback('Select course and semester first.', 'error');
+
+    state.importing = true;
+    updateActionState();
+    showLoading(true);
+    setImportFeedback('');
+
+    try {
+      const form = new FormData();
+      if (state.departmentId) form.append('department_id', String(state.departmentId));
+      form.append('course_id', String(state.selectedCourseId));
+      form.append('semester_id', String(state.selectedSemesterId));
+      form.append('file', file);
+
+      const res = await fetchWithTimeout(API.importCsv(), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: form
+      }, 45000);
+
+      const payload = await readJsonSafe(res);
+      if (!res.ok) {
+        const firstError =
+          Array.isArray(payload?.errors) ? payload.errors[0] :
+          (payload?.errors && typeof payload.errors === 'object'
+            ? Object.values(payload.errors).flat()[0]
+            : payload?.message);
+        throw new Error(firstError || payload?.message || 'CSV import failed');
+      }
+
+      ok(importSummaryText(payload));
+      clearImportState();
+      importModal?.hide();
+      await loadAll();
+    } catch (ex) {
+      setImportFeedback(ex.message || 'CSV import failed.', 'error');
+      err(ex.message);
+    } finally {
+      state.importing = false;
+      updateActionState();
+      showLoading(false);
+    }
   }
 
   function validate(){
@@ -712,22 +1040,54 @@ input[type="checkbox"] {
     $('courseSelect').addEventListener('change', async (e) => {
       state.selectedCourseId = idNum(e.target.value);
       state.selectedSemesterId = null;
+      state.departmentId = resolveDepartmentIdFromCourse(state.courses.find(c => idNum(c?.id) === state.selectedCourseId) || null);
+      state.students = [];
+      state.subjects = [];
+      state.mapping = null;
+      state.matrix.clear();
+      $('semesterSelect').innerHTML = '<option value="">Select a course first</option>';
+      $('semesterSelect').disabled = !state.selectedCourseId;
+      clearImportState();
       renderTable();
-      if (state.selectedCourseId) await loadSemesters(state.selectedCourseId);
+
+      if (state.selectedCourseId) {
+        showLoading(true);
+        try { await loadSemesters(state.selectedCourseId); }
+        catch (ex) { err(ex.message); }
+        finally { showLoading(false); }
+      }
     });
+
     $('semesterSelect').addEventListener('change', async (e) => {
       state.selectedSemesterId = idNum(e.target.value);
+      clearImportState();
       await loadAll();
     });
+
     $('btnRefresh').addEventListener('click', loadAll);
     $('btnSave').addEventListener('click', save);
+    $('btnImport').addEventListener('click', () => {
+      if (!hasImportableScope()) return err('Load course and semester data first.');
+      clearImportState();
+      importModal?.show();
+    });
+    $('btnDownloadTemplate').addEventListener('click', downloadTemplate);
+    $('btnUploadCsv').addEventListener('click', uploadCsv);
+    $('studentSearchInput').addEventListener('input', (e) => {
+      state.studentSearch = String(e.target.value || '').trim();
+      if (hasScopeSelections() && state.students.length && state.subjects.length) {
+        const matched = filteredStudents().length;
+        $('infoLine').textContent = `Loaded ${state.students.length} students and ${state.subjects.length} subjects for import or direct editing. Search matched ${matched} students.`;
+      }
+      renderTable();
+    });
 
     document.addEventListener('change', (e) => {
   const h = e.target.closest('.chk-sub-all');
   if (h) {
     const subid = idNum(h.dataset.subid);
 
-    state.students.forEach(st => {
+    filteredStudents().forEach(st => {
       const sid = idNum(st?.student_id ?? st?.id);
       setCell(sid, subid, { checked: h.checked });
 
@@ -793,7 +1153,7 @@ input[type="checkbox"] {
     if (!token()) { window.location.href='/'; return; }
     bindEvents();
     showLoading(true);
-    try { await loadCourses(); } finally { showLoading(false); }
+    try { await loadCourses(); renderTable(); } finally { showLoading(false); }
   });
 })();
 </script>

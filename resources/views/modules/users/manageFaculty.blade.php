@@ -487,6 +487,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }[s]));
   }
 
+  function csvCell(value) {
+    return `"${String(value ?? '').replace(/"/g, '""')}"`;
+  }
+
+  function downloadCsv(filename, csv) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = window.URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
   function debounce(fn, ms = 350) {
     let t;
     return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
@@ -707,6 +723,46 @@ document.addEventListener('DOMContentLoaded', function () {
     if (id === undefined || id === null || id === '') return '';
 
     return state.deptMap[String(id)] || `Department #${id}`;
+  }
+
+  function facultyTemplateCsv(deptId) {
+    const dept = (state.departments || []).find(d => String(d?.id ?? d?.value ?? d?.department_id ?? '') === String(deptId || '')) || null;
+    const departmentUuid = dept?.uuid || '11111111-1111-1111-1111-111111111111';
+    const headers = [
+      'name',
+      'email',
+      'phone_number',
+      'role',
+      'department_uuid',
+      'status',
+      'password',
+      'name_short_form',
+      'employee_id',
+      'alternative_email',
+      'alternative_phone_number',
+      'whatsapp_number',
+      'address',
+      'image',
+    ];
+
+    const sample = [
+      'John Faculty',
+      'john.faculty@example.com',
+      '+91 99999 99999',
+      'faculty',
+      departmentUuid,
+      'active',
+      'Pass@1234',
+      'JF',
+      'EMP-1001',
+      'john.alt@example.com',
+      '+91 88888 88888',
+      '+91 77777 77777',
+      'Kolkata, WB',
+      '/storage/users/faculty/john-faculty.jpg',
+    ];
+
+    return headers.join(',') + '\r\n' + sample.map(csvCell).join(',');
   }
 
   async function loadDepartments(showOverlay = false) {
@@ -1057,7 +1113,16 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    const { isConfirmed } = await Swal.fire({
+    if (!state.departmentsLoaded) await loadDepartments(false);
+
+    const deptOptions = (state.departments || []).map(d => {
+      const id = d?.id ?? d?.value ?? d?.department_id;
+      if (id === undefined || id === null || id === '') return '';
+      const selected = String(state.departmentFilter || '') === String(id) ? ' selected' : '';
+      return `<option value="${escapeHtml(String(id))}"${selected}>${escapeHtml(deptName(d))}</option>`;
+    }).filter(Boolean).join('');
+
+    const result = await Swal.fire({
       title: 'Import Faculty (CSV)',
       html: `
         <div class="text-start" style="font-size:13px;line-height:1.4">
@@ -1067,6 +1132,14 @@ document.addEventListener('DOMContentLoaded', function () {
           <div class="mb-2 text-muted">
             Tip: role values must be from: <code>faculty</code>, <code>hod</code>, <code>technical_assistant</code>, <code>tpo</code> (or <code>placement_officer</code>)
           </div>
+          <div class="mb-2">
+            <label for="facultyTemplateDept" class="form-label mb-1">Department for Template</label>
+            <select id="facultyTemplateDept" class="form-select">
+              <option value="">Select Department</option>
+              ${deptOptions}
+            </select>
+            <div class="form-text mt-1">Use this only when downloading the template from this popup.</div>
+          </div>
           <div class="form-check mt-2">
             <input class="form-check-input" type="checkbox" id="swUpdateExisting" checked>
             <label class="form-check-label" for="swUpdateExisting">Update existing users (match by email/uuid if supported)</label>
@@ -1075,11 +1148,38 @@ document.addEventListener('DOMContentLoaded', function () {
       `,
       icon: 'info',
       showCancelButton: true,
+      showDenyButton: true,
       confirmButtonText: 'Choose CSV',
+      denyButtonText: 'Download Template',
       cancelButtonText: 'Cancel'
+      ,
+      focusConfirm: false,
+      preDeny: () => {
+        const deptId = document.getElementById('facultyTemplateDept')?.value || '';
+        if (!deptId) {
+          Swal.showValidationMessage('Please select a department to download the template.');
+          return false;
+        }
+        return deptId;
+      }
     });
 
-    if (!isConfirmed) return;
+    if (result.isDenied && result.value) {
+      const deptId = String(result.value);
+      const dept = (state.departments || []).find(d => String(d?.id ?? d?.value ?? d?.department_id ?? '') === deptId) || null;
+      const slug = (deptName(dept || {}) || 'department')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'department';
+
+      downloadCsv(`faculty_template_${slug}.csv`, facultyTemplateCsv(deptId));
+      ok('Faculty template downloaded');
+      return;
+    }
+
+    if (!result.isConfirmed) return;
 
     // stash updateExisting preference for this selection
     const updateExisting = document.getElementById('swUpdateExisting')?.checked ? '1' : '0';

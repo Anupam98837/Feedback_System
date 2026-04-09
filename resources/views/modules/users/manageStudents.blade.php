@@ -127,7 +127,21 @@ td .fw-semibold{color:var(--ink)}
             <i class="fa fa-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);opacity:.6;"></i>
           </div>
 
-          <button id="btnFilter" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+          <div class="d-flex align-items-center gap-2">
+            <label class="text-muted small mb-0">Department</label>
+            <select id="top_department_filter" class="form-select" style="width:220px;">
+              <option value="">All Departments</option>
+            </select>
+          </div>
+
+          <div class="d-flex align-items-center gap-2">
+            <label class="text-muted small mb-0">Course</label>
+            <select id="top_course_filter" class="form-select" style="width:220px;">
+              <option value="">All Courses</option>
+            </select>
+          </div>
+
+          <button id="btnFilter" class="btn btn-outline-primary">
             <i class="fa fa-sliders me-1"></i>Filter
           </button>
 
@@ -140,7 +154,7 @@ td .fw-semibold{color:var(--ink)}
           </button>
 
           {{-- ✅ UPDATED: Import CSV button - now opens modal --}}
-          <button id="btnImportStudents" class="btn btn-outline-primary" style="display:none;" data-bs-toggle="modal" data-bs-target="#importModal">
+          <button id="btnImportStudents" class="btn btn-outline-primary" style="display:none;">
             <i class="fa fa-file-import me-1"></i>Import CSV
           </button>
 
@@ -256,15 +270,6 @@ td .fw-semibold{color:var(--ink)}
             <div class="form-text">This page shows only students.</div>
           </div>
 
-          {{-- ✅ NEW: Department filter --}}
-          <div class="col-12">
-            <label class="form-label">Department</label>
-            <select id="modal_department" class="form-select">
-              <option value="">All Departments</option>
-            </select>
-            <div class="form-text">Loaded from <code>/api/departments</code></div>
-          </div>
-
           <div class="col-12">
             <label class="form-label">Sort By</label>
             <select id="modal_sort" class="form-select">
@@ -323,7 +328,7 @@ td .fw-semibold{color:var(--ink)}
             <input type="file" id="importCsvFile" class="form-control" accept=".csv,text/csv">
             <div class="form-text">
               Maximum file size: 5MB. Required columns for basic import:
-              <code>name, email, phone_number, department_id, status, password</code>
+              <code>name, email, phone_number, department_uuid, status, password</code>
             </div>
           </div>
 
@@ -359,7 +364,7 @@ td .fw-semibold{color:var(--ink)}
                           <li><code>name</code> - Full name (required)</li>
                           <li><code>email</code> - Email address (required, unique)</li>
                           <li><code>phone_number</code> - Primary phone</li>
-                          <li><code>department_id</code> - Department ID</li>
+                          <li><code>department_uuid</code> - Department UUID</li>
                           <li><code>status</code> - active/inactive</li>
                           <li><code>password</code> - Password for new users</li>
                           <li><code>alternative_email</code> - Alternate email</li>
@@ -401,7 +406,7 @@ td .fw-semibold{color:var(--ink)}
             <div class="alert alert-warning small">
               <i class="fa fa-exclamation-triangle me-1"></i>
               <strong>Note:</strong> Academic details will only be imported if the student user is created/updated successfully.
-              Ensure <code>department_id</code> and <code>course_id</code> exist in your system.
+              Ensure <code>department_uuid</code> and <code>course_uuid</code> exist in your system.
             </div>
           </div>
         </div>
@@ -410,6 +415,66 @@ td .fw-semibold{color:var(--ink)}
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" id="btnDoImport">
           <i class="fa fa-upload me-1"></i> Import CSV
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="templateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa fa-download me-2"></i>Download Student Template</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info small">
+          Select the scope first. The downloaded CSV will contain UUID-based columns and one dummy student row.
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Template Type</label>
+            <select id="templateType" class="form-select">
+              <option value="basic">Basic Template</option>
+              <option value="academic">With Academic Details</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Department <span class="text-danger">*</span></label>
+            <select id="tpl_department_id" class="form-select">
+              <option value="">Select Department</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Course</label>
+            <select id="tpl_course_id" class="form-select" disabled>
+              <option value="">Select Course</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Semester</label>
+            <select id="tpl_semester_id" class="form-select" disabled>
+              <option value="">Select Semester (optional)</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Section</label>
+            <select id="tpl_section_id" class="form-select" disabled>
+              <option value="">Select Section (optional)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnTemplateDownloadNow">
+          <i class="fa fa-download me-1"></i> Download
         </button>
       </div>
     </div>
@@ -790,12 +855,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const perPageSel = document.getElementById('perPage');
   const searchInput = document.getElementById('searchInput');
+  const topDeptFilter = document.getElementById('top_department_filter');
+  const topCourseFilter = document.getElementById('top_course_filter');
   const btnApplyFilters = document.getElementById('btnApplyFilters');
   const btnReset = document.getElementById('btnReset');
   const modalRole = document.getElementById('modal_role');
   const modalSort = document.getElementById('modal_sort');
-  // ✅ NEW
-  const modalDept = document.getElementById('modal_department');
 
   const filterModalEl = document.getElementById('filterModal');
   const filterModal = new bootstrap.Modal(filterModalEl);
@@ -813,6 +878,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnDoImport = document.getElementById('btnDoImport');
   const btnDownloadTemplate = document.getElementById('btnDownloadTemplate');
   const btnDownloadTemplateWithAcademic = document.getElementById('btnDownloadTemplateWithAcademic');
+  const templateModalEl = document.getElementById('templateModal');
+  const templateModal = templateModalEl ? new bootstrap.Modal(templateModalEl) : null;
+  const templateType = document.getElementById('templateType');
+  const tplDept = document.getElementById('tpl_department_id');
+  const tplCourse = document.getElementById('tpl_course_id');
+  const tplSemester = document.getElementById('tpl_semester_id');
+  const tplSection = document.getElementById('tpl_section_id');
+  const btnTemplateDownloadNow = document.getElementById('btnTemplateDownloadNow');
 
   // ✅ Import endpoints (tries multiple to FIX "template upload not inserting")
   const IMPORT_APIS = [
@@ -905,6 +978,7 @@ document.addEventListener('DOMContentLoaded', function () {
     totalPages: { active: 1, inactive: 1 },
     // ✅ NEW: department filter (string id)
     deptFilter: '',
+    courseFilter: '',
     departments: [],
     departmentsLoaded: false,
     courses: [],
@@ -965,10 +1039,34 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   document.addEventListener('hidden.bs.modal', () => setTimeout(cleanupModalBackdrops, 80));
 
+  function showModalExclusive(modal) {
+    if (!modal) return;
+
+    const targetEl = modal._element || null;
+    const openEls = Array.from(document.querySelectorAll('.modal.show'))
+      .filter(el => el !== targetEl);
+
+    if (!openEls.length) {
+      modal.show();
+      return;
+    }
+
+    const lastOpenEl = openEls[openEls.length - 1];
+    const lastOpenModal = bootstrap.Modal.getInstance(lastOpenEl) || bootstrap.Modal.getOrCreateInstance(lastOpenEl);
+
+    const handleHidden = () => {
+      lastOpenEl.removeEventListener('hidden.bs.modal', handleHidden);
+      setTimeout(() => modal.show(), 30);
+    };
+
+    lastOpenEl.addEventListener('hidden.bs.modal', handleHidden, { once: true });
+    lastOpenModal.hide();
+  }
+
   // ✅ Guide: red mark required + replace *_id -> *_uuid + remove metadata everywhere
   function markImportGuideRequired() {
     // ✅ Basic required always
-    const reqBasic = new Set(['name', 'email', 'department_id', 'status']);
+    const reqBasic = new Set(['name', 'email', 'department_uuid', 'status']);
 
     // ✅ Password required ONLY in create mode
     const modeNow = (document.getElementById('importMode')?.value || 'create');
@@ -1027,6 +1125,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const warn = document.querySelector('#importModal .alert.alert-warning');
     if (warn && warn.innerHTML) {
       warn.innerHTML = warn.innerHTML
+        .replace(/department_id/gi, 'department_uuid')
+        .replace(/Department ID/gi, 'Department UUID')
         .replace(/course_id/gi, 'course_uuid')
         .replace(/Course ID/gi, 'Course UUID');
     }
@@ -1136,7 +1236,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Required headers (create requires password)
-    const requiredAlways = ['name', 'email', 'department_id', 'status'];
+    const requiredAlways = ['name', 'email', 'status'];
     const requiredCreateOnly = ['password'];
 
     // ✅ Detect "academic template" by presence of any academic columns
@@ -1149,6 +1249,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const missing = [];
     requiredAlways.forEach(k => { if (!headers.includes(k)) missing.push(k); });
+    if (!headers.includes('department_uuid') && !headers.includes('department_id')) {
+      missing.push('department_uuid');
+    }
     if ((mode || 'create') === 'create') {
       requiredCreateOnly.forEach(k => { if (!headers.includes(k)) missing.push(k); });
     }
@@ -1172,21 +1275,30 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function templateCsvBasic() {
+    const dept = (state.departments || []).find(d => String(d?.id ?? d?.value ?? d?.department_id ?? '') === String(tplDept?.value || '')) || null;
+    const departmentUuid = dept?.uuid || '11111111-1111-1111-1111-111111111111';
     const headers = [
-      'name','email','phone_number','department_id','status','password',
+      'name','email','phone_number','department_uuid','status','password',
       'alternative_email','alternative_phone_number','whatsapp_number','address','image'
     ];
     const sample = [
-      'John Doe','john.doe@example.com','+91 99999 99999','1','active','Pass@1234',
+      'John Doe','john.doe@example.com','+91 99999 99999',departmentUuid,'active','Pass@1234',
       'alt@example.com','+91 88888 88888','+91 77777 77777','Kolkata, WB','/storage/users/john.jpg'
     ];
     return headers.join(',') + '\r\n' + sample.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   }
 
   function templateCsvWithAcademic() {
+    const dept = (state.departments || []).find(d => String(d?.id ?? d?.value ?? d?.department_id ?? '') === String(tplDept?.value || '')) || null;
+    const course = (state.courses || []).find(c => String(c?.id ?? c?.value ?? c?.course_id ?? '') === String(tplCourse?.value || '')) || null;
+    const sems = state.semestersByCourse.get(String(tplCourse?.value || '')) || [];
+    const sem = sems.find(s => String(s?.id ?? s?.value ?? s?.semester_id ?? '') === String(tplSemester?.value || '')) || null;
+    const secs = state.sectionsBySemester.get(String(tplSemester?.value || '')) || [];
+    const sec = secs.find(s => String(s?.id ?? s?.value ?? s?.section_id ?? '') === String(tplSection?.value || '')) || null;
+
     const headers = [
       // user basic fields
-      'name','email','phone_number','department_id','status','password',
+      'name','email','phone_number','department_uuid','status','password',
       'alternative_email','alternative_phone_number','whatsapp_number','address','image',
       // academic fields (✅ UUID columns + metadata removed)
       'course_uuid','semester_uuid','section_uuid','academic_year','year','acad_status',
@@ -1196,16 +1308,35 @@ document.addEventListener('DOMContentLoaded', function () {
     // ✅ sample UUIDs (replace with real UUIDs from your DB)
     const sample = [
       // user basic
-      'John Doe','john.doe@example.com','+91 99999 99999','1','active','Pass@1234',
+      'John Doe','john.doe@example.com','+91 99999 99999',dept?.uuid || '11111111-1111-1111-1111-111111111111','active','Pass@1234',
       'alt@example.com','+91 88888 88888','+91 77777 77777','Kolkata, WB','/storage/users/john.jpg',
       // academic (uuid strings)
-      '11111111-1111-1111-1111-111111111111',
-      '22222222-2222-2222-2222-222222222222',
-      '33333333-3333-3333-3333-333333333333',
+      course?.uuid || '22222222-2222-2222-2222-222222222222',
+      sem?.uuid || '33333333-3333-3333-3333-333333333333',
+      sec?.uuid || '',
       '2025-26','2026','active','BCA-12','REG-123','ADM-456','2025-08-01','2025','2025-2029','87.5'
     ];
 
     return headers.join(',') + '\r\n' + sample.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  }
+
+  function openTemplateModal(type = 'basic') {
+    if (!state.departmentsLoaded) return;
+    if (templateType) templateType.value = type;
+    if (tplDept) tplDept.value = '';
+    if (tplCourse) {
+      tplCourse.innerHTML = `<option value="">Select Course</option>`;
+      tplCourse.disabled = true;
+    }
+    if (tplSemester) {
+      tplSemester.innerHTML = `<option value="">Select Semester (optional)</option>`;
+      tplSemester.disabled = true;
+    }
+    if (tplSection) {
+      tplSection.innerHTML = `<option value="">Select Section (optional)</option>`;
+      tplSection.disabled = true;
+    }
+    showModalExclusive(templateModal);
   }
 
   async function runImportCsv(file, mode) {
@@ -1290,13 +1421,67 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ✅ Download template buttons
   btnDownloadTemplate?.addEventListener('click', () => {
-    downloadCsv('students_basic_template.csv', templateCsvBasic());
-    ok('Basic template downloaded');
+    openTemplateModal('basic');
   });
 
   btnDownloadTemplateWithAcademic?.addEventListener('click', () => {
-    downloadCsv('students_with_academic_template.csv', templateCsvWithAcademic());
-    ok('Template with academic details downloaded');
+    openTemplateModal('academic');
+  });
+
+  tplDept?.addEventListener('change', async () => {
+    renderTemplateCourses();
+    if (tplCourse) tplCourse.value = '';
+    if (tplSemester) {
+      tplSemester.innerHTML = `<option value="">Select Semester (optional)</option>`;
+      tplSemester.disabled = true;
+    }
+    if (tplSection) {
+      tplSection.innerHTML = `<option value="">Select Section (optional)</option>`;
+      tplSection.disabled = true;
+    }
+  });
+
+  tplCourse?.addEventListener('change', async () => {
+    if (!tplSemester || !tplSection) return;
+    tplSemester.value = '';
+    tplSection.innerHTML = `<option value="">Select Section (optional)</option>`;
+    tplSection.disabled = true;
+    if (!tplCourse.value) {
+      tplSemester.innerHTML = `<option value="">Select Semester (optional)</option>`;
+      tplSemester.disabled = true;
+      return;
+    }
+    await loadSemestersByCourse(tplCourse.value);
+  });
+
+  tplSemester?.addEventListener('change', async () => {
+    if (!tplSection) return;
+    tplSection.value = '';
+    if (!tplSemester.value) {
+      tplSection.innerHTML = `<option value="">Select Section (optional)</option>`;
+      tplSection.disabled = true;
+      return;
+    }
+    await loadSectionsBySemester(tplSemester.value);
+  });
+
+  btnTemplateDownloadNow?.addEventListener('click', async () => {
+    try {
+      const type = templateType?.value || 'basic';
+      if (!tplDept?.value) throw new Error('Please select a department.');
+      if (type === 'academic' && !tplCourse?.value) throw new Error('Please select a course.');
+
+      const filename = type === 'academic'
+        ? 'students_with_academic_template.csv'
+        : 'students_basic_template.csv';
+      const csv = type === 'academic' ? templateCsvWithAcademic() : templateCsvBasic();
+
+      downloadCsv(filename, csv);
+      templateModal?.hide();
+      ok(type === 'academic' ? 'Template with academic details downloaded' : 'Basic template downloaded');
+    } catch (ex) {
+      err(ex.message);
+    }
   });
 
   // ✅ Import CSV
@@ -1360,9 +1545,14 @@ document.addEventListener('DOMContentLoaded', function () {
   // ✅ NEW: normalize department id from user row
   function rowDeptId(u) {
     const v =
+      u?.academic_department_id ??
       u?.department_id ??
       u?.departmentId ??
       u?.dept_id ??
+      u?.student_academic_detail?.department_id ??
+      u?.student_academic_details?.department_id ??
+      u?.studentAcademic?.department_id ??
+      u?.academic?.department_id ??
       u?.department?.id ??
       u?.department?.department_id ??
       u?.department?.dept_id ??
@@ -1394,6 +1584,56 @@ document.addEventListener('DOMContentLoaded', function () {
     return id ? `Department #${id}` : '—';
   }
 
+  function rowCourseId(u) {
+    const candidates = [
+      u?.academic_course_id,
+      u?.course_id,
+      u?.courseId,
+      u?.course?.id,
+      u?.student_academic_detail?.course_id,
+      u?.student_academic_detail?.course?.id,
+      u?.student_academic_details?.course_id,
+      u?.student_academic_details?.course?.id,
+      u?.studentAcademic?.course_id,
+      u?.studentAcademic?.course?.id,
+      u?.academic?.course_id,
+      u?.academic?.course?.id,
+    ];
+
+    for (const v of candidates) {
+      const n = parseInt(v, 10);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+  }
+
+  function renderTopCourseOptions() {
+    if (!topCourseFilter) return;
+
+    const current = (topCourseFilter.value || '').toString();
+    const deptId = parseInt((topDeptFilter?.value || '').toString(), 10);
+    const list = Number.isFinite(deptId) && deptId > 0
+      ? (state.courses || []).filter(c => {
+          const cid = parseInt((c?.department_id ?? c?.department?.id ?? c?.dept_id ?? ''), 10);
+          return Number.isFinite(cid) && cid === deptId;
+        })
+      : (state.courses || []);
+
+    let html = `<option value="">All Courses</option>`;
+    list.forEach(c => {
+      const id = c?.id ?? c?.value ?? c?.course_id;
+      if (id === undefined || id === null || id === '') return;
+      html += `<option value="${escapeHtml(String(id))}">${escapeHtml(courseLabel(c))}</option>`;
+    });
+    topCourseFilter.innerHTML = html;
+
+    if (current && list.some(c => String(c?.id ?? c?.value ?? c?.course_id) === current)) {
+      topCourseFilter.value = current;
+    } else {
+      topCourseFilter.value = '';
+    }
+  }
+
   function renderDepartmentsOptions() {
     // Basic dept
     if (deptInput) {
@@ -1421,19 +1661,31 @@ document.addEventListener('DOMContentLoaded', function () {
       if (curA && curA !== 'null') acadDept.value = curA;
     }
 
-    // ✅ NEW: Filter modal dept
-    if (modalDept) {
-      const curF = (modalDept.value || '').toString();
+    if (topDeptFilter) {
+      const curF = (topDeptFilter.value || '').toString();
       let fHtml = `<option value="">All Departments</option>`;
       (state.departments || []).forEach(d => {
         const id = d?.id ?? d?.value ?? d?.department_id;
         if (id === undefined || id === null || id === '') return;
         fHtml += `<option value="${escapeHtml(String(id))}">${escapeHtml(deptName(d))}</option>`;
       });
-      modalDept.innerHTML = fHtml;
-      // keep selection if any
-      if (curF && curF !== 'null') modalDept.value = curF;
+      topDeptFilter.innerHTML = fHtml;
+      if (curF && curF !== 'null') topDeptFilter.value = curF;
     }
+
+    if (tplDept) {
+      const curT = (tplDept.value || '').toString();
+      let tHtml = `<option value="">Select Department</option>`;
+      (state.departments || []).forEach(d => {
+        const id = d?.id ?? d?.value ?? d?.department_id;
+        if (id === undefined || id === null || id === '') return;
+        tHtml += `<option value="${escapeHtml(String(id))}">${escapeHtml(deptName(d))}</option>`;
+      });
+      tplDept.innerHTML = tHtml;
+      if (curT && curT !== 'null') tplDept.value = curT;
+    }
+
+    renderTopCourseOptions();
   }
 
   async function loadDepartments(showOverlay = false) {
@@ -1492,6 +1744,28 @@ document.addEventListener('DOMContentLoaded', function () {
   function semLabel(x){ return x?.title || x?.name || x?.semester_title || x?.slug || (x?.id ? `Semester #${x.id}` : 'Semester'); }
   function secLabel(x){ return x?.title || x?.name || x?.section_title || x?.slug || (x?.id ? `Section #${x.id}` : 'Section'); }
 
+  function renderTemplateCourses() {
+    if (!tplCourse) return;
+    const cur = tplCourse.value || '';
+    const deptId = parseInt((tplDept?.value || '').toString(), 10);
+    const list = Number.isFinite(deptId) && deptId > 0
+      ? (state.courses || []).filter(c => {
+          const cid = parseInt((c?.department_id ?? c?.department?.id ?? c?.dept_id ?? ''), 10);
+          return Number.isFinite(cid) && cid === deptId;
+        })
+      : [];
+
+    let html = `<option value="">Select Course</option>`;
+    list.forEach(c => {
+      const id = c?.id ?? c?.value ?? c?.course_id;
+      if (id === undefined || id === null || id === '') return;
+      html += `<option value="${escapeHtml(String(id))}">${escapeHtml(courseLabel(c))}</option>`;
+    });
+    tplCourse.innerHTML = html;
+    tplCourse.disabled = list.length === 0;
+    if (cur && cur !== 'null') tplCourse.value = cur;
+  }
+
   async function loadCourses() {
     if (state.coursesLoaded) return;
     const arr = await fetchListFromAny(['/api/courses','/api/course','/api/public/courses']);
@@ -1509,6 +1783,9 @@ document.addEventListener('DOMContentLoaded', function () {
       acadCourse.innerHTML = html;
       if (cur && cur !== 'null') acadCourse.value = cur;
     }
+
+    renderTemplateCourses();
+    renderTopCourseOptions();
   }
 
   function renderSemesters(sems) {
@@ -1524,6 +1801,20 @@ document.addEventListener('DOMContentLoaded', function () {
     if (cur && cur !== 'null') acadSemester.value = cur;
   }
 
+  function renderTemplateSemesters(sems) {
+    if (!tplSemester) return;
+    const cur = tplSemester.value || '';
+    let html = `<option value="">Select Semester (optional)</option>`;
+    (sems || []).forEach(s => {
+      const id = s?.id ?? s?.value ?? s?.semester_id;
+      if (id === undefined || id === null || id === '') return;
+      html += `<option value="${escapeHtml(String(id))}">${escapeHtml(semLabel(s))}</option>`;
+    });
+    tplSemester.innerHTML = html;
+    tplSemester.disabled = (sems || []).length === 0;
+    if (cur && cur !== 'null') tplSemester.value = cur;
+  }
+
   function renderSections(secs) {
     if (!acadSection) return;
     const cur = acadSection.value || '';
@@ -1537,12 +1828,27 @@ document.addEventListener('DOMContentLoaded', function () {
     if (cur && cur !== 'null') acadSection.value = cur;
   }
 
+  function renderTemplateSections(secs) {
+    if (!tplSection) return;
+    const cur = tplSection.value || '';
+    let html = `<option value="">Select Section (optional)</option>`;
+    (secs || []).forEach(s => {
+      const id = s?.id ?? s?.value ?? s?.section_id;
+      if (id === undefined || id === null || id === '') return;
+      html += `<option value="${escapeHtml(String(id))}">${escapeHtml(secLabel(s))}</option>`;
+    });
+    tplSection.innerHTML = html;
+    tplSection.disabled = (secs || []).length === 0;
+    if (cur && cur !== 'null') tplSection.value = cur;
+  }
+
   async function loadSemestersByCourse(courseId) {
-    if (!courseId) { renderSemesters([]); renderSections([]); return []; }
+    if (!courseId) { renderSemesters([]); renderSections([]); renderTemplateSemesters([]); renderTemplateSections([]); return []; }
     const key = String(courseId);
     if (state.semestersByCourse.has(key)) {
       const cached = state.semestersByCourse.get(key) || [];
       renderSemesters(cached);
+      renderTemplateSemesters(cached);
       return cached;
     }
     const arr = await fetchListFromAny([
@@ -1550,15 +1856,17 @@ document.addEventListener('DOMContentLoaded', function () {
     ]);
     state.semestersByCourse.set(key, arr || []);
     renderSemesters(arr || []);
+    renderTemplateSemesters(arr || []);
     return arr || [];
   }
 
   async function loadSectionsBySemester(semesterId) {
-    if (!semesterId) { renderSections([]); return []; }
+    if (!semesterId) { renderSections([]); renderTemplateSections([]); return []; }
     const key = String(semesterId);
     if (state.sectionsBySemester.has(key)) {
       const cached = state.sectionsBySemester.get(key) || [];
       renderSections(cached);
+      renderTemplateSections(cached);
       return cached;
     }
     const arr = await fetchListFromAny([
@@ -1569,25 +1877,16 @@ document.addEventListener('DOMContentLoaded', function () {
     ]);
     state.sectionsBySemester.set(key, arr || []);
     renderSections(arr || []);
+    renderTemplateSections(arr || []);
     return arr || [];
   }
 
   acadCourse?.addEventListener('change', async () => {
-    try {
-      showGlobalLoading(true);
-      await loadSemestersByCourse(acadCourse.value || '');
-      renderSections([]);
-    } finally {
-      showGlobalLoading(false);
-    }
+    await loadSemestersByCourse(acadCourse.value || '');
+    renderSections([]);
   });
   acadSemester?.addEventListener('change', async () => {
-    try {
-      showGlobalLoading(true);
-      await loadSectionsBySemester(acadSemester.value || '');
-    } finally {
-      showGlobalLoading(false);
-    }
+    await loadSectionsBySemester(acadSemester.value || '');
   });
 
   // ==========================
@@ -1600,6 +1899,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const params = new URLSearchParams();
       if (state.q) params.set('q', state.q);
       params.set('role', 'student');
+      if (state.deptFilter) params.set('department_id', state.deptFilter);
+      if (state.courseFilter) params.set('course_id', state.courseFilter);
 
       const url = '/api/users' + (params.toString() ? ('?' + params.toString()) : '');
       const res = await fetch(url, { headers: authHeaders() });
@@ -1645,6 +1946,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function recomputeAndRender() {
     const lists = { active: [], inactive: [] };
     const depFilter = (state.deptFilter || '').toString().trim();
+    const courseFilter = (state.courseFilter || '').toString().trim();
 
     state.items.forEach(u => {
       const rr = (u.role || '').toLowerCase();
@@ -1654,6 +1956,11 @@ document.addEventListener('DOMContentLoaded', function () {
       if (depFilter) {
         const did = rowDeptId(u);
         if (!did || String(did) !== depFilter) return;
+      }
+
+      if (courseFilter) {
+        const cid = rowCourseId(u);
+        if (!cid || String(cid) !== courseFilter) return;
       }
 
       const st = (u.status || 'active').toLowerCase();
@@ -1689,7 +1996,10 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderInfo(tab) {
     const infoEl = tab === 'active' ? infoActive : infoInactive;
     if (!infoEl) return;
-    infoEl.textContent = '—'; // requested: no counts
+    const total = state.total[tab] || 0;
+    const page = state.page[tab] || 1;
+    const totalPages = state.totalPages[tab] || 1;
+    infoEl.textContent = `Showing ${total} user(s) • Page ${page} of ${totalPages}`;
   }
 
   function renderTable(tab, rows) {
@@ -1850,15 +2160,35 @@ document.addEventListener('DOMContentLoaded', function () {
   filterModalEl.addEventListener('show.bs.modal', () => {
     modalRole.value = 'student';
     modalSort.value = state.sort || '-created_at';
-    // ✅ NEW
-    if (modalDept) modalDept.value = state.deptFilter || '';
+  });
+
+  document.getElementById('btnFilter')?.addEventListener('click', () => {
+    showModalExclusive(filterModal);
+  });
+
+  topDeptFilter?.addEventListener('change', () => {
+    state.deptFilter = (topDeptFilter.value || '').toString();
+    state.courseFilter = '';
+    if (topCourseFilter) topCourseFilter.value = '';
+    renderTopCourseOptions();
+    state.page.active = 1;
+    state.page.inactive = 1;
+    loadUsers();
+  });
+
+  topCourseFilter?.addEventListener('change', () => {
+    state.courseFilter = (topCourseFilter.value || '').toString();
+    state.page.active = 1;
+    state.page.inactive = 1;
+    loadUsers();
+  });
+
+  btnImportStudents?.addEventListener('click', () => {
+    showModalExclusive(importModal);
   });
 
   btnApplyFilters.addEventListener('click', () => {
     state.sort = modalSort.value || '-created_at';
-    // ✅ NEW
-    state.deptFilter = (modalDept?.value || '').toString();
-
     state.page.active = 1;
     state.page.inactive = 1;
     filterModal.hide();
@@ -1871,14 +2201,16 @@ document.addEventListener('DOMContentLoaded', function () {
     state.perPage = 10;
     state.page.active = 1;
     state.page.inactive = 1;
-    // ✅ NEW
     state.deptFilter = '';
+    state.courseFilter = '';
 
     searchInput.value = '';
     perPageSel.value = '10';
     modalRole.value = 'student';
     modalSort.value = '-created_at';
-    if (modalDept) modalDept.value = '';
+    if (topDeptFilter) topDeptFilter.value = '';
+    renderTopCourseOptions();
+    if (topCourseFilter) topCourseFilter.value = '';
 
     loadUsers();
   });
@@ -2431,7 +2763,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!state.departmentsLoaded) await loadDepartments(false);
     await loadCourses();
 
-    userModal.show();
+    showModalExclusive(userModal);
     setStepActive(1);
   }
 
@@ -2481,7 +2813,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       setWizardReadOnly(viewOnly);
 
-      userModal.show();
+      showModalExclusive(userModal);
       setStepActive(1);
     } finally {
       showGlobalLoading(false);
@@ -2542,7 +2874,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fillAcademicFromUserDept();
       }
 
-      userModal.show();
+      showModalExclusive(userModal);
       setStepActive(2);
 
       setWizardReadOnly(false);

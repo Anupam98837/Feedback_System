@@ -310,10 +310,16 @@ class FeedbackPostController extends Controller
             return $q;
         }
 
-        // fallback (backward compat): filter via courses.department_id
-        $q->join('courses as c', 'c.id', '=', 'fp.course_id')
-          ->whereNull('c.deleted_at')
-          ->where('c.department_id', $deptId);
+        // fallback (backward compat): baseQuery already joins courses as c
+        if ($this->hasTable('courses') && $this->hasCol('courses', 'department_id')) {
+            if ($this->hasCol('courses', 'deleted_at')) {
+                $q->whereNull('c.deleted_at');
+            }
+            $q->where('c.department_id', $deptId);
+            return $q;
+        }
+
+        $q->whereRaw('1=0');
 
         return $q;
     }
@@ -467,12 +473,69 @@ class FeedbackPostController extends Controller
             'fp.deleted_at',
         ];
 
-        // include department_id if exists (no FE needed)
-        if ($this->hasCol(self::TABLE, 'department_id')) {
-            $select[] = 'fp.department_id';
+        $q = DB::table(self::TABLE . ' as fp');
+
+        if ($this->hasTable('courses')) {
+            $q->leftJoin('courses as c', function ($join) {
+                $join->on('c.id', '=', 'fp.course_id');
+                if ($this->hasCol('courses', 'deleted_at')) {
+                    $join->whereNull('c.deleted_at');
+                }
+            });
+            $select[] = 'c.title as course_title';
         }
 
-        $q = DB::table(self::TABLE . ' as fp')->select($select);
+        if ($this->hasTable('course_semesters')) {
+            $q->leftJoin('course_semesters as cs', function ($join) {
+                $join->on('cs.id', '=', 'fp.semester_id');
+                if ($this->hasCol('course_semesters', 'deleted_at')) {
+                    $join->whereNull('cs.deleted_at');
+                }
+            });
+            $select[] = 'cs.title as semester_title';
+        }
+
+        if ($this->hasTable('subjects')) {
+            $q->leftJoin('subjects as sub', function ($join) {
+                $join->on('sub.id', '=', 'fp.subject_id');
+                if ($this->hasCol('subjects', 'deleted_at')) {
+                    $join->whereNull('sub.deleted_at');
+                }
+            });
+            $select[] = 'sub.title as subject_title';
+        }
+
+        if ($this->hasTable('course_semester_sections')) {
+            $q->leftJoin('course_semester_sections as css', function ($join) {
+                $join->on('css.id', '=', 'fp.section_id');
+                if ($this->hasCol('course_semester_sections', 'deleted_at')) {
+                    $join->whereNull('css.deleted_at');
+                }
+            });
+            $select[] = 'css.title as section_title';
+        }
+
+        $deptJoinCol = null;
+        if ($this->hasTable('departments')) {
+            if ($this->hasCol(self::TABLE, 'department_id')) {
+                $select[] = 'fp.department_id';
+                $deptJoinCol = 'fp.department_id';
+            } elseif ($this->hasTable('courses') && $this->hasCol('courses', 'department_id')) {
+                $deptJoinCol = 'c.department_id';
+            }
+
+            if ($deptJoinCol !== null) {
+                $q->leftJoin('departments as d', function ($join) use ($deptJoinCol) {
+                    $join->on('d.id', '=', DB::raw($deptJoinCol));
+                    if ($this->hasCol('departments', 'deleted_at')) {
+                        $join->whereNull('d.deleted_at');
+                    }
+                });
+                $select[] = 'd.title as department_title';
+            }
+        }
+
+        $q->select($select);
 
         if (!$includeDeleted) $q->whereNull('fp.deleted_at');
         return $q;
@@ -507,13 +570,41 @@ class FeedbackPostController extends Controller
 
                 // department_id comes from DB (derived on create/update)
                 'department_id' => $hasDept ? ($x->department_id !== null ? (int)$x->department_id : null) : null,
+                'department_title' => isset($x->department_title) && $x->department_title !== null ? (string)$x->department_title : null,
 
                 'course_id'   => $x->course_id !== null ? (int)$x->course_id : null,
+                'course_title' => isset($x->course_title) && $x->course_title !== null ? (string)$x->course_title : null,
                 'semester_id' => $x->semester_id !== null ? (int)$x->semester_id : null,
+                'semester_title' => isset($x->semester_title) && $x->semester_title !== null ? (string)$x->semester_title : null,
                 'subject_id'  => $x->subject_id !== null ? (int)$x->subject_id : null,
+                'subject_title' => isset($x->subject_title) && $x->subject_title !== null ? (string)$x->subject_title : null,
                 'section_id'  => $x->section_id !== null ? (int)$x->section_id : null,
+                'section_title' => isset($x->section_title) && $x->section_title !== null ? (string)$x->section_title : null,
                 'academic_year' => $x->academic_year !== null ? (string)$x->academic_year : null,
                 'year'          => $x->year !== null ? (int)$x->year : null,
+
+                'scope' => [
+                    'department' => ($hasDept && $x->department_id !== null) ? [
+                        'id' => (int) $x->department_id,
+                        'title' => isset($x->department_title) && $x->department_title !== null ? (string) $x->department_title : null,
+                    ] : null,
+                    'course' => $x->course_id !== null ? [
+                        'id' => (int) $x->course_id,
+                        'title' => isset($x->course_title) && $x->course_title !== null ? (string) $x->course_title : null,
+                    ] : null,
+                    'semester' => $x->semester_id !== null ? [
+                        'id' => (int) $x->semester_id,
+                        'title' => isset($x->semester_title) && $x->semester_title !== null ? (string) $x->semester_title : null,
+                    ] : null,
+                    'subject' => $x->subject_id !== null ? [
+                        'id' => (int) $x->subject_id,
+                        'title' => isset($x->subject_title) && $x->subject_title !== null ? (string) $x->subject_title : null,
+                    ] : null,
+                    'section' => $x->section_id !== null ? [
+                        'id' => (int) $x->section_id,
+                        'title' => isset($x->section_title) && $x->section_title !== null ? (string) $x->section_title : null,
+                    ] : null,
+                ],
 
                 'question_ids'     => is_array($questionIds) ? array_values($questionIds) : null,
                 'faculty_ids'      => is_array($facultyIds) ? array_values($facultyIds) : null,

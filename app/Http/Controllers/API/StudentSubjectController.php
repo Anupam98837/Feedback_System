@@ -14,6 +14,8 @@ use Carbon\Carbon;
 
 class StudentSubjectController extends Controller
 {
+    protected array $colCache = [];
+
     private const TABLE            = 'student_subject';
     private const TABLE_USERS      = 'users';
     private const TABLE_DEPTS      = 'departments';
@@ -135,6 +137,21 @@ class StudentSubjectController extends Controller
     private function logErr(string $msg, array $ctx = []): void
     {
         Log::error('[StudentSubject] ' . $msg, $ctx);
+    }
+
+    private function hasCol(string $table, string $col): bool
+    {
+        $key = $table . '.' . $col;
+
+        if (array_key_exists($key, $this->colCache)) {
+            return (bool) $this->colCache[$key];
+        }
+
+        try {
+            return $this->colCache[$key] = Schema::hasColumn($table, $col);
+        } catch (\Throwable $e) {
+            return $this->colCache[$key] = false;
+        }
     }
 
     private function isNumericId($v): bool
@@ -410,6 +427,233 @@ class StudentSubjectController extends Controller
             'created_at_ip' => $row->created_at_ip,
             'updated_at_ip' => $row->updated_at_ip,
         ];
+    }
+
+    private function scopeStudents(int $departmentId, int $courseId, ?int $semesterId)
+    {
+        $q = DB::table('student_academic_details as sad')
+            ->join('users as u', 'u.id', '=', 'sad.user_id')
+            ->select([
+                'u.id as user_id',
+                'u.uuid as user_uuid',
+                'u.name as student_name',
+                'sad.roll_no',
+                'sad.registration_no',
+            ])
+            ->where('sad.department_id', $departmentId)
+            ->where('sad.course_id', $courseId);
+
+        if ($semesterId === null) {
+            $q->whereNull('sad.semester_id');
+        } else {
+            $q->where('sad.semester_id', $semesterId);
+        }
+
+        if ($this->hasCol('student_academic_details', 'deleted_at')) {
+            $q->whereNull('sad.deleted_at');
+        }
+
+        if ($this->hasCol('student_academic_details', 'status')) {
+            $q->where('sad.status', 'active');
+        }
+
+        if ($this->hasCol('users', 'deleted_at')) {
+            $q->whereNull('u.deleted_at');
+        }
+
+        if ($this->hasCol('users', 'status')) {
+            $q->where('u.status', 'active');
+        }
+
+        $q->where(function ($w) {
+            $w->whereIn('u.role', ['student', 'students']);
+
+            if ($this->hasCol('users', 'role_short_form')) {
+                $w->orWhereIn('u.role_short_form', ['STD', 'STU']);
+            }
+        });
+
+        return $q
+            ->orderByRaw("CASE WHEN sad.roll_no IS NULL OR sad.roll_no = '' THEN 1 ELSE 0 END")
+            ->orderBy('sad.roll_no')
+            ->orderBy('u.name')
+            ->get();
+    }
+
+    private function scopeSubjects(int $departmentId, int $courseId, ?int $semesterId)
+    {
+        $q = DB::table('subjects')
+            ->select(['id', 'uuid', 'subject_code', 'title', 'subject_type']);
+
+        if ($this->hasCol('subjects', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        if ($this->hasCol('subjects', 'status')) {
+            $q->where('status', 'active');
+        }
+
+        if ($this->hasCol('subjects', 'department_id')) {
+            $q->where('department_id', $departmentId);
+        }
+
+        if ($this->hasCol('subjects', 'course_id')) {
+            $q->where('course_id', $courseId);
+        }
+
+        if ($semesterId !== null && $this->hasCol('subjects', 'course_semester_id')) {
+            $q->where('course_semester_id', $semesterId);
+        }
+
+        if ($this->hasCol('subjects', 'sort_order')) {
+            $q->orderBy('sort_order');
+        }
+
+        return $q->orderBy('title')->orderBy('id')->get();
+    }
+
+    private function scopeAttendanceMap(int $departmentId, int $courseId, ?int $semesterId): array
+    {
+        $q = DB::table(self::TABLE)
+            ->select(['id', 'subject_json'])
+            ->where('department_id', $departmentId)
+            ->where('course_id', $courseId)
+            ->whereNull(self::COL_DELETED_AT)
+            ->where('status', 'active')
+            ->orderByDesc('id');
+
+        if ($semesterId === null) {
+            $q->whereNull('semester_id');
+        } else {
+            $q->where('semester_id', $semesterId);
+        }
+
+        $row = $q->first();
+        $map = [];
+
+        foreach ($this->decodeSubjectJsonToArray($row->subject_json ?? null) as $item) {
+            $studentId = (int) ($item['student_id'] ?? 0);
+            $subjectId = (int) ($item['subject_id'] ?? 0);
+
+            if ($studentId <= 0 || $subjectId <= 0) {
+                continue;
+            }
+
+            $map[$studentId][$subjectId] = $item['current_attendance'] ?? null;
+        }
+
+        return $map;
+    }
+
+    private function csvHeaderForSubject($subject): string
+    {
+        $code = trim((string) ($subject->subject_code ?? ''));
+        $title = preg_replace('/\s+/', ' ', trim((string) ($subject->title ?? '')));
+
+        return 'subject::' . (string) $subject->uuid . '::' . $code . '::' . $title;
+    }
+
+    private function extractSubjectUuidFromHeader(string $header): ?string
+    {
+        $parts = explode('::', trim($header), 4);
+
+        if (count($parts) < 2 || strtolower((string) $parts[0]) !== 'subject') {
+            return null;
+        }
+
+        $uuid = trim((string) $parts[1]);
+
+        return Str::isUuid($uuid) ? strtolower($uuid) : null;
+    }
+
+    private function detectCsvDelimiter(string $line): string
+    {
+        $delimiters = [',', ';', "\t"];
+        $winner = ',';
+        $winnerCount = -1;
+
+        foreach ($delimiters as $delimiter) {
+            $count = substr_count($line, $delimiter);
+            if ($count > $winnerCount) {
+                $winner = $delimiter;
+                $winnerCount = $count;
+            }
+        }
+
+        return $winner;
+    }
+
+    private function sanitizeCsvHeader(string $header): string
+    {
+        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header);
+        return trim((string) $header);
+    }
+
+    private function resolveImportStudent(array $rowAssoc, array $studentsById, array $studentsByUuid, array $studentsByRoll, array $studentsByRegistration)
+    {
+        $studentId = trim((string) ($rowAssoc['student_id'] ?? ''));
+        if ($studentId !== '' && ctype_digit($studentId) && isset($studentsById[(int) $studentId])) {
+            return $studentsById[(int) $studentId];
+        }
+
+        $studentUuid = strtolower(trim((string) ($rowAssoc['student_uuid'] ?? '')));
+        if ($studentUuid !== '' && isset($studentsByUuid[$studentUuid])) {
+            return $studentsByUuid[$studentUuid];
+        }
+
+        $rollNo = strtolower(trim((string) ($rowAssoc['roll_no'] ?? '')));
+        if ($rollNo !== '' && isset($studentsByRoll[$rollNo])) {
+            return $studentsByRoll[$rollNo];
+        }
+
+        $registrationNo = strtolower(trim((string) ($rowAssoc['registration_no'] ?? '')));
+        if ($registrationNo !== '' && isset($studentsByRegistration[$registrationNo])) {
+            return $studentsByRegistration[$registrationNo];
+        }
+
+        return null;
+    }
+
+    private function resolveDepartmentIdForScope(?int $departmentId, int $courseId, ?int $semesterId, array $ac): ?int
+    {
+        if ($ac['mode'] === 'department' && !empty($ac['department_id'])) {
+            return (int) $ac['department_id'];
+        }
+
+        if ($departmentId !== null && $departmentId > 0) {
+            return $departmentId;
+        }
+
+        try {
+            if ($this->hasCol(self::TABLE_COURSES, 'department_id')) {
+                $courseDeptId = DB::table(self::TABLE_COURSES)
+                    ->where('id', $courseId)
+                    ->value('department_id');
+
+                if ($courseDeptId !== null && (int) $courseDeptId > 0) {
+                    return (int) $courseDeptId;
+                }
+            }
+        } catch (\Throwable $e) {
+            // fall through to academic details probe
+        }
+
+        $q = DB::table('student_academic_details')
+            ->where('course_id', $courseId);
+
+        if ($semesterId === null) {
+            $q->whereNull('semester_id');
+        } else {
+            $q->where('semester_id', $semesterId);
+        }
+
+        if ($this->hasCol('student_academic_details', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        $deptId = $q->value('department_id');
+
+        return ($deptId !== null && (int) $deptId > 0) ? (int) $deptId : null;
     }
 
     /* ============================================
@@ -798,6 +1042,423 @@ class StudentSubjectController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load current student subjects',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function importTemplate(Request $r)
+    {
+        $actor = $this->actor($r);
+        $meta = $this->reqMeta($r, $actor);
+
+        $actorId = (int) ($r->attributes->get('auth_tokenable_id') ?? $actor['id'] ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            return response()->json(['success' => false, 'message' => 'Not allowed'], 403);
+        }
+
+        $v = Validator::make($r->query(), [
+            'department_id' => ['nullable', 'integer', 'exists:' . self::TABLE_DEPTS . ',id'],
+            'course_id'     => ['required', 'integer', 'exists:' . self::TABLE_COURSES . ',id'],
+            'semester_id'   => ['nullable', 'integer', 'exists:' . self::TABLE_SEMESTERS . ',id'],
+        ]);
+
+        if ($v->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors'  => $v->errors(),
+            ], 422);
+        }
+
+        $departmentId = $r->filled('department_id') ? (int) $r->query('department_id') : null;
+        $courseId = (int) $r->query('course_id');
+        $semesterId = $r->filled('semester_id') ? (int) $r->query('semester_id') : null;
+        $departmentId = $this->resolveDepartmentIdForScope($departmentId, $courseId, $semesterId, $ac);
+
+        if ($departmentId === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to resolve department for the selected course and semester.',
+            ], 422);
+        }
+
+        if ($ac['mode'] === 'department' && $departmentId !== (int) $ac['department_id']) {
+            return response()->json(['success' => false, 'message' => 'Not allowed'], 403);
+        }
+
+        try {
+            $students = $this->scopeStudents($departmentId, $courseId, $semesterId);
+            $subjects = $this->scopeSubjects($departmentId, $courseId, $semesterId);
+
+            if ($students->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No students found for the selected course and semester.',
+                ], 422);
+            }
+
+            if ($subjects->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No subjects found for the selected course and semester.',
+                ], 422);
+            }
+
+            $attendanceMap = $this->scopeAttendanceMap($departmentId, $courseId, $semesterId);
+            $fileName = 'student-subject-attendance-template-d' . $departmentId . '-c' . $courseId . '-s' . ($semesterId ?? 0) . '.csv';
+
+            return response()->streamDownload(function () use ($students, $subjects, $attendanceMap) {
+                $out = fopen('php://output', 'w');
+                fwrite($out, "\xEF\xBB\xBF");
+
+                $headers = ['student_id', 'student_uuid', 'roll_no', 'registration_no', 'student_name'];
+                foreach ($subjects as $subject) {
+                    $headers[] = $this->csvHeaderForSubject($subject);
+                }
+
+                fputcsv($out, $headers);
+
+                foreach ($students as $student) {
+                    $row = [
+                        (int) $student->user_id,
+                        (string) ($student->user_uuid ?? ''),
+                        (string) ($student->roll_no ?? ''),
+                        (string) ($student->registration_no ?? ''),
+                        (string) ($student->student_name ?? ''),
+                    ];
+
+                    foreach ($subjects as $subject) {
+                        $value = $attendanceMap[(int) $student->user_id][(int) $subject->id] ?? '';
+                        $row[] = $value === null ? '' : $value;
+                    }
+
+                    fputcsv($out, $row);
+                }
+
+                fclose($out);
+            }, $fileName, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        } catch (\Throwable $e) {
+            $this->logErr('IMPORT_TEMPLATE: failed', $meta + [
+                'department_id' => $departmentId,
+                'course_id'     => $courseId,
+                'semester_id'   => $semesterId,
+                'error'         => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate import template',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function importCsv(Request $r)
+    {
+        $actor = $this->actor($r);
+        $meta = $this->reqMeta($r, $actor);
+
+        $actorId = (int) ($r->attributes->get('auth_tokenable_id') ?? $actor['id'] ?? 0);
+        $ac = $this->accessControl($actorId);
+
+        if ($ac['mode'] === 'not_allowed' || $ac['mode'] === 'none') {
+            return response()->json(['success' => false, 'message' => 'Not allowed'], 403);
+        }
+
+        $v = Validator::make($r->all(), [
+            'department_id' => ['nullable', 'integer', 'exists:' . self::TABLE_DEPTS . ',id'],
+            'course_id'     => ['required', 'integer', 'exists:' . self::TABLE_COURSES . ',id'],
+            'semester_id'   => ['nullable', 'integer', 'exists:' . self::TABLE_SEMESTERS . ',id'],
+            'file'          => ['required', 'file'],
+        ]);
+
+        if ($v->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors'  => $v->errors(),
+            ], 422);
+        }
+
+        $departmentId = $r->filled('department_id') ? (int) $r->input('department_id') : null;
+        $courseId = (int) $r->input('course_id');
+        $semesterId = $r->filled('semester_id') ? (int) $r->input('semester_id') : null;
+        $departmentId = $this->resolveDepartmentIdForScope($departmentId, $courseId, $semesterId, $ac);
+
+        if ($departmentId === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to resolve department for the selected course and semester.',
+            ], 422);
+        }
+
+        if ($ac['mode'] === 'department' && $departmentId !== (int) $ac['department_id']) {
+            return response()->json(['success' => false, 'message' => 'Not allowed'], 403);
+        }
+
+        try {
+            $students = $this->scopeStudents($departmentId, $courseId, $semesterId);
+            $subjects = $this->scopeSubjects($departmentId, $courseId, $semesterId);
+
+            if ($students->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No students found for the selected course and semester.',
+                ], 422);
+            }
+
+            if ($subjects->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No subjects found for the selected course and semester.',
+                ], 422);
+            }
+
+            $studentsById = [];
+            $studentsByUuid = [];
+            $studentsByRoll = [];
+            $studentsByRegistration = [];
+
+            foreach ($students as $student) {
+                $studentsById[(int) $student->user_id] = $student;
+
+                $uuid = strtolower(trim((string) ($student->user_uuid ?? '')));
+                if ($uuid !== '') {
+                    $studentsByUuid[$uuid] = $student;
+                }
+
+                $rollNo = strtolower(trim((string) ($student->roll_no ?? '')));
+                if ($rollNo !== '') {
+                    $studentsByRoll[$rollNo] = $student;
+                }
+
+                $registrationNo = strtolower(trim((string) ($student->registration_no ?? '')));
+                if ($registrationNo !== '') {
+                    $studentsByRegistration[$registrationNo] = $student;
+                }
+            }
+
+            $subjectsByUuid = [];
+            foreach ($subjects as $subject) {
+                $subjectsByUuid[strtolower((string) $subject->uuid)] = $subject;
+            }
+
+            $file = $r->file('file');
+            $path = $file?->getRealPath();
+
+            if (!$path || !is_file($path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Uploaded CSV file could not be read.',
+                ], 422);
+            }
+
+            $firstLine = (string) file_get_contents($path, false, null, 0, 4096);
+            $delimiter = $this->detectCsvDelimiter($firstLine);
+            $handle = fopen($path, 'r');
+
+            if (!$handle) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to open uploaded CSV file.',
+                ], 422);
+            }
+
+            $headers = fgetcsv($handle, 0, $delimiter);
+            if (!is_array($headers) || empty($headers)) {
+                fclose($handle);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSV header row is missing or invalid.',
+                ], 422);
+            }
+
+            $headers = array_map(fn($header) => $this->sanitizeCsvHeader((string) $header), $headers);
+            $subjectColumns = [];
+            $rowAssocHeaders = [];
+
+            foreach ($headers as $index => $header) {
+                $rowAssocHeaders[$index] = $header;
+                $uuid = $this->extractSubjectUuidFromHeader($header);
+
+                if ($uuid === null) {
+                    continue;
+                }
+
+                if (!isset($subjectsByUuid[$uuid])) {
+                    fclose($handle);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'CSV template does not match the currently selected subject list.',
+                        'errors'  => ['header' => ['Unknown subject column: ' . $header]],
+                    ], 422);
+                }
+
+                $subjectColumns[$index] = [
+                    'uuid'       => $uuid,
+                    'subject_id' => (int) $subjectsByUuid[$uuid]->id,
+                    'label'      => $header,
+                ];
+            }
+
+            if (empty($subjectColumns)) {
+                fclose($handle);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No subject columns were found in the CSV template.',
+                ], 422);
+            }
+
+            $subjectJson = [];
+            $errors = [];
+            $skipped = [];
+            $matchedStudents = [];
+            $processedRows = 0;
+            $lineNumber = 1;
+
+            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+                $lineNumber++;
+
+                if (count($row) === 1 && ($row[0] === null || trim((string) $row[0]) === '')) {
+                    continue;
+                }
+
+                $row = array_pad($row, count($headers), null);
+                $rowAssoc = [];
+                $hasAnyValue = false;
+
+                foreach ($rowAssocHeaders as $index => $header) {
+                    $value = isset($row[$index]) ? trim((string) $row[$index]) : '';
+                    $rowAssoc[$header] = $value;
+                    if ($value !== '') {
+                        $hasAnyValue = true;
+                    }
+                }
+
+                if (!$hasAnyValue) {
+                    continue;
+                }
+
+                $processedRows++;
+                $student = $this->resolveImportStudent($rowAssoc, $studentsById, $studentsByUuid, $studentsByRoll, $studentsByRegistration);
+
+                if (!$student) {
+                    $skipped[] = 'Line ' . $lineNumber . ': student not found in the selected scope.';
+                    continue;
+                }
+
+                $matchedStudents[(int) $student->user_id] = true;
+
+                foreach ($subjectColumns as $index => $metaCol) {
+                    $raw = trim((string) ($row[$index] ?? ''));
+                    if ($raw === '') {
+                        continue;
+                    }
+
+                    if (!is_numeric($raw)) {
+                        $errors[] = 'Line ' . $lineNumber . ': "' . $metaCol['label'] . '" must be numeric.';
+                        continue;
+                    }
+
+                    $attendance = (float) $raw;
+                    if ($attendance < 0 || $attendance > 100) {
+                        $errors[] = 'Line ' . $lineNumber . ': "' . $metaCol['label'] . '" must be between 0 and 100.';
+                        continue;
+                    }
+
+                    if (floor($attendance) == $attendance) {
+                        $attendance = (int) $attendance;
+                    }
+
+                    $subjectJson[] = [
+                        'student_id'         => (int) $student->user_id,
+                        'subject_id'         => (int) $metaCol['subject_id'],
+                        'current_attendance' => $attendance,
+                    ];
+                }
+            }
+
+            fclose($handle);
+
+            if (!empty($subjectJson)) {
+                $deduped = [];
+                foreach ($subjectJson as $item) {
+                    $deduped[$this->subjectItemKey($item)] = $item;
+                }
+                $subjectJson = array_values($deduped);
+            }
+
+            if (!empty($errors)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSV import has validation errors.',
+                    'errors'  => array_slice($errors, 0, 25),
+                    'skipped' => array_slice($skipped, 0, 15),
+                    'summary' => [
+                        'processed_rows'  => $processedRows,
+                        'matched_students'=> count($matchedStudents),
+                        'parsed_records'  => count($subjectJson),
+                    ],
+                ], 422);
+            }
+
+            if (empty($subjectJson)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No attendance values were found in the uploaded CSV.',
+                    'skipped' => array_slice($skipped, 0, 15),
+                ], 422);
+            }
+
+            $r->merge([
+                'department_id'       => $departmentId,
+                'course_id'           => $courseId,
+                'semester_id'         => $semesterId,
+                'subject_json'        => $subjectJson,
+                'replace_subject_json'=> true,
+                'status'              => 'active',
+                'metadata'            => [
+                    'source'           => 'csv_import',
+                    'file_name'        => (string) ($file?->getClientOriginalName() ?: 'attendance.csv'),
+                    'processed_rows'   => $processedRows,
+                    'matched_students' => count($matchedStudents),
+                    'parsed_records'   => count($subjectJson),
+                    'imported_at'      => $this->now(),
+                ],
+            ]);
+
+            $response = $this->store($r);
+            $payload = json_decode($response->getContent(), true);
+
+            if (is_array($payload)) {
+                $payload['import_summary'] = [
+                    'processed_rows'   => $processedRows,
+                    'matched_students' => count($matchedStudents),
+                    'parsed_records'   => count($subjectJson),
+                    'skipped_rows'     => count($skipped),
+                    'skipped'          => array_slice($skipped, 0, 15),
+                ];
+
+                return response()->json($payload, $response->getStatusCode());
+            }
+
+            return $response;
+        } catch (\Throwable $e) {
+            $this->logErr('IMPORT_CSV: failed', $meta + [
+                'department_id' => $departmentId,
+                'course_id'     => $courseId,
+                'semester_id'   => $semesterId,
+                'error'         => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import attendance CSV',
                 'error'   => $e->getMessage(),
             ], 500);
         }
