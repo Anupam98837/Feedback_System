@@ -507,6 +507,13 @@
 
   function qLabel(q){ return String(q?.question_title || q?.title || q?.name || (`Question #${q?.id}`) || 'Question'); }
   function userLabel(u){ return String(u?.name || u?.full_name || 'User'); }
+  function facultyDisplayName(u, fallback = 'Faculty'){
+    const full = String(u?.name || u?.full_name || fallback).trim() || fallback;
+    const short = String(u?.name_short_form || u?.short_name || '').trim();
+    if (!short) return full;
+    if (short.toLowerCase() === full.toLowerCase()) return full;
+    return `${full} (${short})`;
+  }
   function facultyUsers(){ return (state.users || []).filter(u => String(u?.role || '').toLowerCase() === 'faculty'); }
 
   function getQuestionTitleById(qid){
@@ -516,7 +523,7 @@
   function getFacultyNameById(fid){
     if (String(fid) === '0') return 'Overall';
     const u = state.usersById.get(idNum(fid));
-    return u ? userLabel(u) : `Faculty #${fid}`;
+    return u ? facultyDisplayName(u, `Faculty #${fid}`) : `Faculty #${fid}`;
   }
 
   /* ======================================================
@@ -897,7 +904,7 @@
         u = allFaculty.find(x => String(x?.id) === String(fid)) || null;
       }
 
-      return { id: fid, name: u ? userLabel(u) : `Faculty #${fid}`, _missing: !u };
+      return { id: fid, name: u ? facultyDisplayName(u, `Faculty #${fid}`) : `Faculty #${fid}`, _missing: !u };
     });
 
     return tabs.length ? tabs : [{ id: 0, name: 'Overall', _overall: true }];

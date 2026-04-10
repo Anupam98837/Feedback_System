@@ -12,6 +12,7 @@ class FeedbackSubmissionController extends Controller
 {
     private const POSTS = 'feedback_posts';
     private const SUBS  = 'feedback_submissions';
+    private const WINDOW_TIMEZONE = 'Asia/Kolkata';
 
     /** cache schema checks */
     protected array $colCache = [];
@@ -142,6 +143,11 @@ class FeedbackSubmissionController extends Controller
             'raw_col' => $rawCol,
             'val'     => $val,
         ];
+    }
+
+    private function windowNow()
+    {
+        return now(self::WINDOW_TIMEZONE);
     }
 
     /* =========================================================
@@ -352,12 +358,14 @@ class FeedbackSubmissionController extends Controller
 
     private function applyCurrentWindow($q)
     {
+        $now = $this->windowNow();
+
         return $q->where('fp.status', 'active')
-            ->where(function ($w) {
-                $w->whereNull('fp.publish_at')->orWhere('fp.publish_at', '<=', now());
+            ->where(function ($w) use ($now) {
+                $w->whereNull('fp.publish_at')->orWhere('fp.publish_at', '<=', $now);
             })
-            ->where(function ($w) {
-                $w->whereNull('fp.expire_at')->orWhere('fp.expire_at', '>=', now());
+            ->where(function ($w) use ($now) {
+                $w->whereNull('fp.expire_at')->orWhere('fp.expire_at', '>=', $now);
             });
     }
 
@@ -533,7 +541,10 @@ class FeedbackSubmissionController extends Controller
          if ($r->filled('year'))          $q->where('fp.year', (int)$r->query('year'));
          if ($r->filled('academic_year')) $q->where('fp.academic_year', (string)$r->query('academic_year'));
      
-         $q->orderBy('fp.sort_order', 'asc')->orderBy('fp.id', 'asc');
+         $q->orderByRaw('CASE WHEN fp.publish_at IS NULL THEN 1 ELSE 0 END ASC')
+           ->orderBy('fp.publish_at', 'asc')
+           ->orderBy('fp.sort_order', 'asc')
+           ->orderBy('fp.id', 'asc');
          $posts = $q->get();
      
          $postIds = $posts->pluck('id')->map(fn($x)=>(int)$x)->values()->all();

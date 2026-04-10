@@ -15,6 +15,7 @@ class FeedbackQuestionController extends Controller
      | Config
      |========================================================= */
     private const TABLE = 'feedback_questions';
+    private const WINDOW_TIMEZONE = 'Asia/Kolkata';
 
     /** cache schema checks */
     protected array $colCache = [];
@@ -79,6 +80,11 @@ class FeedbackQuestionController extends Controller
         }
         $s = strtolower(trim((string)$status));
         return $s ?: 'active';
+    }
+
+    private function windowNow()
+    {
+        return now(self::WINDOW_TIMEZONE);
     }
 
     private function normalizeMetadata($meta)
@@ -308,14 +314,15 @@ class FeedbackQuestionController extends Controller
      public function current(Request $r)
      {
          $group = trim((string) $r->query('group_title', ''));
+         $now = $this->windowNow();
      
          $q = $this->baseQuery(false)
              ->where('fq.status', 'active')
-             ->where(function ($w) {
-                 $w->whereNull('fq.publish_at')->orWhere('fq.publish_at', '<=', now());
+             ->where(function ($w) use ($now) {
+                 $w->whereNull('fq.publish_at')->orWhere('fq.publish_at', '<=', $now);
              })
-             ->where(function ($w) {
-                 $w->whereNull('fq.expire_at')->orWhere('fq.expire_at', '>=', now());
+             ->where(function ($w) use ($now) {
+                 $w->whereNull('fq.expire_at')->orWhere('fq.expire_at', '>=', $now);
              })
              ->orderBy('fq.group_title', 'asc')
              ->orderBy('fq.sort_order', 'asc')

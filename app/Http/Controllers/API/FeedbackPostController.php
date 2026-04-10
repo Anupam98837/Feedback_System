@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
 class FeedbackPostController extends Controller
 {
     private const TABLE = 'feedback_posts';
+    private const WINDOW_TIMEZONE = 'Asia/Kolkata';
 
     /** cache schema checks */
     protected array $colCache = [];
@@ -157,6 +158,11 @@ class FeedbackPostController extends Controller
         }
         $s = strtolower(trim((string)$status));
         return $s ?: 'active';
+    }
+
+    private function windowNow()
+    {
+        return now(self::WINDOW_TIMEZONE);
     }
 
     private function normalizeJson($v)
@@ -794,14 +800,18 @@ class FeedbackPostController extends Controller
         if ($ac['mode'] === 'not_allowed') return response()->json(['success' => false, 'message' => 'Not allowed'], 403);
         if ($ac['mode'] === 'none')        return $this->emptyListResponse($r);
 
+        $now = $this->windowNow();
+
         $q = $this->baseQuery(false)
             ->where('fp.status', 'active')
-            ->where(function ($w) {
-                $w->whereNull('fp.publish_at')->orWhere('fp.publish_at', '<=', now());
+            ->where(function ($w) use ($now) {
+                $w->whereNull('fp.publish_at')->orWhere('fp.publish_at', '<=', $now);
             })
-            ->where(function ($w) {
-                $w->whereNull('fp.expire_at')->orWhere('fp.expire_at', '>=', now());
+            ->where(function ($w) use ($now) {
+                $w->whereNull('fp.expire_at')->orWhere('fp.expire_at', '>=', $now);
             })
+            ->orderByRaw('CASE WHEN fp.publish_at IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('fp.publish_at', 'asc')
             ->orderBy('fp.sort_order', 'asc')
             ->orderBy('fp.id', 'asc');
 
