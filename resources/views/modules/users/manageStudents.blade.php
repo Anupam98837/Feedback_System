@@ -48,14 +48,14 @@ td .fw-semibold{color:var(--ink)}
 
 .table-responsive{display:block;width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;}
 /* ✅ updated min-width a bit for new Department column */
-.table-responsive > .table{width:100%;min-width:1080px;table-layout:auto;}
+.table-responsive > .table{width:max(100%, 1080px);min-width:1080px;table-layout:auto;}
 .table-responsive th,
 .table-responsive td{white-space:nowrap;padding:12px 16px;}
 @media (max-width: 992px){
-  .table-responsive > .table{min-width:1020px}
+  .table-responsive > .table{width:max(100%, 1020px);min-width:1020px}
 }
 @media (max-width: 576px){
-  .table-responsive > .table{min-width:940px}
+  .table-responsive > .table{width:max(100%, 940px);min-width:940px}
   .table-responsive th,
   .table-responsive td{padding:10px 12px}
 }

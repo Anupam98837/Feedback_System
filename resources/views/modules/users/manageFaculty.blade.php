@@ -56,11 +56,11 @@ td .fw-semibold{color:var(--ink)}
 
 /* ✅ Horizontal scroll on small screens */
 .table-responsive{display:block;width:100%;max-width:100%;overflow-x:auto !important;overflow-y:visible !important;-webkit-overflow-scrolling:touch;}
-.table-responsive > .table{width:max-content;min-width:1120px;}
+.table-responsive > .table{width:max(100%, 1120px);min-width:1120px;table-layout:auto;}
 .table-responsive th,
 .table-responsive td{white-space:nowrap;}
 @media (max-width: 576px){
-  .table-responsive > .table{ min-width:1040px; }
+  .table-responsive > .table{ width:max(100%, 1040px); min-width:1040px; }
 }
 </style>
 @endpush

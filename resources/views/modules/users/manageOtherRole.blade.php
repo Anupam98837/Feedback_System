@@ -56,11 +56,11 @@ td .fw-semibold{color:var(--ink)}
 
 /* ✅ Horizontal scroll on small screens */
 .table-responsive{display:block;width:100%;max-width:100%;overflow-x:auto !important;overflow-y:visible !important;-webkit-overflow-scrolling:touch;}
-.table-responsive > .table{width:max-content;min-width:1080px;} /* was 980px */
+.table-responsive > .table{width:max(100%, 1080px);min-width:1080px;table-layout:auto;} /* was 980px */
 .table-responsive th,
 .table-responsive td{white-space:nowrap;}
 @media (max-width: 576px){
-  .table-responsive > .table{ min-width:1020px; }
+  .table-responsive > .table{ width:max(100%, 1020px); min-width:1020px; }
 }
 </style>
 @endpush

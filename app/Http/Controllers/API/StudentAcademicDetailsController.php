@@ -372,6 +372,13 @@ class StudentAcademicDetailsController extends Controller
             if ($departmentId) $ss->where('department_id', $departmentId);
             if ($courseId)     $ss->where('course_id', $courseId);
             if ($semesterId)   $ss->where('semester_id', $semesterId);
+            if (Schema::hasColumn('student_subject', 'section_id')) {
+                if ($sectionId) {
+                    $ss->where('section_id', $sectionId);
+                } else {
+                    $ss->whereNull('section_id');
+                }
+            }
 
             $ssRows = $ss->select(['id','subject_json'])->orderBy('id', 'desc')->limit(50)->get();
 

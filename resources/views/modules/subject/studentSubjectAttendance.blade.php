@@ -122,7 +122,7 @@
 
 .ssa-form {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
     margin-top: 20px;
 }
@@ -388,6 +388,13 @@ input[type="checkbox"] {
           <option value="">Select a course first</option>
         </select>
       </div>
+
+      <div class="ssa-field">
+        <label for="sectionSelect">Section</label>
+        <select id="sectionSelect" disabled>
+          <option value="">Select a semester first</option>
+        </select>
+      </div>
     </div>
 
     <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center">
@@ -451,7 +458,7 @@ input[type="checkbox"] {
       </div>
       <div class="modal-body">
         <div class="ssa-import-note mb-3">
-          Download the latest template for the selected course and semester. Update only the attendance columns and upload the CSV to replace the current scope attendance mapping.
+          Download the latest template for the selected course, semester, and selected section scope. Update only the attendance columns and upload the CSV to replace the current scope attendance mapping.
         </div>
 
         <div class="d-grid gap-2 mb-3">
@@ -491,24 +498,39 @@ input[type="checkbox"] {
   const API = {
     courses: () => '/api/courses?per_page=200&sort=title&direction=asc',
     semestersByCourse: (courseId) => `/api/courses/${encodeURIComponent(courseId)}/semesters`,
+    sectionsBySemester: (semesterId, courseId = '') => {
+      const params = new URLSearchParams();
+      if (semesterId) params.set('semester_id', String(semesterId));
+      if (courseId) params.set('course_id', String(courseId));
+      return `/api/course-semester-sections/current?${params.toString()}`;
+    },
     subjectsByScope: (deptId, courseId, semesterId) =>
       `/api/subjects/current?department_id=${encodeURIComponent(deptId)}&course_id=${encodeURIComponent(courseId)}&semester_id=${encodeURIComponent(semesterId)}`,
-    studentsByScope: (departmentId, courseId, semesterId) => {
+    studentsByScope: (departmentId, courseId, semesterId, sectionId = null) => {
       const params = new URLSearchParams({
         course_id: String(courseId),
         semester_id: String(semesterId),
       });
       if (departmentId) params.set('department_id', String(departmentId));
+      if (sectionId) params.set('section_id', String(sectionId));
       return `/api/student-academic-details/by-academics?${params.toString()}`;
     },
-    mappingCurrent: (departmentId, courseId, semesterId) =>
-      `/api/student-subjects/current?department_id=${encodeURIComponent(departmentId)}&course_id=${encodeURIComponent(courseId)}&semester_id=${encodeURIComponent(semesterId)}`,
-    importTemplate: (departmentId, courseId, semesterId) => {
+    mappingCurrent: (departmentId, courseId, semesterId, sectionId = null) => {
+      const params = new URLSearchParams({
+        department_id: String(departmentId),
+        course_id: String(courseId),
+        semester_id: String(semesterId),
+      });
+      if (sectionId) params.set('section_id', String(sectionId));
+      return `/api/student-subjects/current?${params.toString()}`;
+    },
+    importTemplate: (departmentId, courseId, semesterId, sectionId = null) => {
       const params = new URLSearchParams({
         course_id: String(courseId),
         semester_id: String(semesterId),
       });
       if (departmentId) params.set('department_id', String(departmentId));
+      if (sectionId) params.set('section_id', String(sectionId));
       return `/api/student-subjects/import-template?${params.toString()}`;
     },
     importCsv: () => '/api/student-subjects/import-csv',
@@ -575,12 +597,14 @@ input[type="checkbox"] {
   const state = {
     courses: [],
     semesters: [],
+    sections: [],
     subjects: [],
     students: [],
     mapping: null,
     departmentId: null,
     selectedCourseId: null,
     selectedSemesterId: null,
+    selectedSectionId: null,
     studentSearch: '',
     matrix: new Map(),
     saving: false,
@@ -594,6 +618,7 @@ input[type="checkbox"] {
     }
     return s?.title || s?.name || `Semester #${s?.id}`;
   }
+  function sectionLabel(s){ return String(s?.title || s?.name || s?.section_title || `Section #${s?.id}`); }
 
   function subjectTitle(sub){ return String(sub?.title || sub?.name || sub?.subject_title || `Subject #${sub?.id}`); }
   function subjectCode(sub){ return String(sub?.subject_code || sub?.code || sub?.paper_code || '').trim(); }
@@ -677,6 +702,7 @@ input[type="checkbox"] {
   function updateActionState(){
     const canUseScope = hasScopeSelections();
     if ($('semesterSelect')) $('semesterSelect').disabled = !state.selectedCourseId;
+    if ($('sectionSelect')) $('sectionSelect').disabled = !state.selectedSemesterId;
     if ($('btnImport')) $('btnImport').disabled = !hasImportableScope();
     if ($('btnDownloadTemplate')) $('btnDownloadTemplate').disabled = !canUseScope;
     if ($('btnUploadCsv')) $('btnUploadCsv').disabled = !canUseScope || state.importing;
@@ -844,13 +870,31 @@ input[type="checkbox"] {
     updateActionState();
   }
 
+  async function loadSections(courseId, semesterId){
+    if (!semesterId){
+      state.sections = [];
+      $('sectionSelect').innerHTML = '<option value="">Select a semester first</option>';
+      $('sectionSelect').disabled = true;
+      updateActionState();
+      return;
+    }
+
+    const res = await fetchWithTimeout(API.sectionsBySemester(semesterId, courseId), { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to load sections');
+
+    state.sections = normalizeList(await res.json());
+    $('sectionSelect').innerHTML = `<option value="">All Sections</option>` + state.sections.map(s => `<option value="${esc(String(s.id))}">${esc(sectionLabel(s))}</option>`).join('');
+    $('sectionSelect').disabled = false;
+    updateActionState();
+  }
+
   async function loadAll(){
     if (!hasScopeSelections()) return;
     showLoading(true);
     try {
       const selectedCourse = state.courses.find(c => idNum(c?.id) === state.selectedCourseId) || null;
       const resSt = await fetchWithTimeout(
-        API.studentsByScope(state.departmentId, state.selectedCourseId, state.selectedSemesterId),
+        API.studentsByScope(state.departmentId, state.selectedCourseId, state.selectedSemesterId, state.selectedSectionId),
         { headers: authHeaders() }
       );
       if (!resSt.ok) throw new Error('Failed to load students');
@@ -865,13 +909,15 @@ input[type="checkbox"] {
       if (!resSub.ok) throw new Error('Failed to load subjects');
       state.subjects = normalizeList(await resSub.json());
 
-      const resMap = await fetchWithTimeout(API.mappingCurrent(state.departmentId, state.selectedCourseId, state.selectedSemesterId), { headers: authHeaders() });
+      const resMap = await fetchWithTimeout(API.mappingCurrent(state.departmentId, state.selectedCourseId, state.selectedSemesterId, state.selectedSectionId), { headers: authHeaders() });
       if (!resMap.ok) throw new Error('Failed to load attendance mapping');
       state.mapping = normalizeList(await resMap.json())[0] || null;
       if (state.mapping) applyExistingMapping(state.mapping); else state.matrix.clear();
 
+      const section = state.sections.find(s => idNum(s?.id) === state.selectedSectionId) || null;
+      const scopeLabel = section ? ` for ${sectionLabel(section)}` : ' for all sections';
       const searchNote = state.studentSearch ? ` Search matched ${filteredStudents().length} students.` : '';
-      $('infoLine').textContent = `Loaded ${state.students.length} students and ${state.subjects.length} subjects for import or direct editing.${searchNote}`;
+      $('infoLine').textContent = `Loaded ${state.students.length} students and ${state.subjects.length} subjects${scopeLabel} for import or direct editing.${searchNote}`;
       renderTable();
     } catch(ex) { err(ex.message); } finally { showLoading(false); }
   }
@@ -896,7 +942,7 @@ input[type="checkbox"] {
 
     try {
       const res = await fetchWithTimeout(
-        API.importTemplate(state.departmentId, state.selectedCourseId, state.selectedSemesterId),
+        API.importTemplate(state.departmentId, state.selectedCourseId, state.selectedSemesterId, state.selectedSectionId),
         { headers: authHeaders() },
         30000
       );
@@ -909,7 +955,7 @@ input[type="checkbox"] {
       const blob = await res.blob();
       const fileName = extractFilename(
         res,
-        `student-subject-attendance-template-${state.selectedCourseId}-${state.selectedSemesterId}.csv`
+        `student-subject-attendance-template-${state.selectedCourseId}-${state.selectedSemesterId}-${state.selectedSectionId || 'all-sections'}.csv`
       );
 
       const url = URL.createObjectURL(blob);
@@ -951,6 +997,7 @@ input[type="checkbox"] {
       if (state.departmentId) form.append('department_id', String(state.departmentId));
       form.append('course_id', String(state.selectedCourseId));
       form.append('semester_id', String(state.selectedSemesterId));
+      if (state.selectedSectionId) form.append('section_id', String(state.selectedSectionId));
       form.append('file', file);
 
       const res = await fetchWithTimeout(API.importCsv(), {
@@ -1011,6 +1058,7 @@ input[type="checkbox"] {
       department_id: state.departmentId,
       course_id: state.selectedCourseId,
       semester_id: state.selectedSemesterId,
+      section_id: state.selectedSectionId,
       subject_json: [], status: 'active'
     };
     state.students.forEach(st => {
@@ -1040,13 +1088,17 @@ input[type="checkbox"] {
     $('courseSelect').addEventListener('change', async (e) => {
       state.selectedCourseId = idNum(e.target.value);
       state.selectedSemesterId = null;
+      state.selectedSectionId = null;
       state.departmentId = resolveDepartmentIdFromCourse(state.courses.find(c => idNum(c?.id) === state.selectedCourseId) || null);
+      state.sections = [];
       state.students = [];
       state.subjects = [];
       state.mapping = null;
       state.matrix.clear();
       $('semesterSelect').innerHTML = '<option value="">Select a course first</option>';
       $('semesterSelect').disabled = !state.selectedCourseId;
+      $('sectionSelect').innerHTML = '<option value="">Select a semester first</option>';
+      $('sectionSelect').disabled = true;
       clearImportState();
       renderTable();
 
@@ -1060,6 +1112,33 @@ input[type="checkbox"] {
 
     $('semesterSelect').addEventListener('change', async (e) => {
       state.selectedSemesterId = idNum(e.target.value);
+      state.selectedSectionId = null;
+      state.sections = [];
+      state.students = [];
+      state.subjects = [];
+      state.mapping = null;
+      state.matrix.clear();
+      clearImportState();
+      if (!state.selectedSemesterId) {
+        $('sectionSelect').innerHTML = '<option value="">Select a semester first</option>';
+        $('sectionSelect').disabled = true;
+        renderTable();
+        return;
+      }
+
+      showLoading(true);
+      try {
+        await loadSections(state.selectedCourseId, state.selectedSemesterId);
+        await loadAll();
+      } catch (ex) {
+        err(ex.message);
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    $('sectionSelect').addEventListener('change', async (e) => {
+      state.selectedSectionId = idNum(e.target.value);
       clearImportState();
       await loadAll();
     });

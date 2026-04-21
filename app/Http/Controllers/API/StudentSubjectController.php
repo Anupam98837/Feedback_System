@@ -21,6 +21,7 @@ class StudentSubjectController extends Controller
     private const TABLE_DEPTS      = 'departments';
     private const TABLE_COURSES    = 'courses';
     private const TABLE_SEMESTERS  = 'course_semesters';
+    private const TABLE_SECTIONS   = 'course_semester_sections';
     private const TABLE_ACTIVITY   = 'user_data_activity_log';
 
     private const COL_UUID         = 'uuid';
@@ -154,6 +155,15 @@ class StudentSubjectController extends Controller
         }
     }
 
+    private function hasTable(string $table): bool
+    {
+        try {
+            return Schema::hasTable($table);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     private function isNumericId($v): bool
     {
         return is_string($v) || is_int($v)
@@ -277,7 +287,7 @@ class StudentSubjectController extends Controller
 
         $keep = [
             'id','uuid',
-            'department_id','course_id','semester_id',
+            'department_id','course_id','semester_id','section_id',
             'subject_json','status','metadata',
             'created_by','created_at','updated_at','deleted_at',
             'created_at_ip','updated_at_ip',
@@ -358,6 +368,9 @@ class StudentSubjectController extends Controller
 
     private function baseQuery(bool $includeDeleted = false)
     {
+        $hasSectionScope = $this->hasCol(self::TABLE, 'section_id');
+        $hasSectionsTable = $this->hasTable(self::TABLE_SECTIONS);
+
         $q = DB::table(self::TABLE . ' as ss')
             ->leftJoin(self::TABLE_DEPTS . ' as d', 'd.id', '=', 'ss.department_id')
             ->leftJoin(self::TABLE_COURSES . ' as c', 'c.id', '=', 'ss.course_id')
@@ -386,6 +399,20 @@ class StudentSubjectController extends Controller
                 'u.role as created_by_role',
             ]);
 
+        if ($hasSectionScope) {
+            $q->addSelect('ss.section_id');
+
+            if ($hasSectionsTable) {
+                $q->leftJoin(self::TABLE_SECTIONS . ' as css', 'css.id', '=', 'ss.section_id')
+                  ->addSelect('css.title as section_title');
+            } else {
+                $q->addSelect(DB::raw('NULL as section_title'));
+            }
+        } else {
+            $q->addSelect(DB::raw('NULL as section_id'))
+              ->addSelect(DB::raw('NULL as section_title'));
+        }
+
         if (!$includeDeleted) {
             $q->whereNull('ss.' . self::COL_DELETED_AT);
         }
@@ -402,6 +429,7 @@ class StudentSubjectController extends Controller
             'department_id' => (int) $row->department_id,
             'course_id'     => (int) $row->course_id,
             'semester_id'   => $row->semester_id !== null ? (int) $row->semester_id : null,
+            'section_id'    => $row->section_id !== null ? (int) $row->section_id : null,
 
             'subject_json' => $this->decodeJson($row->subject_json),
             'status'       => (string) $row->status,
@@ -410,6 +438,7 @@ class StudentSubjectController extends Controller
                 'department' => $row->department_id ? ['id' => (int)$row->department_id, 'title' => $row->department_title] : null,
                 'course'     => $row->course_id ? ['id' => (int)$row->course_id, 'title' => $row->course_title] : null,
                 'semester'   => $row->semester_id ? ['id' => (int)$row->semester_id, 'title' => $row->semester_title] : null,
+                'section'    => $row->section_id ? ['id' => (int)$row->section_id, 'title' => $row->section_title] : null,
             ],
 
             'metadata' => $this->decodeJson($row->metadata),
@@ -429,16 +458,20 @@ class StudentSubjectController extends Controller
         ];
     }
 
-    private function scopeStudents(int $departmentId, int $courseId, ?int $semesterId)
+    private function scopeStudents(int $departmentId, int $courseId, ?int $semesterId, ?int $sectionId = null)
     {
         $q = DB::table('student_academic_details as sad')
             ->join('users as u', 'u.id', '=', 'sad.user_id')
+            ->leftJoin(self::TABLE_SECTIONS . ' as css', 'css.id', '=', 'sad.section_id')
             ->select([
                 'u.id as user_id',
                 'u.uuid as user_uuid',
                 'u.name as student_name',
                 'sad.roll_no',
                 'sad.registration_no',
+                'sad.section_id',
+                'css.uuid as section_uuid',
+                'css.title as section_title',
             ])
             ->where('sad.department_id', $departmentId)
             ->where('sad.course_id', $courseId);
@@ -447,6 +480,10 @@ class StudentSubjectController extends Controller
             $q->whereNull('sad.semester_id');
         } else {
             $q->where('sad.semester_id', $semesterId);
+        }
+
+        if ($sectionId !== null && $this->hasCol('student_academic_details', 'section_id')) {
+            $q->where('sad.section_id', $sectionId);
         }
 
         if ($this->hasCol('student_academic_details', 'deleted_at')) {
@@ -512,7 +549,7 @@ class StudentSubjectController extends Controller
         return $q->orderBy('title')->orderBy('id')->get();
     }
 
-    private function scopeAttendanceMap(int $departmentId, int $courseId, ?int $semesterId): array
+    private function scopeAttendanceMap(int $departmentId, int $courseId, ?int $semesterId, ?int $sectionId = null): array
     {
         $q = DB::table(self::TABLE)
             ->select(['id', 'subject_json'])
@@ -526,6 +563,14 @@ class StudentSubjectController extends Controller
             $q->whereNull('semester_id');
         } else {
             $q->where('semester_id', $semesterId);
+        }
+
+        if ($this->hasCol(self::TABLE, 'section_id')) {
+            if ($sectionId === null) {
+                $q->whereNull('section_id');
+            } else {
+                $q->where('section_id', $sectionId);
+            }
         }
 
         $row = $q->first();
@@ -614,7 +659,7 @@ class StudentSubjectController extends Controller
         return null;
     }
 
-    private function resolveDepartmentIdForScope(?int $departmentId, int $courseId, ?int $semesterId, array $ac): ?int
+    private function resolveDepartmentIdForScope(?int $departmentId, int $courseId, ?int $semesterId, ?int $sectionId, array $ac): ?int
     {
         if ($ac['mode'] === 'department' && !empty($ac['department_id'])) {
             return (int) $ac['department_id'];
@@ -647,6 +692,10 @@ class StudentSubjectController extends Controller
             $q->where('semester_id', $semesterId);
         }
 
+        if ($sectionId !== null && $this->hasCol('student_academic_details', 'section_id')) {
+            $q->where('section_id', $sectionId);
+        }
+
         if ($this->hasCol('student_academic_details', 'deleted_at')) {
             $q->whereNull('deleted_at');
         }
@@ -659,9 +708,9 @@ class StudentSubjectController extends Controller
     /* ============================================
      | Concurrency + subject_json merge helpers
      |============================================ */
-    private function scopeLockKey(int $departmentId, int $courseId, ?int $semesterId): string
+    private function scopeLockKey(int $departmentId, int $courseId, ?int $semesterId, ?int $sectionId = null): string
     {
-        return 'student_subject_scope:' . $departmentId . ':' . $courseId . ':' . ($semesterId ?? 0);
+        return 'student_subject_scope:' . $departmentId . ':' . $courseId . ':' . ($semesterId ?? 0) . ':' . ($sectionId ?? 0);
     }
 
     private function acquireScopeLock(string $key, int $timeout = 10): bool
@@ -728,7 +777,7 @@ class StudentSubjectController extends Controller
         }
     }
 
-    private function findActiveScopeRowForUpdate(int $departmentId, int $courseId, ?int $semesterId, ?int $ignoreId = null)
+    private function findActiveScopeRowForUpdate(int $departmentId, int $courseId, ?int $semesterId, ?int $sectionId = null, ?int $ignoreId = null)
     {
         $q = DB::table(self::TABLE)
             ->where('department_id', $departmentId)
@@ -739,6 +788,14 @@ class StudentSubjectController extends Controller
             $q->whereNull('semester_id');
         } else {
             $q->where('semester_id', $semesterId);
+        }
+
+        if ($this->hasCol(self::TABLE, 'section_id')) {
+            if ($sectionId === null) {
+                $q->whereNull('section_id');
+            } else {
+                $q->where('section_id', $sectionId);
+            }
         }
 
         if ($ignoreId !== null) {
@@ -880,6 +937,7 @@ class StudentSubjectController extends Controller
         $departmentId = $r->query('department_id', null);
         $courseId     = $r->query('course_id', null);
         $semesterId   = $r->query('semester_id', null);
+        $sectionId    = $r->query('section_id', null);
 
         $page = max(1, (int)$r->query('page', 1));
         $per  = min(100, max(5, (int)$r->query('per_page', 20)));
@@ -951,6 +1009,12 @@ class StudentSubjectController extends Controller
                 $q->where('ss.semester_id', (int)$semesterId);
             }
 
+            if ($this->hasCol(self::TABLE, 'section_id')) {
+                if ($sectionId !== null && $sectionId !== '') {
+                    $q->where('ss.section_id', (int)$sectionId);
+                }
+            }
+
             $total = (clone $q)->count('ss.id');
 
             $q->orderBy("ss.$sort", $dir)->orderBy('ss.id', 'desc');
@@ -1001,6 +1065,7 @@ class StudentSubjectController extends Controller
         $departmentId = $r->query('department_id', null);
         $courseId     = $r->query('course_id', null);
         $semesterId   = $r->query('semester_id', null);
+        $sectionId    = $r->query('section_id', null);
 
         if ($ac['mode'] === 'department') {
             $departmentId = (int) $ac['department_id'];
@@ -1027,6 +1092,14 @@ class StudentSubjectController extends Controller
 
             if ($semesterId !== null && $semesterId !== '') {
                 $q->where('ss.semester_id', (int)$semesterId);
+            }
+
+            if ($this->hasCol(self::TABLE, 'section_id')) {
+                if ($sectionId !== null && $sectionId !== '') {
+                    $q->where('ss.section_id', (int)$sectionId);
+                } else {
+                    $q->whereNull('ss.section_id');
+                }
             }
 
             $rows = $q->orderBy('ss.id', 'desc')->get();
@@ -1063,6 +1136,7 @@ class StudentSubjectController extends Controller
             'department_id' => ['nullable', 'integer', 'exists:' . self::TABLE_DEPTS . ',id'],
             'course_id'     => ['required', 'integer', 'exists:' . self::TABLE_COURSES . ',id'],
             'semester_id'   => ['nullable', 'integer', 'exists:' . self::TABLE_SEMESTERS . ',id'],
+            'section_id'    => ['nullable', 'integer', 'exists:' . self::TABLE_SECTIONS . ',id'],
         ]);
 
         if ($v->fails()) {
@@ -1076,7 +1150,8 @@ class StudentSubjectController extends Controller
         $departmentId = $r->filled('department_id') ? (int) $r->query('department_id') : null;
         $courseId = (int) $r->query('course_id');
         $semesterId = $r->filled('semester_id') ? (int) $r->query('semester_id') : null;
-        $departmentId = $this->resolveDepartmentIdForScope($departmentId, $courseId, $semesterId, $ac);
+        $sectionId = $r->filled('section_id') ? (int) $r->query('section_id') : null;
+        $departmentId = $this->resolveDepartmentIdForScope($departmentId, $courseId, $semesterId, $sectionId, $ac);
 
         if ($departmentId === null) {
             return response()->json([
@@ -1090,13 +1165,13 @@ class StudentSubjectController extends Controller
         }
 
         try {
-            $students = $this->scopeStudents($departmentId, $courseId, $semesterId);
+            $students = $this->scopeStudents($departmentId, $courseId, $semesterId, $sectionId);
             $subjects = $this->scopeSubjects($departmentId, $courseId, $semesterId);
 
             if ($students->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No students found for the selected course and semester.',
+                    'message' => 'No students found for the selected course, semester and section scope.',
                 ], 422);
             }
 
@@ -1107,14 +1182,14 @@ class StudentSubjectController extends Controller
                 ], 422);
             }
 
-            $attendanceMap = $this->scopeAttendanceMap($departmentId, $courseId, $semesterId);
-            $fileName = 'student-subject-attendance-template-d' . $departmentId . '-c' . $courseId . '-s' . ($semesterId ?? 0) . '.csv';
+            $attendanceMap = $this->scopeAttendanceMap($departmentId, $courseId, $semesterId, $sectionId);
+            $fileName = 'student-subject-attendance-template-d' . $departmentId . '-c' . $courseId . '-s' . ($semesterId ?? 0) . '-sec' . ($sectionId ?? 0) . '.csv';
 
             return response()->streamDownload(function () use ($students, $subjects, $attendanceMap) {
                 $out = fopen('php://output', 'w');
                 fwrite($out, "\xEF\xBB\xBF");
 
-                $headers = ['student_id', 'student_uuid', 'roll_no', 'registration_no', 'student_name'];
+                $headers = ['student_id', 'student_uuid', 'roll_no', 'registration_no', 'student_name', 'section_id', 'section_uuid', 'section_title'];
                 foreach ($subjects as $subject) {
                     $headers[] = $this->csvHeaderForSubject($subject);
                 }
@@ -1128,6 +1203,9 @@ class StudentSubjectController extends Controller
                         (string) ($student->roll_no ?? ''),
                         (string) ($student->registration_no ?? ''),
                         (string) ($student->student_name ?? ''),
+                        $student->section_id !== null ? (int) $student->section_id : '',
+                        (string) ($student->section_uuid ?? ''),
+                        (string) ($student->section_title ?? ''),
                     ];
 
                     foreach ($subjects as $subject) {
@@ -1147,6 +1225,7 @@ class StudentSubjectController extends Controller
                 'department_id' => $departmentId,
                 'course_id'     => $courseId,
                 'semester_id'   => $semesterId,
+                'section_id'    => $sectionId,
                 'error'         => $e->getMessage(),
             ]);
 
@@ -1174,6 +1253,7 @@ class StudentSubjectController extends Controller
             'department_id' => ['nullable', 'integer', 'exists:' . self::TABLE_DEPTS . ',id'],
             'course_id'     => ['required', 'integer', 'exists:' . self::TABLE_COURSES . ',id'],
             'semester_id'   => ['nullable', 'integer', 'exists:' . self::TABLE_SEMESTERS . ',id'],
+            'section_id'    => ['nullable', 'integer', 'exists:' . self::TABLE_SECTIONS . ',id'],
             'file'          => ['required', 'file'],
         ]);
 
@@ -1188,7 +1268,8 @@ class StudentSubjectController extends Controller
         $departmentId = $r->filled('department_id') ? (int) $r->input('department_id') : null;
         $courseId = (int) $r->input('course_id');
         $semesterId = $r->filled('semester_id') ? (int) $r->input('semester_id') : null;
-        $departmentId = $this->resolveDepartmentIdForScope($departmentId, $courseId, $semesterId, $ac);
+        $sectionId = $r->filled('section_id') ? (int) $r->input('section_id') : null;
+        $departmentId = $this->resolveDepartmentIdForScope($departmentId, $courseId, $semesterId, $sectionId, $ac);
 
         if ($departmentId === null) {
             return response()->json([
@@ -1202,13 +1283,13 @@ class StudentSubjectController extends Controller
         }
 
         try {
-            $students = $this->scopeStudents($departmentId, $courseId, $semesterId);
+            $students = $this->scopeStudents($departmentId, $courseId, $semesterId, $sectionId);
             $subjects = $this->scopeSubjects($departmentId, $courseId, $semesterId);
 
             if ($students->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No students found for the selected course and semester.',
+                    'message' => 'No students found for the selected course, semester and section scope.',
                 ], 422);
             }
 
@@ -1419,6 +1500,7 @@ class StudentSubjectController extends Controller
                 'department_id'       => $departmentId,
                 'course_id'           => $courseId,
                 'semester_id'         => $semesterId,
+                'section_id'          => $sectionId,
                 'subject_json'        => $subjectJson,
                 'replace_subject_json'=> true,
                 'status'              => 'active',
@@ -1453,6 +1535,7 @@ class StudentSubjectController extends Controller
                 'department_id' => $departmentId,
                 'course_id'     => $courseId,
                 'semester_id'   => $semesterId,
+                'section_id'    => $sectionId,
                 'error'         => $e->getMessage(),
             ]);
 
@@ -1574,6 +1657,7 @@ class StudentSubjectController extends Controller
             'department_id' => ['required','integer','exists:' . self::TABLE_DEPTS . ',id'],
             'course_id'     => ['required','integer','exists:' . self::TABLE_COURSES . ',id'],
             'semester_id'   => ['nullable','integer','exists:' . self::TABLE_SEMESTERS . ',id'],
+            'section_id'    => ['nullable','integer','exists:' . self::TABLE_SECTIONS . ',id'],
 
             'subject_json'                      => ['required'],
             'subject_json.*.student_id'         => ['required','integer','min:1'],
@@ -1634,20 +1718,22 @@ class StudentSubjectController extends Controller
             $departmentId = (int) $r->input('department_id');
             $courseId     = (int) $r->input('course_id');
             $semesterId   = $r->filled('semester_id') ? (int)$r->input('semester_id') : null;
+            $sectionId    = $r->filled('section_id') ? (int)$r->input('section_id') : null;
 
-            $scopeKey = $this->scopeLockKey($departmentId, $courseId, $semesterId);
+            $scopeKey = $this->scopeLockKey($departmentId, $courseId, $semesterId, $sectionId);
             [$ok, $lockKeys] = $this->acquireScopeLocks([$scopeKey], 10);
 
             if (!$ok) {
-                $this->activityLog($r, 'create', 'student_subjects', self::TABLE, null, ['department_id','course_id','semester_id'], null, [
+                $this->activityLog($r, 'create', 'student_subjects', self::TABLE, null, ['department_id','course_id','semester_id','section_id'], null, [
                     'department_id' => $departmentId,
                     'course_id'     => $courseId,
                     'semester_id'   => $semesterId,
+                    'section_id'    => $sectionId,
                 ], 'scope_lock_timeout');
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Another request is already processing this department, course and semester. Please try again.',
+                    'message' => 'Another request is already processing this department, course, semester and section. Please try again.',
                 ], 409);
             }
 
@@ -1656,7 +1742,7 @@ class StudentSubjectController extends Controller
 
             DB::beginTransaction();
 
-            $existing = $this->findActiveScopeRowForUpdate($departmentId, $courseId, $semesterId);
+            $existing = $this->findActiveScopeRowForUpdate($departmentId, $courseId, $semesterId, $sectionId);
 
             $id = null;
             $responseMessage = 'Created';
@@ -1756,6 +1842,10 @@ class StudentSubjectController extends Controller
                     'updated_at'    => $now,
                 ];
 
+                if ($this->hasCol(self::TABLE, 'section_id')) {
+                    $insertPayload['section_id'] = $sectionId;
+                }
+
                 $id = DB::table(self::TABLE)->insertGetId($insertPayload);
 
                 DB::commit();
@@ -1766,6 +1856,7 @@ class StudentSubjectController extends Controller
                     'department_id' => (int)$insertPayload['department_id'],
                     'course_id'     => (int)$insertPayload['course_id'],
                     'semester_id'   => $insertPayload['semester_id'],
+                    'section_id'    => $insertPayload['section_id'] ?? null,
                     'subject_json'  => $insertPayload['subject_json'],
                     'status'        => $insertPayload['status'],
                     'metadata'      => $insertPayload['metadata'],
@@ -1851,6 +1942,7 @@ class StudentSubjectController extends Controller
                 'department_id' => ['sometimes','required','integer','exists:' . self::TABLE_DEPTS . ',id'],
                 'course_id'     => ['sometimes','required','integer','exists:' . self::TABLE_COURSES . ',id'],
                 'semester_id'   => ['sometimes','nullable','integer','exists:' . self::TABLE_SEMESTERS . ',id'],
+                'section_id'    => ['sometimes','nullable','integer','exists:' . self::TABLE_SECTIONS . ',id'],
 
                 'subject_json'                      => ['sometimes','required'],
                 'subject_json.*.student_id'         => ['required_with:subject_json','integer','min:1'],
@@ -1912,27 +2004,34 @@ class StudentSubjectController extends Controller
             $oldDepartmentId = (int)$existing->department_id;
             $oldCourseId     = (int)$existing->course_id;
             $oldSemesterId   = $existing->semester_id !== null ? (int)$existing->semester_id : null;
+            $oldSectionId    = $this->hasCol(self::TABLE, 'section_id') && $existing->section_id !== null ? (int)$existing->section_id : null;
 
             $newDepartmentId = $r->has('department_id') ? (int)$r->input('department_id') : $oldDepartmentId;
             $newCourseId     = $r->has('course_id') ? (int)$r->input('course_id') : $oldCourseId;
             $newSemesterId   = $r->has('semester_id')
                 ? ($r->filled('semester_id') ? (int)$r->input('semester_id') : null)
                 : $oldSemesterId;
+            $newSectionId    = $this->hasCol(self::TABLE, 'section_id')
+                ? ($r->has('section_id')
+                    ? ($r->filled('section_id') ? (int)$r->input('section_id') : null)
+                    : $oldSectionId)
+                : null;
 
-            $oldScopeKey = $this->scopeLockKey($oldDepartmentId, $oldCourseId, $oldSemesterId);
-            $newScopeKey = $this->scopeLockKey($newDepartmentId, $newCourseId, $newSemesterId);
+            $oldScopeKey = $this->scopeLockKey($oldDepartmentId, $oldCourseId, $oldSemesterId, $oldSectionId);
+            $newScopeKey = $this->scopeLockKey($newDepartmentId, $newCourseId, $newSemesterId, $newSectionId);
 
             [$ok, $lockKeys] = $this->acquireScopeLocks([$oldScopeKey, $newScopeKey], 10);
             if (!$ok) {
-                $this->activityLog($r, 'update', 'student_subjects', self::TABLE, (int)$existing->id, ['department_id','course_id','semester_id'], $this->snapshotRow($existing), [
+                $this->activityLog($r, 'update', 'student_subjects', self::TABLE, (int)$existing->id, ['department_id','course_id','semester_id','section_id'], $this->snapshotRow($existing), [
                     'department_id' => $newDepartmentId,
                     'course_id'     => $newCourseId,
                     'semester_id'   => $newSemesterId,
+                    'section_id'    => $newSectionId,
                 ], 'scope_lock_timeout');
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Another request is already processing this department, course and semester. Please try again.',
+                    'message' => 'Another request is already processing this department, course, semester and section. Please try again.',
                 ], 409);
             }
 
@@ -1961,22 +2060,24 @@ class StudentSubjectController extends Controller
             $scopeChanged =
                 $newDepartmentId !== $oldDepartmentId ||
                 $newCourseId !== $oldCourseId ||
-                $newSemesterId !== $oldSemesterId;
+                $newSemesterId !== $oldSemesterId ||
+                $newSectionId !== $oldSectionId;
 
             if ($scopeChanged) {
-                $conflict = $this->findActiveScopeRowForUpdate($newDepartmentId, $newCourseId, $newSemesterId, (int)$lockedExisting->id);
+                $conflict = $this->findActiveScopeRowForUpdate($newDepartmentId, $newCourseId, $newSemesterId, $newSectionId, (int)$lockedExisting->id);
                 if ($conflict) {
                     DB::rollBack();
 
-                    $this->activityLog($r, 'update', 'student_subjects', self::TABLE, (int)$lockedExisting->id, ['department_id','course_id','semester_id'], $oldSnapAll, [
+                    $this->activityLog($r, 'update', 'student_subjects', self::TABLE, (int)$lockedExisting->id, ['department_id','course_id','semester_id','section_id'], $oldSnapAll, [
                         'department_id' => $newDepartmentId,
                         'course_id'     => $newCourseId,
                         'semester_id'   => $newSemesterId,
+                        'section_id'    => $newSectionId,
                     ], 'duplicate_scope_blocked');
 
                     return response()->json([
                         'success' => false,
-                        'message' => 'Another record already exists for this department, course and semester.',
+                        'message' => 'Another record already exists for this department, course, semester and section.',
                     ], 409);
                 }
             }
@@ -1999,6 +2100,10 @@ class StudentSubjectController extends Controller
 
             if ($r->has('semester_id')) {
                 $upd['semester_id'] = $newSemesterId;
+            }
+
+            if ($this->hasCol(self::TABLE, 'section_id') && $r->has('section_id')) {
+                $upd['section_id'] = $newSectionId;
             }
 
             if ($r->has('subject_json')) {
@@ -2043,7 +2148,7 @@ class StudentSubjectController extends Controller
             [$changedFields, $oldDiff, $newDiff] = $this->diffSnapshots(
                 $oldSnapAll,
                 $newSnapAll,
-                ['department_id','course_id','semester_id','subject_json','status','metadata','deleted_at','updated_at','updated_at_ip']
+                ['department_id','course_id','semester_id','section_id','subject_json','status','metadata','deleted_at','updated_at','updated_at_ip']
             );
 
             DB::commit();
@@ -2226,20 +2331,22 @@ class StudentSubjectController extends Controller
             $departmentId = (int)$existing->department_id;
             $courseId     = (int)$existing->course_id;
             $semesterId   = $existing->semester_id !== null ? (int)$existing->semester_id : null;
+            $sectionId    = $this->hasCol(self::TABLE, 'section_id') && $existing->section_id !== null ? (int)$existing->section_id : null;
 
-            $scopeKey = $this->scopeLockKey($departmentId, $courseId, $semesterId);
+            $scopeKey = $this->scopeLockKey($departmentId, $courseId, $semesterId, $sectionId);
             [$ok, $lockKeys] = $this->acquireScopeLocks([$scopeKey], 10);
 
             if (!$ok) {
-                $this->activityLog($r, 'restore', 'student_subjects', self::TABLE, (int)$existing->id, ['department_id','course_id','semester_id'], null, [
+                $this->activityLog($r, 'restore', 'student_subjects', self::TABLE, (int)$existing->id, ['department_id','course_id','semester_id','section_id'], null, [
                     'department_id' => $departmentId,
                     'course_id'     => $courseId,
                     'semester_id'   => $semesterId,
+                    'section_id'    => $sectionId,
                 ], 'scope_lock_timeout');
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Another request is already processing this department, course and semester. Please try again.',
+                    'message' => 'Another request is already processing this department, course, semester and section. Please try again.',
                 ], 409);
             }
 
@@ -2258,20 +2365,21 @@ class StudentSubjectController extends Controller
                 return response()->json(['success' => false, 'message' => 'Not found in trash'], 404);
             }
 
-            $conflict = $this->findActiveScopeRowForUpdate($departmentId, $courseId, $semesterId, (int)$lockedTrashed->id);
+            $conflict = $this->findActiveScopeRowForUpdate($departmentId, $courseId, $semesterId, $sectionId, (int)$lockedTrashed->id);
             if ($conflict) {
                 DB::rollBack();
 
-                $this->activityLog($r, 'restore', 'student_subjects', self::TABLE, (int)$lockedTrashed->id, ['department_id','course_id','semester_id'], $this->snapshotRow($lockedTrashed), [
+                $this->activityLog($r, 'restore', 'student_subjects', self::TABLE, (int)$lockedTrashed->id, ['department_id','course_id','semester_id','section_id'], $this->snapshotRow($lockedTrashed), [
                     'conflict_id'    => (int)$conflict->id,
                     'department_id'  => $departmentId,
                     'course_id'      => $courseId,
                     'semester_id'    => $semesterId,
+                    'section_id'     => $sectionId,
                 ], 'restore_conflict_active_scope_exists');
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot restore because an active record already exists for this department, course and semester.',
+                    'message' => 'Cannot restore because an active record already exists for this department, course, semester and section.',
                 ], 409);
             }
 

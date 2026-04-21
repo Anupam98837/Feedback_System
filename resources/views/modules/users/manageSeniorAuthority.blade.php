@@ -130,15 +130,16 @@ td .fw-semibold{color:var(--ink)}
   -webkit-overflow-scrolling:touch;
 }
 .table-responsive > .table{
-  width:max-content;
+  width:max(100%, 980px);
   min-width:980px;
+  table-layout:auto;
 }
 .table-responsive th,
 .table-responsive td{
   white-space:nowrap;
 }
 @media (max-width: 576px){
-  .table-responsive > .table{ min-width:920px; }
+  .table-responsive > .table{ width:max(100%, 920px); min-width:920px; }
 }
 </style>
 @endpush
