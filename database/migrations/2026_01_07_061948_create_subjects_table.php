@@ -58,8 +58,7 @@ return new class extends Migration
             // Extra metadata
             $table->json('metadata')->nullable();
 
-            // Recommended unique constraint (code unique per department)
-            $table->unique(['department_id', 'subject_code'], 'subjects_dept_code_unique');
+            // subject_code is intentionally non-unique
         });
     }
 

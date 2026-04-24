@@ -720,34 +720,7 @@ class SubjectController extends Controller
             $deptId = $forced; // default/force to actor dept
         }
 
-        // Unique guard (code unique per dept)
         $code   = trim((string)$r->input('subject_code'));
-
-        $exists = DB::table('subjects')
-            ->where('subject_code', $code)
-            ->when($deptId === null, fn($q)=>$q->whereNull('department_id'), fn($q)=>$q->where('department_id',$deptId))
-            ->whereNull('deleted_at')
-            ->value('id');
-
-        if ($exists) {
-            // optional: log conflict
-            $this->logActivity(
-                $r,
-                'conflict',
-                'subjects',
-                'subjects',
-                (int)$exists,
-                ['subject_code'],
-                null,
-                ['subject_code' => $code, 'department_id' => $deptId],
-                'Duplicate subject_code for department (store). method='.$r->method().' path='.$r->path()
-            );
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Subject code already exists for this department.',
-            ], 422);
-        }
 
         // ✅ course/semester values (optional)
         $courseId = $r->filled('course_id') ? (int)$r->input('course_id') : null;
@@ -979,43 +952,6 @@ class SubjectController extends Controller
             } else {
                 // keep it safe anyway
                 $payload['department_id'] = $forced;
-            }
-        }
-
-        // Unique guard on update (subject_code per dept)
-        if ($r->has('subject_code') || $r->has('department_id')) {
-            $deptId = array_key_exists('department_id', $payload)
-                ? ($payload['department_id'] !== null ? (int)$payload['department_id'] : null)
-                : ($exists->department_id !== null ? (int)$exists->department_id : null);
-
-            $code = array_key_exists('subject_code', $payload)
-                ? trim((string)$payload['subject_code'])
-                : (string)$exists->subject_code;
-
-            $dup = DB::table('subjects')
-                ->where('subject_code', $code)
-                ->when($deptId === null, fn($q)=>$q->whereNull('department_id'), fn($q)=>$q->where('department_id',$deptId))
-                ->whereNull('deleted_at')
-                ->where('id', '<>', $exists->id)
-                ->value('id');
-
-            if ($dup) {
-                $this->logActivity(
-                    $r,
-                    'conflict',
-                    'subjects',
-                    'subjects',
-                    (int)$exists->id,
-                    ['subject_code','department_id'],
-                    null,
-                    ['subject_code' => $code, 'department_id' => $deptId, 'conflict_id' => (int)$dup],
-                    'Duplicate subject_code for department (update). method='.$r->method().' path='.$r->path()
-                );
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Subject code already exists for this department.',
-                ], 422);
             }
         }
 
