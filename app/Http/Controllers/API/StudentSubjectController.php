@@ -565,15 +565,36 @@ class StudentSubjectController extends Controller
             $q->where('semester_id', $semesterId);
         }
 
+        $fallbackQuery = null;
+
         if ($this->hasCol(self::TABLE, 'section_id')) {
             if ($sectionId === null) {
                 $q->whereNull('section_id');
             } else {
                 $q->where('section_id', $sectionId);
+
+                $fallbackQuery = DB::table(self::TABLE)
+                    ->select(['id', 'subject_json'])
+                    ->where('department_id', $departmentId)
+                    ->where('course_id', $courseId)
+                    ->whereNull(self::COL_DELETED_AT)
+                    ->where('status', 'active')
+                    ->orderByDesc('id');
+
+                if ($semesterId === null) {
+                    $fallbackQuery->whereNull('semester_id');
+                } else {
+                    $fallbackQuery->where('semester_id', $semesterId);
+                }
+
+                $fallbackQuery->whereNull('section_id');
             }
         }
 
         $row = $q->first();
+        if (!$row && $fallbackQuery) {
+            $row = $fallbackQuery->first();
+        }
         $map = [];
 
         foreach ($this->decodeSubjectJsonToArray($row->subject_json ?? null) as $item) {
@@ -1094,15 +1115,31 @@ class StudentSubjectController extends Controller
                 $q->where('ss.semester_id', (int)$semesterId);
             }
 
+            $rows = collect();
+
             if ($this->hasCol(self::TABLE, 'section_id')) {
                 if ($sectionId !== null && $sectionId !== '') {
-                    $q->where('ss.section_id', (int)$sectionId);
+                    $rows = (clone $q)
+                        ->where('ss.section_id', (int)$sectionId)
+                        ->orderBy('ss.id', 'desc')
+                        ->get();
+
+                    if ($rows->isEmpty()) {
+                        $rows = (clone $q)
+                            ->whereNull('ss.section_id')
+                            ->orderBy('ss.id', 'desc')
+                            ->get();
+                    }
                 } else {
-                    $q->whereNull('ss.section_id');
+                    $rows = (clone $q)
+                        ->whereNull('ss.section_id')
+                        ->orderBy('ss.id', 'desc')
+                        ->get();
                 }
+            } else {
+                $rows = $q->orderBy('ss.id', 'desc')->get();
             }
 
-            $rows = $q->orderBy('ss.id', 'desc')->get();
             $data = $rows->map(fn($row) => $this->presentRow($row))->values();
 
             return response()->json([

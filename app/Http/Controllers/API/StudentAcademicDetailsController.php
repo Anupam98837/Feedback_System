@@ -365,22 +365,43 @@ class StudentAcademicDetailsController extends Controller
         if ($subjectId !== null && $subjectId !== '' && preg_match('/^\d+$/', (string)$subjectId)) {
             $subjectIdInt = (int) $subjectId;
 
-            $ss = DB::table('student_subject')
+            $ssBase = DB::table('student_subject')
                 ->whereNull('deleted_at')
                 ->where('status', 'active');
 
-            if ($departmentId) $ss->where('department_id', $departmentId);
-            if ($courseId)     $ss->where('course_id', $courseId);
-            if ($semesterId)   $ss->where('semester_id', $semesterId);
+            if ($departmentId) $ssBase->where('department_id', $departmentId);
+            if ($courseId)     $ssBase->where('course_id', $courseId);
+            if ($semesterId)   $ssBase->where('semester_id', $semesterId);
+
+            $ssRows = collect();
             if (Schema::hasColumn('student_subject', 'section_id')) {
                 if ($sectionId) {
-                    $ss->where('section_id', $sectionId);
-                } else {
-                    $ss->whereNull('section_id');
-                }
-            }
+                    $ss = clone $ssBase;
+                    $ssRows = $ss->where('section_id', $sectionId)
+                        ->select(['id','subject_json'])
+                        ->orderBy('id', 'desc')
+                        ->limit(50)
+                        ->get();
 
-            $ssRows = $ss->select(['id','subject_json'])->orderBy('id', 'desc')->limit(50)->get();
+                    if ($ssRows->isEmpty()) {
+                        $ss = clone $ssBase;
+                        $ssRows = $ss->whereNull('section_id')
+                            ->select(['id','subject_json'])
+                            ->orderBy('id', 'desc')
+                            ->limit(50)
+                            ->get();
+                    }
+                } else {
+                    $ss = clone $ssBase;
+                    $ssRows = $ss->whereNull('section_id')
+                        ->select(['id','subject_json'])
+                        ->orderBy('id', 'desc')
+                        ->limit(50)
+                        ->get();
+                }
+            } else {
+                $ssRows = $ssBase->select(['id','subject_json'])->orderBy('id', 'desc')->limit(50)->get();
+            }
 
             foreach ($ssRows as $row) {
                 $json = $row->subject_json;

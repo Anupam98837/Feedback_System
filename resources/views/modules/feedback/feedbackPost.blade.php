@@ -441,7 +441,18 @@
   // =========================
   const API = {
     me:            () => '/api/users/me',
-    users:         () => '/api/users',
+    users:         (params = {}) => {
+      const qs = new URLSearchParams();
+
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          qs.set(key, String(value));
+        }
+      });
+
+      const query = qs.toString();
+      return query ? `/api/users?${query}` : '/api/users';
+    },
     questions:     () => '/api/feedback-questions/current',
 
     // feedback posts
@@ -666,11 +677,27 @@
   }
 
   async function loadUsers(){
-    const res = await fetchWithTimeout(API.users(), { headers: authHeaders(token()) }, 20000);
-    const js = await res.json().catch(()=> ({}));
-    if (!res.ok) throw new Error(js?.message || 'Failed to load users');
+    const res = await fetchWithTimeout(
+      API.users({
+        role: 'faculty',
+        status: 'active',
+      }),
+      { headers: authHeaders(token()) },
+      20000
+    );
+
+    const js = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(js?.message || 'Failed to load faculty');
+
     const arr = normalizeList(js) || [];
-    state.users = arr.filter(u => String(u?.status || 'active').toLowerCase() !== 'inactive');
+
+    state.users = uniqBy(
+      arr.filter(u =>
+        String(u?.role || '').toLowerCase() === 'faculty' &&
+        String(u?.status || 'active').toLowerCase() === 'active'
+      ),
+      u => idNum(u?.id)
+    );
   }
 
   /**
@@ -762,7 +789,7 @@
   }
 
   function facultyUsers(){
-    return (state.users || []).filter(u => String(u?.role || '').toLowerCase() === 'faculty');
+    return (state.users || []).slice();
   }
 
   function studentUsers(){
@@ -1271,14 +1298,17 @@
     }
 
     if (mode === 'faculty'){
-      title = 'Select Faculty';
-      items = facultyUsers().map(u => ({
+      const facultyList = facultyUsers();
+
+      title = `Select Faculty (${facultyList.length})`;
+
+      items = facultyList.map(u => ({
         _mode: 'faculty',
         id: idNum(u?.id),
         title: String(u?.name || u?.full_name || 'Faculty'),
-        sub: `${u?.email||'No email'} • ${u?.role||''}`,
+        sub: `${u?.email || 'No email'} • ${u?.role || ''}`,
         avatar: initials(u?.name),
-        _search: `${u?.name||''} ${u?.email||''} ${u?.role||''}`.trim()
+        _search: `${u?.name || ''} ${u?.email || ''} ${u?.role || ''}`.trim()
       })).filter(x => x.id);
 
       pre = new Set(state.selectedFacultyIds);
