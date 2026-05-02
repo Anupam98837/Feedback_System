@@ -150,6 +150,161 @@ class FeedbackSubmissionController extends Controller
         return now(self::WINDOW_TIMEZONE);
     }
 
+    private function getStudentAcademicScope(int $studentId): ?array
+    {
+        if ($studentId <= 0 || !Schema::hasTable('student_academic_details')) {
+            return null;
+        }
+
+        $q = DB::table('student_academic_details')->where('user_id', $studentId);
+
+        if ($this->hasCol('student_academic_details', 'deleted_at')) {
+            $q->whereNull('deleted_at');
+        }
+
+        if ($this->hasCol('student_academic_details', 'status')) {
+            $q->where('status', 'active');
+        }
+
+        $row = $q->orderByDesc('updated_at')->orderByDesc('id')->first([
+            'department_id',
+            'course_id',
+            'semester_id',
+            'section_id',
+            'academic_year',
+            'year',
+        ]);
+
+        if (!$row) {
+            return null;
+        }
+
+        return [
+            'department_id' => $row->department_id !== null ? (int) $row->department_id : null,
+            'course_id' => $row->course_id !== null ? (int) $row->course_id : null,
+            'semester_id' => $row->semester_id !== null ? (int) $row->semester_id : null,
+            'section_id' => $row->section_id !== null ? (int) $row->section_id : null,
+            'academic_year' => $row->academic_year !== null ? trim((string) $row->academic_year) : null,
+            'year' => $row->year !== null ? (int) $row->year : null,
+        ];
+    }
+
+    private function postScopeFieldMatches($postValue, $studentValue, bool $numeric = true): bool
+    {
+        if ($postValue === null || $postValue === '') {
+            return true;
+        }
+
+        if ($studentValue === null || $studentValue === '') {
+            return false;
+        }
+
+        return $numeric
+            ? ((int) $postValue === (int) $studentValue)
+            : (trim((string) $postValue) === trim((string) $studentValue));
+    }
+
+    private function studentHasSubjectScope(array $studentScope, int $studentId, int $subjectId): bool
+    {
+        if ($studentId <= 0 || $subjectId <= 0 || !Schema::hasTable('student_subject')) {
+            return false;
+        }
+
+        $base = DB::table('student_subject')
+            ->where('status', 'active');
+
+        if ($this->hasCol('student_subject', 'deleted_at')) {
+            $base->whereNull('deleted_at');
+        }
+
+        if ($this->hasCol('student_subject', 'department_id') && !empty($studentScope['department_id'])) {
+            $base->where('department_id', (int) $studentScope['department_id']);
+        }
+        if ($this->hasCol('student_subject', 'course_id') && !empty($studentScope['course_id'])) {
+            $base->where('course_id', (int) $studentScope['course_id']);
+        }
+        if ($this->hasCol('student_subject', 'semester_id') && !empty($studentScope['semester_id'])) {
+            $base->where('semester_id', (int) $studentScope['semester_id']);
+        }
+
+        $rows = collect();
+        if ($this->hasCol('student_subject', 'section_id')) {
+            if (!empty($studentScope['section_id'])) {
+                $exact = clone $base;
+                $rows = $exact->where('section_id', (int) $studentScope['section_id'])
+                    ->select(['id', 'subject_json'])
+                    ->orderByDesc('id')
+                    ->limit(50)
+                    ->get();
+
+                if ($rows->isEmpty()) {
+                    $fallback = clone $base;
+                    $rows = $fallback->whereNull('section_id')
+                        ->select(['id', 'subject_json'])
+                        ->orderByDesc('id')
+                        ->limit(50)
+                        ->get();
+                }
+            } else {
+                $rows = $base->whereNull('section_id')
+                    ->select(['id', 'subject_json'])
+                    ->orderByDesc('id')
+                    ->limit(50)
+                    ->get();
+            }
+        } else {
+            $rows = $base->select(['id', 'subject_json'])->orderByDesc('id')->limit(50)->get();
+        }
+
+        foreach ($rows as $row) {
+            $items = $this->normalizeJson($row->subject_json);
+            if (!is_array($items)) {
+                continue;
+            }
+
+            foreach ($items as $item) {
+                $sid = isset($item['student_id']) ? (int) $item['student_id'] : 0;
+                $sub = isset($item['subject_id']) ? (int) $item['subject_id'] : 0;
+
+                if ($sid === $studentId && $sub === $subjectId) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function postMatchesStudentScope(array $post, ?array $studentScope, int $studentId): bool
+    {
+        if ($studentId <= 0 || !$studentScope) {
+            return false;
+        }
+
+        if (!$this->postScopeFieldMatches($post['course_id'] ?? null, $studentScope['course_id'] ?? null)) {
+            return false;
+        }
+        if (!$this->postScopeFieldMatches($post['semester_id'] ?? null, $studentScope['semester_id'] ?? null)) {
+            return false;
+        }
+        if (!$this->postScopeFieldMatches($post['section_id'] ?? null, $studentScope['section_id'] ?? null)) {
+            return false;
+        }
+        if (!$this->postScopeFieldMatches($post['year'] ?? null, $studentScope['year'] ?? null)) {
+            return false;
+        }
+        if (!$this->postScopeFieldMatches($post['academic_year'] ?? null, $studentScope['academic_year'] ?? null, false)) {
+            return false;
+        }
+
+        $subjectId = isset($post['subject_id']) && $post['subject_id'] !== null ? (int) $post['subject_id'] : null;
+        if ($subjectId !== null && !$this->studentHasSubjectScope($studentScope, $studentId, $subjectId)) {
+            return false;
+        }
+
+        return true;
+    }
+
     /* =========================================================
      | Post query helpers
      |========================================================= */
@@ -528,6 +683,8 @@ class FeedbackSubmissionController extends Controller
          if ($resp = $this->requireAuth($r)) return $resp;
      
          $a = $this->actor($r);
+         $studentId = (int) ($a['id'] ?? 0);
+         $studentScope = $this->isStudent($r) ? $this->getStudentAcademicScope($studentId) : null;
      
          $q = $this->basePostsQuery(false);
          $this->applyCurrentWindow($q);
@@ -583,6 +740,12 @@ class FeedbackSubmissionController extends Controller
              $arr['submission']   = $subByPost[$pid] ?? null;
              return $arr;
          })->values()->all();
+
+         if ($this->isStudent($r)) {
+             $dataArr = array_values(array_filter($dataArr, function (array $post) use ($studentScope, $studentId) {
+                 return $this->postMatchesStudentScope($post, $studentScope, $studentId);
+             }));
+         }
      
          // 2) collect faculty ids from ALL posts
          $allFacultyIds = [];
@@ -649,6 +812,13 @@ class FeedbackSubmissionController extends Controller
         }
 
         $post = $this->postToArray($postRow);
+
+        if ($this->isStudent($r)) {
+            $studentScope = $this->getStudentAcademicScope((int) ($a['id'] ?? 0));
+            if (!$this->postMatchesStudentScope($post, $studentScope, (int) ($a['id'] ?? 0))) {
+                return response()->json(['success' => false, 'message' => 'Feedback post not found or not available'], 404);
+            }
+        }
 
         $answers = $this->normalizeJson($r->input('answers'));
         if (!is_array($answers)) {

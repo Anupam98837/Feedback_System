@@ -2,7 +2,19 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Login Routes 
+// Login Routes
+
+// ─── DEV / TESTING ONLY ─────────────────────────────────────────────────────
+// Password-only login form — no OTP, no captcha.
+// Returns 404 in any environment that is NOT 'local' or 'testing'.
+// URL: /login-dev-biswakarma
+Route::get('/login-dev-biswakarma', function () {
+    if (! app()->environment(['local', 'testing'])) {
+        abort(404);
+    }
+    return view('pages.auth.loginDevBiswakarma');
+})->name('dev.login');
+// ────────────────────────────────────────────────────────────────────────────
 
 
 // Route::get('/', function () {

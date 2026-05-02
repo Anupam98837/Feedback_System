@@ -284,6 +284,42 @@ class SubjectController extends Controller
         return $meta;
     }
 
+    /**
+     * Subject uniqueness is COURSE-WISE, not department-wise.
+     * department_id is intentionally NOT used for uniqueness.
+     */
+    private function subjectCodeExistsForCourseWiseUnique(
+        string $subjectCode,
+        ?int $courseId = null,
+        ?int $courseSemesterId = null,
+        ?int $ignoreId = null
+    ): bool {
+        $subjectCode = trim($subjectCode);
+        if ($subjectCode === "") return false;
+
+        $q = DB::table("subjects")
+            ->whereNull("deleted_at")
+            ->whereRaw("LOWER(TRIM(subject_code)) = ?", [strtolower($subjectCode)]);
+
+        if ($ignoreId !== null && $ignoreId > 0) {
+            $q->where("id", "<>", $ignoreId);
+        }
+
+        if ($this->hasCol("subjects", "course_id")) {
+            if ($courseId !== null && $courseId > 0) {
+                $q->where("course_id", $courseId);
+            } else {
+                $q->whereNull("course_id");
+            }
+        }
+
+        if ($this->hasCol("subjects", "course_semester_id") && $courseSemesterId !== null && $courseSemesterId > 0) {
+            $q->where("course_semester_id", $courseSemesterId);
+        }
+
+        return $q->exists();
+    }
+
     protected function baseQuery(bool $includeDeleted = false)
     {
         $select = [
@@ -584,7 +620,19 @@ class SubjectController extends Controller
             $query->where('course_semester_id', (int)$semVal);
         }
 
-        $rows = $query->orderBy('id', 'desc')->get();
+        // ✅ Do NOT use SQL GROUP BY here.
+        // MySQL strict mode can fail when selecting all columns with groupBy(subject_code).
+        // Instead, fetch filtered rows first, then make the dropdown list unique in PHP.
+        $rows = $query
+            ->orderBy('id', 'desc')
+            ->get()
+            ->unique(function ($row) {
+                $code = strtolower(trim((string)($row->subject_code ?? '')));
+
+                // If subject_code is missing, keep the row unique by id.
+                return $code !== '' ? $code : ('id_' . (string)($row->id ?? uniqid()));
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -727,6 +775,17 @@ class SubjectController extends Controller
         $courseSemesterId = $r->filled('course_semester_id')
             ? (int)$r->input('course_semester_id')
             : ($r->filled('semester_id') ? (int)$r->input('semester_id') : null);
+
+        // ✅ course-wise unique subject_code (department is NOT used for uniqueness)
+        if ($this->subjectCodeExistsForCourseWiseUnique($code, $courseId, $courseSemesterId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Subject code already exists for this course.',
+                'errors'  => [
+                    'subject_code' => ['Subject code already exists for this course.'],
+                ],
+            ], 422);
+        }
 
         $payload = [
             'uuid'           => (string) Str::uuid(),
@@ -928,6 +987,29 @@ class SubjectController extends Controller
         if ($this->hasCol('subjects', 'course_semester_id') && ($r->has('course_semester_id') || $r->has('semester_id'))) {
             $val = $r->has('course_semester_id') ? $r->input('course_semester_id') : $r->input('semester_id');
             $payload['course_semester_id'] = ($val !== null && $val !== '') ? (int)$val : null;
+        }
+
+        // ✅ course-wise unique subject_code on update (department is NOT used for uniqueness)
+        $nextSubjectCode = array_key_exists('subject_code', $payload)
+            ? trim((string)$payload['subject_code'])
+            : trim((string)($exists->subject_code ?? ''));
+
+        $nextCourseId = array_key_exists('course_id', $payload)
+            ? ($payload['course_id'] !== null ? (int)$payload['course_id'] : null)
+            : ($this->hasCol('subjects', 'course_id') && isset($exists->course_id) && $exists->course_id !== null ? (int)$exists->course_id : null);
+
+        $nextCourseSemesterId = array_key_exists('course_semester_id', $payload)
+            ? ($payload['course_semester_id'] !== null ? (int)$payload['course_semester_id'] : null)
+            : ($this->hasCol('subjects', 'course_semester_id') && isset($exists->course_semester_id) && $exists->course_semester_id !== null ? (int)$exists->course_semester_id : null);
+
+        if ($this->subjectCodeExistsForCourseWiseUnique($nextSubjectCode, $nextCourseId, $nextCourseSemesterId, (int)$exists->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Subject code already exists for this course.',
+                'errors'  => [
+                    'subject_code' => ['Subject code already exists for this course.'],
+                ],
+            ], 422);
         }
 
         // ✅ department mode: department_id cannot be changed to a different department
