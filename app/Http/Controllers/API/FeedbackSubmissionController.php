@@ -206,12 +206,24 @@ class FeedbackSubmissionController extends Controller
 
     private function studentHasSubjectScope(array $studentScope, int $studentId, int $subjectId): bool
     {
-        if ($studentId <= 0 || $subjectId <= 0 || !Schema::hasTable('student_subject')) {
+        if ($studentId <= 0 || $subjectId <= 0) {
             return false;
         }
 
-        $base = DB::table('student_subject')
-            ->where('status', 'active');
+        /*
+         | Subject mapping is a supporting check, not the primary assignment.
+         | The primary assignment is feedback_posts.student_ids.
+         | If student_subject is missing/unusable, do not hide an already assigned post.
+         */
+        if (!Schema::hasTable('student_subject')) {
+            return true;
+        }
+
+        $base = DB::table('student_subject');
+
+        if ($this->hasCol('student_subject', 'status')) {
+            $base->where('status', 'active');
+        }
 
         if ($this->hasCol('student_subject', 'deleted_at')) {
             $base->whereNull('deleted_at');
@@ -228,23 +240,26 @@ class FeedbackSubmissionController extends Controller
         }
 
         $rows = collect();
+
         if ($this->hasCol('student_subject', 'section_id')) {
             if (!empty($studentScope['section_id'])) {
+                // Correct flow: check exact section AND global/null-section mapping.
+                // Old flow checked null-section only when exact rows were empty.
                 $exact = clone $base;
-                $rows = $exact->where('section_id', (int) $studentScope['section_id'])
+                $exactRows = $exact->where('section_id', (int) $studentScope['section_id'])
                     ->select(['id', 'subject_json'])
                     ->orderByDesc('id')
                     ->limit(50)
                     ->get();
 
-                if ($rows->isEmpty()) {
-                    $fallback = clone $base;
-                    $rows = $fallback->whereNull('section_id')
-                        ->select(['id', 'subject_json'])
-                        ->orderByDesc('id')
-                        ->limit(50)
-                        ->get();
-                }
+                $fallback = clone $base;
+                $fallbackRows = $fallback->whereNull('section_id')
+                    ->select(['id', 'subject_json'])
+                    ->orderByDesc('id')
+                    ->limit(50)
+                    ->get();
+
+                $rows = $exactRows->merge($fallbackRows)->unique('id')->values();
             } else {
                 $rows = $base->whereNull('section_id')
                     ->select(['id', 'subject_json'])
@@ -256,6 +271,12 @@ class FeedbackSubmissionController extends Controller
             $rows = $base->select(['id', 'subject_json'])->orderByDesc('id')->limit(50)->get();
         }
 
+        if ($rows->isEmpty()) {
+            return true;
+        }
+
+        $sawUsableMapping = false;
+
         foreach ($rows as $row) {
             $items = $this->normalizeJson($row->subject_json);
             if (!is_array($items)) {
@@ -263,12 +284,36 @@ class FeedbackSubmissionController extends Controller
             }
 
             foreach ($items as $item) {
-                $sid = isset($item['student_id']) ? (int) $item['student_id'] : 0;
-                $sub = isset($item['subject_id']) ? (int) $item['subject_id'] : 0;
+                if (!is_array($item)) {
+                    continue;
+                }
+
+                $sawUsableMapping = true;
+
+                $sid = isset($item['student_id']) ? (int) $item['student_id'] : (isset($item['user_id']) ? (int) $item['user_id'] : 0);
+                $sub = isset($item['subject_id']) ? (int) $item['subject_id'] : (isset($item['id']) ? (int) $item['id'] : 0);
 
                 if ($sid === $studentId && $sub === $subjectId) {
                     return true;
                 }
+            }
+        }
+
+        // No usable mapping found means do not block an explicitly assigned feedback post.
+        return !$sawUsableMapping;
+    }
+
+    private function postHasAssignedStudent(array $post, int $studentId): bool
+    {
+        if ($studentId <= 0) return false;
+
+        $ids = $post['student_ids'] ?? [];
+        $ids = is_array($ids) ? $ids : $this->normalizeJson($ids);
+        if (!is_array($ids)) return false;
+
+        foreach ($ids as $id) {
+            if ((int) $id === $studentId) {
+                return true;
             }
         }
 
@@ -277,7 +322,23 @@ class FeedbackSubmissionController extends Controller
 
     private function postMatchesStudentScope(array $post, ?array $studentScope, int $studentId): bool
     {
-        if ($studentId <= 0 || !$studentScope) {
+        if ($studentId <= 0) {
+            return false;
+        }
+
+        /*
+         | Correct flow:
+         | 1) feedback_posts.student_ids decides whether the post is assigned to the student.
+         | 2) academic/subject scope is only fallback/protection for old data.
+         |
+         | Earlier, an already assigned Electrical post could be hidden because
+         | student_academic_details or student_subject had one mismatched key.
+         */
+        if ($this->postHasAssignedStudent($post, $studentId)) {
+            return true;
+        }
+
+        if (!$studentScope) {
             return false;
         }
 
@@ -507,7 +568,19 @@ class FeedbackSubmissionController extends Controller
             return $q;
         }
 
-        $q->whereRaw("JSON_CONTAINS(fp.student_ids, ?, '$')", [json_encode($sid)]);
+        /*
+         | IMPORTANT FLOW FIX
+         | student_ids is the actual assignment source for student-side feedback.
+         | Some old rows may store ids as numbers [12], and some as strings ["12"].
+         | Earlier code checked only the numeric JSON value, so string-based rows could
+         | disappear for one department even though the assignment existed.
+         */
+        $q->where(function ($w) use ($sid) {
+            $w->whereRaw("JSON_VALID(fp.student_ids) AND JSON_CONTAINS(fp.student_ids, ?, '$')", [json_encode($sid)])
+              ->orWhereRaw("JSON_VALID(fp.student_ids) AND JSON_CONTAINS(fp.student_ids, ?, '$')", [json_encode((string) $sid)])
+              ->orWhereRaw("JSON_VALID(fp.student_ids) AND JSON_SEARCH(fp.student_ids, 'one', ?) IS NOT NULL", [(string) $sid]);
+        });
+
         return $q;
     }
 
