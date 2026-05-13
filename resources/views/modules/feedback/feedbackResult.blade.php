@@ -113,6 +113,96 @@ td .fw-semibold{color:var(--ink)}
 .export-pill input{ transform:translateY(1px); }
 .export-pill i{opacity:.85}
 
+
+
+/* =========================
+ * Grid Drill-down Explorer
+ * ========================= */
+.fr-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;padding:16px;border:1px solid var(--line-strong);border-radius:18px;background:linear-gradient(135deg,color-mix(in oklab,var(--primary-color) 10%,var(--surface)),var(--surface));box-shadow:var(--shadow-2);}
+.fr-page-head h4{margin:0;color:var(--ink);font-weight:900;letter-spacing:-.02em;}
+.fr-page-head p{margin:4px 0 0;color:var(--muted-color);font-size:13px;}
+.fr-head-icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:color-mix(in oklab,var(--primary-color) 14%,transparent);color:var(--primary-color);border:1px solid color-mix(in oklab,var(--primary-color) 24%,var(--line-soft));font-size:20px;}
+.fr-summary-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;}
+.fr-mini-stat{padding:12px;border:1px solid var(--line-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-2);}
+.fr-mini-stat .lbl{font-size:12px;color:var(--muted-color);font-weight:800;text-transform:uppercase;letter-spacing:.04em;}
+.fr-mini-stat .val{margin-top:4px;font-size:22px;font-weight:900;color:var(--ink);line-height:1;}
+.fr-mini-stat .hint{margin-top:4px;font-size:12px;color:var(--muted-color);}
+.fr-grid-shell{position:relative;border:1px solid var(--line-strong);border-radius:18px;background:var(--surface);box-shadow:var(--shadow-2);overflow:hidden;}
+.fr-grid-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;border-bottom:1px solid var(--line-soft);background:color-mix(in oklab,var(--surface) 88%,var(--page-hover));}
+.fr-grid-title{font-weight:900;color:var(--ink);font-size:16px;}
+.fr-grid-subtitle{color:var(--muted-color);font-size:12.5px;margin-top:2px;}
+.fr-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:12px 14px;border-bottom:1px solid var(--line-soft);}
+.fr-bc-btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:7px;cursor:pointer;transition:.14s ease;}
+.fr-bc-btn:hover{transform:translateY(-1px);border-color:color-mix(in oklab,var(--primary-color) 36%,var(--line-strong));color:var(--primary-color);}
+.fr-bc-sep{color:var(--muted-color);font-size:11px;opacity:.75;}
+.fr-grid-body{padding:14px;}
+.fr-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:12px;}
+.fr-drill-card{position:relative;min-height:150px;border:1px solid var(--line-strong);border-radius:18px;background:linear-gradient(180deg,color-mix(in oklab,var(--surface) 96%,white),var(--surface));box-shadow:var(--shadow-2);padding:14px;cursor:pointer;overflow:hidden;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;background .14s ease;}
+.fr-drill-card:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:linear-gradient(180deg,var(--primary-color),color-mix(in oklab,var(--primary-color) 45%,transparent));opacity:.9;}
+.fr-drill-card:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(15,23,42,.12);border-color:color-mix(in oklab,var(--primary-color) 38%,var(--line-strong));}
+.fr-drill-card:after{content:"";position:absolute;width:110px;height:110px;border-radius:999px;right:-54px;top:-54px;background:color-mix(in oklab,var(--primary-color) 8%,transparent);pointer-events:none;}
+.fr-card-top{display:flex;align-items:flex-start;gap:10px;}
+.fr-card-icon{width:40px;height:40px;flex:0 0 40px;border-radius:14px;display:grid;place-items:center;background:color-mix(in oklab,var(--primary-color) 12%,transparent);color:var(--primary-color);border:1px solid color-mix(in oklab,var(--primary-color) 18%,var(--line-soft));}
+.fr-card-title{font-weight:900;color:var(--ink);line-height:1.18;min-width:0;word-break:break-word;}
+.fr-card-meta{margin-top:4px;color:var(--muted-color);font-size:12px;line-height:1.35;}
+.fr-card-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;}
+.fr-stat-pill{border:1px solid var(--line-soft);border-radius:14px;padding:9px;background:color-mix(in oklab,var(--surface) 94%,var(--page-hover));text-align:center;}
+.fr-stat-pill b{display:block;color:var(--ink);font-size:16px;line-height:1;}
+.fr-stat-pill span{display:block;margin-top:4px;color:var(--muted-color);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;}
+.fr-progress-line{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:12px;color:var(--muted-color);font-weight:800;}
+.fr-progress{height:8px;border-radius:999px;background:color-mix(in oklab,var(--line-soft) 65%,transparent);overflow:hidden;margin-top:7px;}
+.fr-progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--primary-color),color-mix(in oklab,var(--primary-color) 65%,#22c55e));border-radius:999px;}
+.fr-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;color:var(--muted-color);font-size:12px;}
+.fr-next{display:inline-flex;align-items:center;gap:6px;color:var(--primary-color);font-weight:900;}
+.fr-card-countline{display:inline-flex;align-items:center;gap:7px;color:var(--ink);font-weight:900;font-size:12.5px;}
+.fr-card-countline i{color:var(--primary-color);}
+.fr-group-section{grid-column:1/-1;margin-bottom:8px;}
+.fr-group-title{display:flex;align-items:center;gap:12px;margin:4px 0 12px;color:var(--ink);font-weight:950;letter-spacing:-.01em;}
+.fr-group-title:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,color-mix(in oklab,var(--primary-color) 42%,var(--line-soft)),transparent);}
+.fr-group-title .bubble{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:color-mix(in oklab,var(--primary-color) 12%,transparent);color:var(--primary-color);border:1px solid color-mix(in oklab,var(--primary-color) 22%,var(--line-soft));}
+.fr-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px;}
+.fr-group-empty{border:1px dashed var(--line-soft);border-radius:16px;padding:18px;text-align:center;color:var(--muted-color);background:color-mix(in oklab,var(--surface) 96%,var(--page-hover));}
+.fr-card-muted{opacity:.86;}
+.fr-card-muted:before{background:var(--muted-color);opacity:.45;}
+.fr-card-facility:before{background:linear-gradient(180deg,#7c3aed,#06b6d4);}
+.fr-card-facility .fr-card-icon{background:color-mix(in oklab,#7c3aed 12%,transparent);color:#7c3aed;border-color:color-mix(in oklab,#7c3aed 20%,var(--line-soft));}
+.fr-final-wrap{display:grid;grid-template-columns:minmax(260px,.85fr) minmax(0,1.5fr);gap:14px;align-items:start;}
+.fr-overview-card{border:1px solid var(--line-strong);border-radius:18px;background:linear-gradient(135deg,color-mix(in oklab,var(--primary-color) 9%,var(--surface)),var(--surface));box-shadow:var(--shadow-2);padding:16px;}
+.fr-overview-card h5{margin:0;font-weight:900;color:var(--ink);}
+.fr-overview-list{display:grid;gap:9px;margin-top:14px;}
+.fr-overview-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line-soft);background:var(--surface);border-radius:13px;padding:10px 12px;}
+.fr-overview-row span{font-size:12px;color:var(--muted-color);font-weight:800;}
+.fr-overview-row b{font-size:14px;color:var(--ink);}
+.fr-post-list{display:grid;gap:10px;}
+.fr-post-card{border:1px solid var(--line-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-2);padding:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer;transition:.14s ease;}
+.fr-post-card:hover{transform:translateY(-2px);border-color:color-mix(in oklab,var(--primary-color) 35%,var(--line-strong));}
+.fr-post-title{font-weight:900;color:var(--ink);}
+.fr-post-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;}
+.fr-post-meta .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-soft);border-radius:999px;padding:5px 8px;font-size:11.5px;color:var(--muted-color);background:color-mix(in oklab,var(--surface) 94%,var(--page-hover));}
+.fr-empty-state{border:1px dashed var(--line-soft);border-radius:18px;padding:34px 16px;text-align:center;color:var(--muted-color);background:color-mix(in oklab,var(--surface) 96%,var(--page-hover));}
+.fr-empty-state i{font-size:34px;opacity:.7;margin-bottom:8px;display:block;}
+.fr-skeleton-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:12px;}
+.fr-skeleton-card{height:150px;border-radius:18px;border:1px solid var(--line-strong);background:var(--surface);padding:14px;}
+.fr-skeleton-card .fr-skel-line:first-child{height:18px;width:65%;}
+.fr-skeleton-card .fr-skel-line:nth-child(2){width:90%;}
+.fr-skeleton-card .fr-skel-line:nth-child(3){width:55%;}
+html.theme-dark .fr-drill-card,html.theme-dark .fr-post-card,html.theme-dark .fr-overview-card,html.theme-dark .fr-mini-stat{box-shadow:none;}
+@media (max-width: 992px){.fr-summary-strip{grid-template-columns:repeat(2,minmax(0,1fr));}.fr-final-wrap{grid-template-columns:1fr;}.fr-page-head{flex-direction:column;}.fr-grid-head{flex-direction:column;}}
+@media (max-width: 576px){.fr-card-grid{grid-template-columns:1fr;}.fr-summary-strip{grid-template-columns:1fr;}.fr-post-card{flex-direction:column;}.fr-grid-body{padding:10px;}.fr-breadcrumb{padding:10px;}.fr-page-head{padding:14px;}}
+
+
+/* =========================
+ * Search-only minimal UI tweaks
+ * ========================= */
+.fr-search-panel{padding:12px;border-radius:16px;}
+.fr-search-wrap{max-width:760px;margin:0 auto;}
+.fr-search-row{display:flex;align-items:center;justify-content:center;gap:10px;}
+.fr-search-box{width:min(100%,560px);}
+.fr-search-box .form-control{border-radius:12px;}
+.fr-search-btn{border-radius:12px;padding-left:16px;padding-right:16px;}
+.fr-drill-card:after{display:none!important;content:none!important;}
+@media (max-width:768px){.fr-search-row{flex-direction:column;align-items:stretch}.fr-search-box{width:100%;}.fr-search-btn{width:100%;}}
+
 /* Responsive toolbar */
 @media (max-width: 768px){
   .fq-toolbar .d-flex{flex-direction:column;gap:12px !important}
@@ -133,11 +223,12 @@ td .fw-semibold{color:var(--ink)}
     @include('partials.overlay')
   </div>
 
+
   {{-- Tabs --}}
   <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item">
       <a class="nav-link active" data-bs-toggle="tab" href="#tab-posts" role="tab" aria-selected="true">
-        <i class="fa-solid fa-chart-simple me-2"></i>Feedback Posts
+        <i class="fa-solid fa-chart-simple me-2"></i>Feedback Result
       </a>
     </li>
     <li class="nav-item">
@@ -152,113 +243,66 @@ td .fw-semibold{color:var(--ink)}
     {{-- POSTS TAB --}}
     <div class="tab-pane fade show active" id="tab-posts" role="tabpanel">
 
-      {{-- Toolbar --}}
-      <div class="row align-items-center g-2 mb-3 fq-toolbar panel">
-        <div class="col-12 col-lg d-flex align-items-center flex-wrap gap-2">
+      {{-- Search Toolbar --}}
+      <div class="fq-toolbar panel fr-search-panel mb-3">
+        <div class="fr-search-wrap">
+          <div class="fr-search-row">
+            <div class="position-relative fr-search-box">
+              <input id="searchInput" type="search" class="form-control ps-5" placeholder="Search course, year, semester, section, subject or post…">
+              <i class="fa fa-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);opacity:.58;"></i>
+            </div>
 
-          <div class="d-flex align-items-center gap-2">
-            <label class="text-muted small mb-0">Per Page</label>
-            <select id="perPage" class="form-select" style="width:96px;">
-              <option>10</option>
-              <option selected>20</option>
-              <option>50</option>
-              <option>100</option>
-            </select>
+            <button id="btnSearch" class="btn btn-primary fr-search-btn" type="button">
+              <i class="fa fa-search me-1"></i>Search
+            </button>
           </div>
-
-          <div class="position-relative" style="min-width:320px;">
-            <input id="searchInput" type="search" class="form-control ps-5" placeholder="Search by post / dept / course / subject…">
-            <i class="fa fa-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);opacity:.6;"></i>
-          </div>
-
-          <button id="btnReset" class="btn btn-light">
-            <i class="fa fa-rotate-left me-1"></i>Reset
-          </button>
-
         </div>
 
-        <div class="col-12 col-lg-auto ms-lg-auto d-flex justify-content-lg-end"></div>
+        {{-- Hidden filters kept only for existing JS/API compatibility. Not shown in UI. --}}
+        <div class="d-none" aria-hidden="true">
+          <select id="f_department"><option value="">All</option></select>
+          <select id="f_course"><option value="">All</option></select>
+          <select id="f_semester"><option value="">All</option></select>
+          <select id="f_subject"><option value="">All</option></select>
+          <select id="f_section"><option value="">All</option></select>
+          <select id="f_academic_year"><option value="">All</option></select>
+          <select id="f_year"><option value="">All</option></select>
+        </div>
+      </div>
 
-        <div class="col-12">
-          <div class="row g-2">
-            <div class="col-12 col-md-6 col-xl-2">
-              <label class="small text-muted mb-1">Department</label>
-              <select id="f_department" class="form-select">
-                <option value="">All</option>
-              </select>
+      {{-- Grid Explorer --}}
+      <div class="fr-grid-shell">
+        <div class="fr-grid-head">
+          <div>
+            <div class="fr-grid-title" id="gridStageTitle">Courses</div>
+            <div class="fr-grid-subtitle" id="gridStageSubtitle">Select a course to view academic years.</div>
+          </div>
+          <div class="text-muted small" id="resultsInfo-posts">—</div>
+        </div>
+
+        <div id="gridBreadcrumb" class="fr-breadcrumb"></div>
+
+        <div class="fr-grid-body">
+          <div id="gridCards" class="fr-card-grid">
+            <div class="fr-skeleton-grid" style="grid-column:1/-1;">
+              <div class="fr-skeleton-card"><div class="fr-skel-line"></div><div class="fr-skel-line"></div><div class="fr-skel-line"></div></div>
+              <div class="fr-skeleton-card"><div class="fr-skel-line"></div><div class="fr-skel-line"></div><div class="fr-skel-line"></div></div>
+              <div class="fr-skeleton-card"><div class="fr-skel-line"></div><div class="fr-skel-line"></div><div class="fr-skel-line"></div></div>
             </div>
-            <div class="col-12 col-md-6 col-xl-2">
-              <label class="small text-muted mb-1">Course</label>
-              <select id="f_course" class="form-select">
-                <option value="">All</option>
-              </select>
-            </div>
-            <div class="col-12 col-md-6 col-xl-2">
-              <label class="small text-muted mb-1">Semester</label>
-              <select id="f_semester" class="form-select">
-                <option value="">All</option>
-              </select>
-            </div>
-            <div class="col-12 col-md-6 col-xl-2">
-              <label class="small text-muted mb-1">Subject</label>
-              <select id="f_subject" class="form-select">
-                <option value="">All</option>
-              </select>
-            </div>
-            <div class="col-12 col-md-6 col-xl-1">
-              <label class="small text-muted mb-1">Section</label>
-              <select id="f_section" class="form-select">
-                <option value="">All</option>
-              </select>
-            </div>
-            <div class="col-12 col-md-6 col-xl-2">
-              <label class="small text-muted mb-1">Academic Year</label>
-              <select id="f_academic_year" class="form-select">
-                <option value="">All</option>
-              </select>
-            </div>
-            <div class="col-12 col-md-6 col-xl-1">
-              <label class="small text-muted mb-1">Year</label>
-              <select id="f_year" class="form-select">
-                <option value="">All</option>
-              </select>
-            </div>
+          </div>
+
+          <div id="empty-posts" class="fr-empty-state" style="display:none;">
+            <i class="fa-solid fa-chart-simple"></i>
+            <div class="fw-bold">No feedback results found for the current filters.</div>
+            <div class="small mt-1">If a course has no submitted feedback, the final card will show 0 values.</div>
           </div>
         </div>
       </div>
 
-      {{-- Table --}}
-      <div class="card table-wrap">
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-hover table-borderless align-middle mb-0">
-              <thead class="sticky-top">
-                <tr>
-                  <th style="width:320px;">Post</th>
-                  <th style="width:340px;">Scope</th>
-                  <th style="width:140px;">Academic Year</th>
-                  <th style="width:90px;">Year</th>
-                  <th style="width:220px;">Publish / Expire</th>
-                  <th style="width:80px;" class="text-end">Action</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-posts">
-                <tr><td colspan="6" class="text-center text-muted" style="padding:38px;">Loading…</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div id="empty-posts" class="empty p-4 text-center" style="display:none;">
-            <i class="fa-solid fa-chart-simple mb-2" style="font-size:32px;opacity:.6;"></i>
-            <div>No feedback results found for the current filters.</div>
-          </div>
-
-          <div class="d-flex flex-wrap align-items-center justify-content-between p-3 gap-2">
-            <div class="text-muted small" id="resultsInfo-posts">—</div>
-            <nav><ul id="pager-posts" class="pagination mb-0"></ul></nav>
-          </div>
-        </div>
-      </div>
+      {{-- Keep old ids available for old safe-null code paths --}}
+      <select id="perPage" class="d-none"><option selected>20</option></select>
+      <div id="tbody-posts" class="d-none"></div>
+      <ul id="pager-posts" class="d-none"></ul>
     </div>
 
     {{-- HELP TAB --}}
@@ -267,9 +311,10 @@ td .fw-semibold{color:var(--ink)}
         <div class="card-body">
           <div class="fw-bold mb-2"><i class="fa fa-circle-info me-2"></i>How this page works</div>
           <ul class="mb-0 text-muted">
-            <li>This page shows aggregated results per <b>Feedback Post</b>.</li>
-            <li>Click any row (or the eye button) to open the detailed view with <b>grade distribution</b> (Overall) and <b>faculty-wise breakdown</b> tabs.</li>
-            <li>Use filters to narrow by Department/Course/Semester/Subject/Section and (optional) Academic Year / Year.</li>
+            <li>First select a <b>Course</b>, then an <b>Academic Year</b>, then <b>Semester</b>.</li>
+            <li>If sections are available, select a <b>Section</b>; then choose a <b>Subject</b> or the <b>Facility</b> card.</li>
+            <li>Clicking a subject or Facility card opens the detailed result modal directly. No extra overview screen is shown.</li>
+            <li>The detailed result modal/export layout is unchanged.</li>
           </ul>
         </div>
       </div>
@@ -300,7 +345,7 @@ td .fw-semibold{color:var(--ink)}
             <span class="chip"><i class="fa fa-calendar"></i> Publish: <span id="detailPublish">—</span></span>
             {{-- ✅ Removed Expire chip --}}
             {{-- ✅ UPDATED: show X out of Y (Participated out of Eligible) --}}
-            <span class="chip"><i class="fa fa-users"></i> Participated: <b id="detailParticipated">0</b></span>
+            <span class="chip"><i class="fa fa-users"></i> Given: <b id="detailParticipated">0</b></span>
           </div>
         </div>
 
@@ -429,7 +474,6 @@ td .fw-semibold{color:var(--ink)}
   </div>
 </div>
 @endsection
-
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -446,7 +490,6 @@ td .fw-semibold{color:var(--ink)}
   const $ = (id) => document.getElementById(id);
   const debounce = (fn, ms=300) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
 
-  // ✅ API called by this page
   const API = {
     results: (params) => `/api/feedback-results${params ? ('?' + params) : ''}`,
   };
@@ -460,23 +503,23 @@ td .fw-semibold{color:var(--ink)}
   async function fetchWithTimeout(url, opts={}, ms=20000){
     const ctrl = new AbortController();
     const t = setTimeout(()=>ctrl.abort(), ms);
-    try{
-      return await fetch(url, { ...opts, signal: ctrl.signal });
-    } finally {
-      clearTimeout(t);
-    }
+    try{ return await fetch(url, { ...opts, signal: ctrl.signal }); }
+    finally { clearTimeout(t); }
   }
 
   function prettyDate(s){
     const v = (s ?? '').toString().trim();
     return v ? v : '—';
   }
-
   function safeText(s){ return (s ?? '').toString().trim(); }
+  function toNum(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
+  function pct(part, total){
+    const p = toNum(part), t = toNum(total);
+    if (!t) return 0;
+    return Math.max(0, Math.min(100, Math.round((p / t) * 100)));
+  }
+  function plural(n, one, many){ return `${n} ${Number(n) === 1 ? one : many}`; }
 
-  /* =========================
-   * ✅ Grade helpers (NO %)
-   * ========================= */
   function normalizeCountMap(counts){
     const c = counts || {};
     const get = (k) => {
@@ -528,68 +571,6 @@ td .fw-semibold{color:var(--ink)}
       .slice(0,40) || 'feedback';
   }
 
-  function facultyShortName(fullName){
-    let s = (fullName ?? '').toString().trim();
-    if (!s) return '';
-
-    s = s.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-    s = s.split(',')[0].trim();
-
-    let parts = s.split(/\s+/).filter(Boolean);
-
-    const drop = new Set([
-      'ad','addl','additional','adv','advocate',
-      'dr','dr.','prof','prof.','asst','asst.','assistant','assoc','assoc.','associate',
-      'mr','mr.','mrs','mrs.','ms','ms.','miss','sir','madam',
-      'sri','shri','smt','kumari',
-      'er','er.','eng','eng.',
-      'rev','rev.','fr','fr.'
-    ]);
-
-    const cleanKey = (w) => (w || '').toString().toLowerCase().replace(/\./g,'').trim();
-
-    while (parts.length && drop.has(cleanKey(parts[0]))){
-      parts.shift();
-    }
-
-    const tailDrop = new Set([
-      'phd','ph.d','mtech','m.tech','btech','b.tech','me','m.e','be','b.e',
-      'mba','mca','msc','m.sc','bsc','b.sc','ma','m.a','ba','b.a',
-      'msw','bcom','b.com','mcom','m.com','bba','b.ed','m.ed','bed','med'
-    ]);
-    while (parts.length && tailDrop.has(cleanKey(parts[parts.length-1]))){
-      parts.pop();
-    }
-
-    if (!parts.length) return '';
-    if (parts.length === 1) return parts[0];
-
-    const particles = new Set(['de','del','della','da','di','la','le','van','von','bin','ibn','al','der','den']);
-
-    let start = parts.length - 1;
-    while (start - 1 >= 0 && particles.has(parts[start - 1].toLowerCase())){
-      start--;
-    }
-
-    const lastTokens = parts.slice(start);
-    const firstTokens = parts.slice(0, start);
-
-    const initialOf = (token) => {
-      const segs = token.split(/[-]/).filter(Boolean);
-      const letters = segs.map(seg => {
-        const c = (seg || '').toString().replace(/[^A-Za-z]/g,'');
-        return c ? c[0].toUpperCase() : '';
-      }).filter(Boolean);
-      return letters.join('');
-    };
-
-    const initials = firstTokens.map(initialOf).filter(Boolean);
-    const lastName = lastTokens.join(' ');
-
-    const out = (initials.length ? initials.join(' ') + ' ' : '') + lastName;
-    return out.trim() || s;
-  }
-
   document.addEventListener('DOMContentLoaded', () => {
     const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     if (!token) { window.location.href = '/'; return; }
@@ -606,16 +587,17 @@ td .fw-semibold{color:var(--ink)}
       'Accept': 'application/json'
     });
 
-    const perPageSel  = $('perPage');
     const searchInput = $('searchInput');
-    const btnReset    = $('btnReset');
-    const tbody = $('tbody-posts');
+    const btnSearch = $('btnSearch');
+    const gridSummary = $('gridSummary');
+    const gridCards = $('gridCards');
+    const gridBreadcrumb = $('gridBreadcrumb');
+    const gridStageTitle = $('gridStageTitle');
+    const gridStageSubtitle = $('gridStageSubtitle');
     const empty = $('empty-posts');
-    const pager = $('pager-posts');
-    const info  = $('resultsInfo-posts');
-    let searchRenderTimer = null;
+    const info = $('resultsInfo-posts');
+    const tbody = $('tbody-posts');
 
-    // Filters modal fields
     const fDept   = $('f_department');
     const fCourse = $('f_course');
     const fSem    = $('f_semester');
@@ -624,14 +606,11 @@ td .fw-semibold{color:var(--ink)}
     const fAcad   = $('f_academic_year');
     const fYear   = $('f_year');
 
-    // Detail modal fields
     const detailModalEl = $('detailModal');
-
-    const detailTitle     = $('detailTitle');
-    const detailPostName  = $('detailPostName');
-    const detailPublish   = $('detailPublish');
+    const detailTitle = $('detailTitle');
+    const detailPostName = $('detailPostName');
+    const detailPublish = $('detailPublish');
     const detailParticipated = $('detailParticipated');
-
     const detailDept = $('detailDept');
     const detailCourse = $('detailCourse');
     const detailSem = $('detailSem');
@@ -640,22 +619,16 @@ td .fw-semibold{color:var(--ink)}
     const detailSec = $('detailSec');
     const detailAcadYear = $('detailAcadYear');
     const detailYear = $('detailYear');
-
     const detailDescWrap = $('detailDescWrap');
     const detailDesc = $('detailDesc');
-
     const detailFacultyTabs = $('detailFacultyTabs');
     const detailMatrixTitle = $('detailMatrixTitle');
-
     const detailQuestions = $('detailQuestions');
     const detailSearch = $('detailSearch');
-
-    // ✅ Attendance filter controls (detail modal)
     const attMin = $('attMin');
     const btnAttApply = $('btnAttApply');
     const btnAttClear = $('btnAttClear');
 
-    // Export modal fields
     const btnExport = $('btnExport');
     const exportModalEl = $('exportModal');
     const exportPostTitle = $('exportPostTitle');
@@ -664,39 +637,27 @@ td .fw-semibold{color:var(--ink)}
     const btnDoCsv = $('btnDoCsv');
     const btnDoPdf = $('btnDoPdf');
 
-    /* =========================================================
-     * ✅ FIX: Orphan backdrop cleanup (prevents stuck backdrop)
-     * - Happens when modal is hidden programmatically but backdrop
-     *   doesn't get removed due to transition/interruption.
-     * ========================================================= */
     function cleanupOrphanBackdrops(){
-      // If any modal is currently open, do nothing.
       if (document.querySelector('.modal.show')) return;
-
       document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
-
       document.body.classList.remove('modal-open');
       document.body.style.removeProperty('overflow');
       document.body.style.removeProperty('padding-right');
     }
 
-    // Always use getOrCreateInstance (prevents instance mismatch)
     const detailModal = detailModalEl ? bootstrap.Modal.getOrCreateInstance(detailModalEl) : null;
     const exportModal = exportModalEl ? bootstrap.Modal.getOrCreateInstance(exportModalEl) : null;
-
-    // Cleanup on any modal hidden (safety net)
     [detailModalEl, exportModalEl].forEach(elm => {
       if (!elm) return;
-      elm.addEventListener('hidden.bs.modal', () => {
-        // allow Bootstrap to finish its own cleanup first, then force-remove any leftovers
-        setTimeout(cleanupOrphanBackdrops, 0);
-      });
+      elm.addEventListener('hidden.bs.modal', () => setTimeout(cleanupOrphanBackdrops, 0));
     });
 
-    // State
+    const NO_YEAR = '__no_academic_year__';
+    const ALL_SECTIONS = '__all_sections__';
+    const NO_SECTION = '__no_section__';
+    const FACILITY = '__facility__';
+
     const state = {
-      perPage: parseInt(perPageSel?.value || '20', 10) || 20,
-      page: 1,
       q: '',
       filters: {
         department_id: '',
@@ -706,37 +667,26 @@ td .fw-semibold{color:var(--ink)}
         section_id: '',
         academic_year: '',
         year: '',
-        min_attendance: '' // ✅ NEW
+        min_attendance: ''
       },
       rawHierarchy: [],
       postIndex: new Map(),
       flatPosts: [],
-      total: 0,
-
-      // ✅ cache last known dropdown options to prevent wipe on empty result
+      courses: [],
+      courseMap: new Map(),
       optionCache: {
-        deptMap: new Map(),
-        courseMap: new Map(),
-        semMap: new Map(),
-        subMap: new Map(),
-        subTitleMap: new Map(),
-        secMap: new Map(),
-        acadYearMap: new Map(),
-        yearMap: new Map()
+        deptMap: new Map(), courseMap: new Map(), semMap: new Map(),
+        subMap: new Map(), subTitleMap: new Map(), secMap: new Map(),
+        acadYearMap: new Map(), yearMap: new Map()
       },
-
-      // detail tabs
+      view: { stage: 'courses', courseKey: null, yearKey: null, semKey: null, sectionKey: null, groupKey: null },
       lastDetailPostKey: null,
-      activeFacultyId: 0,          // "0" means Overall
+      activeFacultyId: 0,
       activeFacultyName: 'Overall',
-      availableFaculty: [],        // [{id,name,short}]
-
-      // last opened post cached for export
+      availableFaculty: [],
       lastDetailCtx: null,
       lastDetailPost: null,
       lastDetailQuestions: [],
-
-      // ✅ keep the “opened post” pinned even if filtering returns empty once
       pinnedDetailPostKey: null,
     };
 
@@ -745,19 +695,32 @@ td .fw-semibold{color:var(--ink)}
       state.lastDetailPostKey = null;
     });
 
+    function setEmpty(show){ if (empty) empty.style.display = show ? '' : 'none'; }
+
+    function setLoadingGrid(){
+      setEmpty(false);
+      if (!gridCards) return;
+      gridCards.className = 'fr-card-grid';
+      gridCards.innerHTML = `
+        <div class="fr-skeleton-grid" style="grid-column:1/-1;">
+          <div class="fr-skeleton-card"><div class="fr-skel-line"></div><div class="fr-skel-line"></div><div class="fr-skel-line"></div></div>
+          <div class="fr-skeleton-card"><div class="fr-skel-line"></div><div class="fr-skel-line"></div><div class="fr-skel-line"></div></div>
+          <div class="fr-skeleton-card"><div class="fr-skel-line"></div><div class="fr-skel-line"></div><div class="fr-skel-line"></div></div>
+        </div>`;
+      if (tbody) tbody.innerHTML = '';
+    }
+
     function clampAttendance(v){
       const s = (v ?? '').toString().trim();
       if (s === '') return '';
       const n = Number(s);
       if (!Number.isFinite(n)) return '';
-      const c = Math.max(0, Math.min(100, Math.round(n)));
-      return String(c);
+      return String(Math.max(0, Math.min(100, Math.round(n))));
     }
 
     function buildParams(){
       const p = new URLSearchParams();
       const f = state.filters;
-
       if (f.department_id) p.set('department_id', f.department_id);
       if (f.course_id) p.set('course_id', f.course_id);
       if (f.semester_id) p.set('semester_id', f.semester_id);
@@ -765,62 +728,108 @@ td .fw-semibold{color:var(--ink)}
       if (f.section_id) p.set('section_id', f.section_id);
       if (f.academic_year) p.set('academic_year', f.academic_year);
       if (f.year) p.set('year', f.year);
-
-      // ✅ Attendance filter passed to API (>=)
       if (f.min_attendance !== '') p.set('min_attendance', f.min_attendance);
-
       return p.toString();
     }
 
-    function setLoadingRow(){
-      if (!tbody) return;
-      tbody.innerHTML = Array.from({ length: 5 }).map(() => `
-        <tr>
-          <td colspan="6" style="padding:16px 18px;">
-            <div class="fr-skel-line" style="width:26%;"></div>
-            <div class="fr-skel-line" style="width:48%;"></div>
-          </td>
-        </tr>
-      `).join('');
+    function makeKey(prefix, ...parts){
+      return `${prefix}:${parts.map(x => (x === null || x === undefined || x === '') ? 'none' : String(x)).join(':')}`;
     }
 
-    function setEmpty(show){
-      if (empty) empty.style.display = show ? '' : 'none';
+    function isFacilitySubject(sub){
+      const name = safeText(sub?.subject_name);
+      const code = safeText(sub?.subject_code);
+      const id = safeText(sub?.subject_id);
+      const type = safeText(sub?.type || sub?.subject_type || sub?.category || sub?.feedback_type).toLowerCase();
+      return (!name && !code && !id) || type.includes('facility') || name.toLowerCase() === 'facility';
     }
 
-    function renderPager(){
-      if (!pager) return;
-      const totalPages = Math.max(1, Math.ceil(state.total / state.perPage));
-      const page = Math.min(state.page, totalPages);
+    function postEligible(post){ return toNum(post?.eligible_students ?? post?.total_students ?? post?.assigned_students ?? post?.total_assigned ?? 0); }
+    function postParticipated(post){ return toNum(post?.participated_students ?? post?.submitted_students ?? post?.feedback_given ?? post?.given_students ?? 0); }
 
-      const item = (p, label, dis=false, act=false) => {
-        if (dis) return `<li class="page-item disabled"><span class="page-link">${label}</span></li>`;
-        if (act) return `<li class="page-item active"><span class="page-link">${label}</span></li>`;
-        return `<li class="page-item"><a class="page-link" href="#" data-page="${p}">${label}</a></li>`;
+    function numericIdList(v){
+      if (!Array.isArray(v)) return [];
+      return Array.from(new Set(v.map(x => Number(x)).filter(x => Number.isFinite(x) && x > 0)));
+    }
+
+    function postAssignedIds(post){
+      return numericIdList(post?.assigned_student_ids || post?.student_ids || post?.assigned_students_ids || []);
+    }
+
+    function postGivenIds(post){
+      return numericIdList(post?.given_student_ids || post?.participated_student_ids || post?.submitted_student_ids || []);
+    }
+
+    function uniquePosts(posts){
+      const map = new Map();
+      (posts || []).forEach(p => {
+        const id = p?.feedback_post_id ?? p?.post_id ?? p?.feedback_post_uuid ?? JSON.stringify(p);
+        if (!map.has(String(id))) map.set(String(id), p);
+      });
+      return Array.from(map.values());
+    }
+
+    function calcStats(posts, opts={}){
+      const useUnique = !!opts.unique;
+      // For section-scoped common posts, the same feedback_post_id can appear once per
+      // section with different assigned_student_ids. In unique-student mode we must keep
+      // those section clones so the progress bar is calculated from the real student union.
+      const arr = useUnique ? (posts || []) : uniquePosts(posts || []);
+      let participated = 0;
+      let eligible = 0;
+
+      if (useUnique){
+        const assignedSet = new Set();
+        const givenSet = new Set();
+        arr.forEach(p => {
+          postAssignedIds(p).forEach(id => assignedSet.add(String(id)));
+          postGivenIds(p).forEach(id => givenSet.add(String(id)));
+        });
+        const fallbackParticipated = arr.reduce((s,p)=>s + postParticipated(p), 0);
+        const fallbackEligible = arr.reduce((s,p)=>s + postEligible(p), 0);
+        if (assignedSet.size && (givenSet.size || fallbackParticipated === 0)){
+          eligible = assignedSet.size;
+          participated = givenSet.size;
+        } else if (assignedSet.size && givenSet.size){
+          eligible = assignedSet.size;
+          participated = givenSet.size;
+        } else {
+          participated = fallbackParticipated;
+          eligible = fallbackEligible;
+        }
+      } else {
+        participated = arr.reduce((s,p)=>s + postParticipated(p), 0);
+        eligible = arr.reduce((s,p)=>s + postEligible(p), 0);
+      }
+
+      return {
+        posts: arr.length,
+        participated,
+        eligible,
+        percent: pct(participated, eligible),
+        hasFeedback: participated > 0,
       };
-
-      let html = '';
-      html += item(Math.max(1, page-1), 'Previous', page<=1);
-      const start = Math.max(1, page-2), end = Math.min(totalPages, page+2);
-      for (let p=start; p<=end; p++) html += item(p, p, false, p===page);
-      html += item(Math.min(totalPages, page+1), 'Next', page>=totalPages);
-
-      pager.innerHTML = html;
     }
 
-    // Flatten hierarchy and build filter dropdowns
+    function filterPostsByYear(posts, yearKey){
+      if (!yearKey || yearKey === NO_YEAR) return (posts || []).filter(p => !safeText(p?.academic_year));
+      return (posts || []).filter(p => safeText(p?.academic_year) === String(yearKey));
+    }
+
+    function pushPostEverywhere(post, nodes){
+      nodes.forEach(node => {
+        if (!node.posts) node.posts = [];
+        node.posts.push(post);
+      });
+    }
+
     function rebuildFromHierarchy(){
       state.postIndex.clear();
       state.flatPosts = [];
+      state.courses = [];
+      state.courseMap.clear();
 
       const hierarchy = Array.isArray(state.rawHierarchy) ? state.rawHierarchy : [];
-
-      // ✅ FIX: if API returned empty, do NOT rebuild dropdowns to empty (keep optionCache)
-      if (!hierarchy.length){
-        state.total = 0;
-        return;
-      }
-
       const deptSet = new Map();
       const courseSet = new Map();
       const semSet = new Map();
@@ -830,71 +839,142 @@ td .fw-semibold{color:var(--ink)}
       const acadYearSet = new Map();
       const yearSet = new Map();
 
+      const getCourse = (dept, course) => {
+        const cId = course?.course_id ?? course?.id ?? '';
+        const cName = safeText(course?.course_name ?? course?.name ?? course?.title) || (cId ? `Course #${cId}` : 'Unnamed Course');
+        const dId = dept?.department_id ?? dept?.id ?? '';
+        const dName = safeText(dept?.department_name ?? dept?.name) || (dId ? `Dept #${dId}` : '—');
+        const key = makeKey('course', cId || cName, dId || dName);
+        if (!state.courseMap.has(key)){
+          state.courseMap.set(key, {
+            key, course_id: cId || null, course_name: cName,
+            department_id: dId || null, department_name: dName,
+            semesters: new Map(), posts: []
+          });
+        }
+        return state.courseMap.get(key);
+      };
+
+      const getSemester = (courseNode, sem) => {
+        const sId = sem?.semester_id ?? sem?.id ?? '';
+        const sName = safeText(sem?.semester_name ?? sem?.name ?? sem?.title) || (sId ? `Semester #${sId}` : 'Semester');
+        const key = makeKey('sem', courseNode.key, sId || sName);
+        if (!courseNode.semesters.has(key)){
+          courseNode.semesters.set(key, {
+            key, semester_id: sId || null, semester_name: sName,
+            courseKey: courseNode.key,
+            sections: new Map(), groups: new Map(), posts: []
+          });
+        }
+        return courseNode.semesters.get(key);
+      };
+
+      const getSection = (semNode, sec) => {
+        const secId = sec?.section_id ?? sec?.id ?? '';
+        const secName = safeText(sec?.section_name ?? sec?.name ?? sec?.title);
+        const key = secId || secName ? makeKey('section', semNode.key, secId || secName) : makeKey('section', semNode.key, NO_SECTION);
+        if (!semNode.sections.has(key)){
+          semNode.sections.set(key, {
+            key, section_id: secId || null,
+            section_name: secName || 'No Section',
+            semesterKey: semNode.key,
+            groups: new Map(), posts: []
+          });
+        }
+        return semNode.sections.get(key);
+      };
+
+      const getGroup = (container, sub, semKey, sectionKey) => {
+        const facility = isFacilitySubject(sub);
+        const subId = sub?.subject_id ?? '';
+        const subName = safeText(sub?.subject_name);
+        const subCode = safeText(sub?.subject_code);
+        const label = facility ? 'Facility' : (subName || subCode || 'Unnamed Subject');
+        const key = facility ? makeKey('group', semKey, sectionKey || ALL_SECTIONS, FACILITY) : makeKey('group', semKey, sectionKey || ALL_SECTIONS, subId || subCode || subName);
+        if (!container.groups.has(key)){
+          container.groups.set(key, {
+            key,
+            isFacility: facility,
+            subject_id: facility ? null : (subId || null),
+            subject_name: facility ? 'Facility' : label,
+            subject_code: facility ? '' : subCode,
+            posts: []
+          });
+        }
+        return container.groups.get(key);
+      };
+
       hierarchy.forEach(dept => {
-        const dId = dept?.department_id ?? '';
-        const dName = dept?.department_name ?? '';
-        if (dId !== null && dId !== undefined && dId !== '') deptSet.set(String(dId), String(dName || ('Dept #' + dId)));
+        const dId = dept?.department_id ?? dept?.id ?? '';
+        const dName = safeText(dept?.department_name ?? dept?.name) || (dId ? `Dept #${dId}` : '—');
+        if (dId !== '') deptSet.set(String(dId), dName);
 
         (dept?.courses || []).forEach(course => {
-          const cId = course?.course_id ?? '';
-          const cName = course?.course_name ?? '';
-          if (cId !== null && cId !== undefined && cId !== '') courseSet.set(String(cId), String(cName || ('Course #' + cId)));
+          const courseNode = getCourse(dept, course);
+          if (courseNode.course_id !== null && courseNode.course_id !== undefined && courseNode.course_id !== '') courseSet.set(String(courseNode.course_id), courseNode.course_name);
 
           (course?.semesters || []).forEach(sem => {
-            const sId = sem?.semester_id ?? '';
-            const sName = sem?.semester_name ?? '';
-            if (sId !== null && sId !== undefined && sId !== '') semSet.set(String(sId), String(sName || ('Semester #' + sId)));
+            const semNode = getSemester(courseNode, sem);
+            if (semNode.semester_id !== null && semNode.semester_id !== undefined && semNode.semester_id !== '') semSet.set(String(semNode.semester_id), semNode.semester_name);
 
             (sem?.subjects || []).forEach(sub => {
+              const facility = isFacilitySubject(sub);
               const subId = sub?.subject_id ?? '';
-              const rawSubName = sub?.subject_name ?? '';
-              const subCode = sub?.subject_code ?? '';
-              const subNameOnly = (rawSubName ?? '').toString().trim();
-              const subCodeOnly = (subCode ?? '').toString().trim();
-              const subLabel = subNameOnly || subCodeOnly;
-              if (subId !== null && subId !== undefined && subId !== '') subSet.set(String(subId), String(subLabel || ('Subject #' + subId)));
-              if (subId !== null && subId !== undefined && subId !== '') subTitleSet.set(String(subId), String(subCodeOnly || ''));
+              const subName = safeText(sub?.subject_name);
+              const subCode = safeText(sub?.subject_code);
+              if (!facility && subId !== ''){
+                subSet.set(String(subId), subName || subCode || `Subject #${subId}`);
+                subTitleSet.set(String(subId), subCode || '');
+              }
 
-              (sub?.sections || []).forEach(sec => {
-                const secId = sec?.section_id ?? '';
-                const secName = sec?.section_name ?? '';
-                if (secId !== null && secId !== undefined && secId !== '') secSet.set(String(secId), String(secName || ('Section #' + secId)));
+              const sections = Array.isArray(sub?.sections) && sub.sections.length ? sub.sections : [{ section_id: null, section_name: '', feedback_posts: sub?.feedback_posts || [] }];
+
+              sections.forEach(sec => {
+                const sectionNode = getSection(semNode, sec);
+                if (sectionNode.section_id !== null && sectionNode.section_id !== undefined && sectionNode.section_id !== '') secSet.set(String(sectionNode.section_id), sectionNode.section_name);
+
+                const semGroup = getGroup(semNode, sub, semNode.key, ALL_SECTIONS);
+                const secGroup = getGroup(sectionNode, sub, semNode.key, sectionNode.key);
 
                 (sec?.feedback_posts || []).forEach(post => {
                   const postId = post?.feedback_post_id;
                   if (!postId) return;
 
-                  const academicYear = (post?.academic_year ?? '').toString().trim();
-                  const year = (post?.year ?? '').toString().trim();
+                  const academicYear = safeText(post?.academic_year);
+                  const year = safeText(post?.year);
                   if (academicYear) acadYearSet.set(academicYear, academicYear);
                   if (year) yearSet.set(year, year);
 
                   const ctx = {
-                    department_id: dept?.department_id ?? null,
-                    department_name: dept?.department_name ?? null,
-                    course_id: course?.course_id ?? null,
-                    course_name: course?.course_name ?? null,
-                    semester_id: sem?.semester_id ?? null,
-                    semester_name: sem?.semester_name ?? null,
-
-                    subject_id: sub?.subject_id ?? null,
-                    subject_code: sub?.subject_code ?? null,
-                    subject_name: subNameOnly ?? null,
-
-                    section_id: sec?.section_id ?? null,
-                    section_name: sec?.section_name ?? null,
+                    department_id: courseNode.department_id,
+                    department_name: courseNode.department_name,
+                    course_id: courseNode.course_id,
+                    course_name: courseNode.course_name,
+                    semester_id: semNode.semester_id,
+                    semester_name: semNode.semester_name,
+                    subject_id: facility ? null : (sub?.subject_id ?? null),
+                    subject_code: facility ? '' : (sub?.subject_code ?? null),
+                    subject_name: facility ? 'Facility' : (subName || null),
+                    section_id: sectionNode.section_id,
+                    section_name: sectionNode.section_name === 'No Section' ? null : sectionNode.section_name,
+                    is_facility: facility,
                   };
 
-                  const key = String(postId);
+                  post.__ctx = ctx;
+                  post.__isFacility = facility;
+                  post.__courseKey = courseNode.key;
+                  post.__semKey = semNode.key;
+                  post.__sectionKey = sectionNode.key;
+                  post.__groupKey = secGroup.key;
+
+                  const key = String(post?.result_key ?? post?.feedback_result_key ?? postId);
+                  post.__resultKey = key;
                   state.postIndex.set(key, { ctx, post });
 
                   state.flatPosts.push({
                     key,
                     post_id: postId,
-
-                    // keep uuid in data (not displayed)
                     uuid: post?.feedback_post_uuid ?? '',
-
                     title: post?.title ?? '—',
                     short_title: post?.short_title ?? '',
                     publish_at: post?.publish_at ?? '',
@@ -902,12 +982,12 @@ td .fw-semibold{color:var(--ink)}
                     description: post?.description ?? '',
                     academic_year: post?.academic_year ?? '',
                     year: post?.year ?? '',
-
-                    // ✅ includes eligible_students from API if present
-                    participated_students: post?.participated_students ?? 0,
-                    eligible_students: (post?.eligible_students === null || post?.eligible_students === undefined) ? null : Number(post.eligible_students),
+                    participated_students: postParticipated(post),
+                    eligible_students: postEligible(post),
                     ctx
                   });
+
+                  pushPostEverywhere(post, [courseNode, semNode, sectionNode, semGroup, secGroup]);
                 });
               });
             });
@@ -915,7 +995,8 @@ td .fw-semibold{color:var(--ink)}
         });
       });
 
-      // ✅ update cache only when we got non-empty hierarchy
+      state.courses = Array.from(state.courseMap.values()).sort((a,b)=>String(a.course_name).localeCompare(String(b.course_name)));
+
       state.optionCache.deptMap = deptSet;
       state.optionCache.courseMap = courseSet;
       state.optionCache.semMap = semSet;
@@ -925,6 +1006,10 @@ td .fw-semibold{color:var(--ink)}
       state.optionCache.acadYearMap = acadYearSet;
       state.optionCache.yearMap = yearSet;
 
+      fillSelects();
+    }
+
+    function fillSelects(){
       const fillSel = (sel, map, titleMap=null) => {
         if (!sel) return;
         const cur = sel.value || '';
@@ -934,187 +1019,360 @@ td .fw-semibold{color:var(--ink)}
             const t = titleMap ? (titleMap.get(String(id)) || '') : '';
             return `<option value="${esc(id)}"${t ? ` title="${esc(t)}"` : ''}>${esc(name)}</option>`;
           }).join('');
-        if (cur) sel.value = cur;
+        if (cur && Array.from(map.keys()).map(String).includes(String(cur))) sel.value = cur;
       };
-
-      fillSel(fDept, deptSet);
-      fillSel(fCourse, courseSet);
-      fillSel(fSem, semSet);
-      fillSel(fSub, subSet, subTitleSet);
-      fillSel(fSec, secSet);
-      fillSel(fAcad, acadYearSet);
-      fillSel(fYear, yearSet);
-
-      state.total = state.flatPosts.length;
+      fillSel(fDept, state.optionCache.deptMap);
+      fillSel(fCourse, state.optionCache.courseMap);
+      fillSel(fSem, state.optionCache.semMap);
+      fillSel(fSub, state.optionCache.subMap, state.optionCache.subTitleMap);
+      fillSel(fSec, state.optionCache.secMap);
+      fillSel(fAcad, state.optionCache.acadYearMap);
+      fillSel(fYear, state.optionCache.yearMap);
     }
 
-    function getFilteredRows(){
-      const q = (state.q || '').toLowerCase().trim();
-      if (!q) return state.flatPosts;
+    function resetView(stage='courses'){
+      state.view = { stage, courseKey: null, yearKey: null, semKey: null, sectionKey: null, groupKey: null };
+    }
 
-      return state.flatPosts.filter(r => {
-        const parts = [
-          r.title, r.short_title, r.uuid,
-          r.ctx?.department_name, r.ctx?.course_name, r.ctx?.semester_name,
-          r.ctx?.subject_name, r.ctx?.subject_code,
-          r.ctx?.section_name,
-          r.academic_year,
-          r.year
-        ].map(x => (x ?? '').toString().toLowerCase());
-        return parts.some(p => p.includes(q));
+    function getCourse(){ return state.courseMap.get(state.view.courseKey) || null; }
+    function getSem(){
+      const c = getCourse();
+      return c?.semesters?.get(state.view.semKey) || null;
+    }
+    function getSection(){
+      const s = getSem();
+      return s?.sections?.get(state.view.sectionKey) || null;
+    }
+
+    function matchesSearchText(text){
+      const q = (state.q || '').toLowerCase().trim();
+      if (!q) return true;
+      return (text || '').toString().toLowerCase().includes(q);
+    }
+
+    function statHtml(stats, mode='plain'){
+      const s = stats || calcStats([]);
+      if (mode === 'semester'){
+        return `
+          <div class="fr-progress-line"><span>Unique student response</span><b>${esc(s.percent)}%</b></div>
+          <div class="fr-progress"><i style="width:${esc(s.percent)}%"></i></div>`;
+      }
+      if (mode === 'final'){
+        return `
+          <div class="fr-card-stats">
+            <div class="fr-stat-pill"><b>${esc(s.participated)}</b><span>Given</span></div>
+            <div class="fr-stat-pill"><b>${esc(s.eligible)}</b><span>Assigned</span></div>
+          </div>
+          <div class="fr-progress-line"><span>Completion</span><b>${esc(s.percent)}%</b></div>
+          <div class="fr-progress"><i style="width:${esc(s.percent)}%"></i></div>`;
+      }
+      return '';
+    }
+
+    function cardHtml({key, type, title, meta, stats, icon='fa-folder-open', muted=false, facility=false, foot='Open', mode='plain'}){
+      const s = stats || calcStats([]);
+      const countLine = mode === 'final'
+        ? `<span class="fr-card-countline"><i class="fa-solid fa-users"></i>${esc(s.participated)} out of ${esc(s.eligible)} given</span>`
+        : `<span>${esc(foot)}</span>`;
+
+      return `
+        <div class="fr-drill-card ${muted ? 'fr-card-muted' : ''} ${facility ? 'fr-card-facility' : ''}" data-drill="${esc(type)}" data-key="${esc(key)}" title="Open ${esc(title)}">
+          <div class="fr-card-top">
+            <div class="fr-card-icon"><i class="fa-solid ${esc(icon)}"></i></div>
+            <div class="min-w-0">
+              <div class="fr-card-title">${esc(title)}</div>
+              <div class="fr-card-meta">${meta || '—'}</div>
+            </div>
+          </div>
+          ${statHtml(s, mode)}
+          <div class="fr-card-foot">
+            ${countLine}
+            <span class="fr-next">${esc(foot)} <i class="fa fa-arrow-right"></i></span>
+          </div>
+        </div>`;
+    }
+
+    function renderSummary(){
+      if (!gridSummary) return;
+      const stats = calcStats(state.flatPosts.map(x => state.postIndex.get(String(x.key))?.post).filter(Boolean));
+      gridSummary.innerHTML = `
+        <div class="fr-mini-stat"><div class="lbl">Courses</div><div class="val">${esc(state.courses.length)}</div><div class="hint">available</div></div>
+        <div class="fr-mini-stat"><div class="lbl">Feedback Posts</div><div class="val">${esc(stats.posts)}</div><div class="hint">total</div></div>
+        <div class="fr-mini-stat"><div class="lbl">Participated</div><div class="val">${esc(stats.participated)}</div><div class="hint">out of ${esc(stats.eligible)}</div></div>
+        <div class="fr-mini-stat"><div class="lbl">Completion</div><div class="val">${esc(stats.percent)}%</div><div class="hint">overall</div></div>`;
+    }
+
+    function renderBreadcrumb(){
+      if (!gridBreadcrumb) return;
+      const c = getCourse();
+      const s = getSem();
+      const sec = getSection();
+      const parts = [{stage:'courses', label:'Courses', icon:'fa-house'}];
+      if (c) parts.push({stage:'years', label:c.course_name, icon:'fa-graduation-cap'});
+      if (state.view.yearKey) parts.push({stage:'semesters', label: state.view.yearKey === NO_YEAR ? 'No Academic Year' : state.view.yearKey, icon:'fa-calendar-days'});
+      if (s) parts.push({stage:'sections', label:s.semester_name, icon:'fa-layer-group'});
+      if (sec && state.view.sectionKey && state.view.sectionKey !== ALL_SECTIONS) parts.push({stage:'groups', label:sec.section_name, icon:'fa-users'});
+      
+
+      gridBreadcrumb.innerHTML = parts.map((p, idx) => `
+        ${idx ? '<span class="fr-bc-sep"><i class="fa fa-chevron-right"></i></span>' : ''}
+        <button type="button" class="fr-bc-btn" data-nav-stage="${esc(p.stage)}"><i class="fa-solid ${esc(p.icon)}"></i>${esc(p.label)}</button>
+      `).join('');
+    }
+
+    function setStageText(title, subtitle){
+      if (gridStageTitle) gridStageTitle.textContent = title;
+      if (gridStageSubtitle) gridStageSubtitle.textContent = subtitle;
+    }
+
+    function academicYearsForCourse(course){
+      const years = new Set();
+      (course?.posts || []).forEach(p => {
+        const y = safeText(p?.academic_year);
+        if (y) years.add(y);
+      });
+      const out = Array.from(years).sort((a,b)=>b.localeCompare(a));
+      return out.length ? out : [NO_YEAR];
+    }
+
+    function hasRealSections(sem){
+      const sections = Array.from(sem?.sections?.values() || []);
+      return sections.some(s => s.section_id || (safeText(s.section_name) && s.section_name !== 'No Section'));
+    }
+
+    function groupsForSelected(){
+      const sem = getSem();
+      if (!sem) return [];
+      const section = getSection();
+      const from = section && state.view.sectionKey !== ALL_SECTIONS ? section.groups : sem.groups;
+      const groups = Array.from(from?.values() || []);
+      const hasFacility = groups.some(g => g.isFacility || g.key.includes(FACILITY));
+      if (!hasFacility){
+        groups.push({ key: makeKey('group', sem.key, state.view.sectionKey || ALL_SECTIONS, FACILITY), isFacility: true, subject_id: null, subject_name: 'Facility', subject_code: '', posts: [] });
+      }
+      return groups.sort((a,b)=>{
+        if (a.isFacility && !b.isFacility) return 1;
+        if (!a.isFacility && b.isFacility) return -1;
+        return String(a.subject_name).localeCompare(String(b.subject_name));
       });
     }
 
-    function renderTable(){
-      const all = getFilteredRows();
-      state.total = all.length;
+    function currentGroup(){
+      return groupsForSelected().find(g => g.key === state.view.groupKey) || null;
+    }
 
-      const totalPages = Math.max(1, Math.ceil(state.total / state.perPage));
-      if (state.page > totalPages) state.page = totalPages;
+    function renderCourses(){
+      setStageText('Courses', 'Select a course to view available academic years. Counts are shown only in the final subject/facility step.');
+      const cards = state.courses
+        .filter(c => matchesSearchText(`${c.course_name} ${c.department_name}`))
+        .map(c => cardHtml({
+          key: c.key,
+          type: 'course',
+          title: c.course_name,
+          meta: `<i class="fa-solid fa-building me-1"></i>${esc(c.department_name || '—')}`,
+          stats: calcStats(c.posts),
+          icon: 'fa-graduation-cap',
+          muted: !calcStats(c.posts).posts,
+          foot: 'View years',
+          mode: 'plain'
+        })).join('');
+      return cards;
+    }
 
-      const start = (state.page - 1) * state.perPage;
-      const pageRows = all.slice(start, start + state.perPage);
+    function renderYears(){
+      const c = getCourse();
+      if (!c) { resetView(); return renderCourses(); }
+      setStageText('Academic Years', `Course: ${c.course_name}. Select an academic year to view semesters.`);
+      return academicYearsForCourse(c)
+        .filter(y => matchesSearchText(y === NO_YEAR ? 'No Academic Year' : y))
+        .map(y => {
+          const posts = y === NO_YEAR ? (c.posts || []).filter(p => !safeText(p?.academic_year)) : filterPostsByYear(c.posts, y);
+          const stats = calcStats(posts);
+          return cardHtml({
+            key: y,
+            type: 'year',
+            title: y === NO_YEAR ? 'No Academic Year Found' : y,
+            meta: y === NO_YEAR ? 'No feedback post is mapped with academic year yet.' : 'Open semesters for this academic year',
+            stats,
+            icon: 'fa-calendar-days',
+            muted: !stats.posts,
+            foot: 'View semesters',
+            mode: 'plain'
+          });
+        }).join('');
+    }
 
-      if (info) info.textContent = `${state.total} result(s)`;
+    function renderSemesters(){
+      const c = getCourse();
+      if (!c) { resetView(); return renderCourses(); }
+      const yearLabel = state.view.yearKey === NO_YEAR ? 'No Academic Year' : state.view.yearKey;
+      setStageText('Semesters', `${c.course_name} / ${yearLabel}. Select a semester.`);
+      const semesters = Array.from(c.semesters.values()).sort((a,b)=>String(a.semester_name).localeCompare(String(b.semester_name), undefined, {numeric:true}));
+      return semesters
+        .filter(s => matchesSearchText(s.semester_name))
+        .map(s => {
+          const posts = filterPostsByYear(s.posts, state.view.yearKey);
+          const stats = calcStats(posts, { unique: true });
+          return cardHtml({
+            key: s.key,
+            type: 'semester',
+            title: s.semester_name,
+            meta: hasRealSections(s) ? 'Sections available after this step' : 'No section split, subjects open directly',
+            stats,
+            icon: 'fa-layer-group',
+            muted: !stats.posts,
+            foot: hasRealSections(s) ? 'View sections' : 'View feedbacks',
+            mode: 'semester'
+          });
+        }).join('');
+    }
 
-      if (!pageRows.length){
-        if (tbody) tbody.innerHTML = '';
-        setEmpty(true);
-        renderPager();
-        return;
+    function renderSections(){
+      const sem = getSem();
+      if (!sem) { state.view.stage = 'semesters'; return renderSemesters(); }
+      setStageText('Sections', `${sem.semester_name}. Select a section to view subjects and facility.`);
+      const hasReal = hasRealSections(sem);
+      const sections = Array.from(sem.sections.values())
+        .filter(s => !hasReal || s.section_id || (safeText(s.section_name) && s.section_name !== 'No Section'))
+        .sort((a,b)=>String(a.section_name).localeCompare(String(b.section_name), undefined, {numeric:true}));
+      return sections
+        .filter(s => matchesSearchText(s.section_name))
+        .map(s => {
+          const posts = filterPostsByYear(s.posts, state.view.yearKey);
+          const stats = calcStats(posts, { unique: true });
+          return cardHtml({
+            key: s.key,
+            type: 'section',
+            title: s.section_name || 'No Section',
+            meta: 'Open feedbacks mapped to this section',
+            stats,
+            icon: 'fa-users',
+            muted: !stats.posts,
+            foot: 'View feedbacks',
+            mode: 'plain'
+          });
+        }).join('');
+    }
+
+    function renderGroups(){
+      const sem = getSem();
+      if (!sem) { state.view.stage = 'semesters'; return renderSemesters(); }
+      const sec = getSection();
+      const title = sec && state.view.sectionKey !== ALL_SECTIONS ? sec.section_name : 'All Sections';
+      setStageText('Faculty & Facility Feedbacks', `${sem.semester_name} / ${title}. Click a final card to open the detailed result modal directly.`);
+
+      const allGroups = groupsForSelected()
+        .filter(g => matchesSearchText(`${g.subject_name} ${g.subject_code}`));
+
+      const subjectGroups = allGroups.filter(g => !g.isFacility);
+      const facilityGroups = allGroups.filter(g => g.isFacility);
+
+      const makeGroupCard = (g) => {
+        const posts = filterPostsByYear(g.posts, state.view.yearKey);
+        const stats = calcStats(posts, { unique: true });
+        const label = g.isFacility ? 'Facility' : (g.subject_name || g.subject_code || 'Subject');
+        const code = g.subject_code ? ` <span class="pill ms-1">${esc(g.subject_code)}</span>` : '';
+        return cardHtml({
+          key: g.key,
+          type: 'group',
+          title: label,
+          meta: g.isFacility ? 'Facility feedback result' : `Faculty feedback result${code}`,
+          stats,
+          icon: g.isFacility ? 'fa-building-circle-check' : 'fa-user-graduate',
+          facility: g.isFacility,
+          muted: !stats.posts,
+          foot: 'Open Result',
+          mode: 'final'
+        });
+      };
+
+      const subjectHtml = subjectGroups.length
+        ? subjectGroups.map(makeGroupCard).join('')
+        : `<div class="fr-group-empty"><i class="fa-regular fa-folder-open me-1"></i>No faculty feedback subject found here.</div>`;
+
+      const facilityHtml = facilityGroups.some(g => calcStats(filterPostsByYear(g.posts, state.view.yearKey), { unique: true }).posts)
+        ? facilityGroups.map(makeGroupCard).join('')
+        : `<div class="fr-group-empty"><i class="fa-regular fa-building me-1"></i>No facility feedback post mapped here.</div>`;
+
+      return `
+        <div class="fr-group-section">
+          <div class="fr-group-title"><span class="bubble"><i class="fa-solid fa-user-graduate"></i></span><span>Faculty Feedbacks</span></div>
+          <div class="fr-group-grid">${subjectHtml}</div>
+        </div>
+        <div class="fr-group-section">
+          <div class="fr-group-title"><span class="bubble"><i class="fa-solid fa-building-circle-check"></i></span><span>Facility Feedback</span></div>
+          <div class="fr-group-grid">${facilityHtml}</div>
+        </div>`;
+    }
+
+    function renderGrid(){
+      renderSummary();
+      renderBreadcrumb();
+
+      let html = '';
+      if (state.view.stage === 'courses') html = renderCourses();
+      else if (state.view.stage === 'years') html = renderYears();
+      else if (state.view.stage === 'semesters') html = renderSemesters();
+      else if (state.view.stage === 'sections') html = renderSections();
+      else if (state.view.stage === 'groups') html = renderGroups();
+
+      if (info){
+        const stats = calcStats(state.flatPosts.map(x => state.postIndex.get(String(x.key))?.post).filter(Boolean));
+        info.textContent = `${state.courses.length} course(s) • ${stats.posts} feedback post(s) • ${stats.percent}% completion`;
       }
 
+      if (!html || !html.trim()){
+        if (gridCards) gridCards.innerHTML = '';
+        setEmpty(true);
+        return;
+      }
       setEmpty(false);
-
-      tbody.innerHTML = pageRows.map(r => {
-        const d = (r.ctx?.department_name ?? '').toString().trim();
-        const c = (r.ctx?.course_name ?? '').toString().trim();
-        const s = (r.ctx?.semester_name ?? '').toString().trim();
-
-        const subName = (r.ctx?.subject_name ?? '').toString().trim();
-        const subCode = (r.ctx?.subject_code ?? '').toString().trim();
-        const sec = (r.ctx?.section_name ?? '').toString().trim();
-
-        const scopeParts = [];
-        if (c) scopeParts.push(`Course: ${c}`);
-        if (s) scopeParts.push(`Sem: ${s}`);
-        if (subName || subCode){
-          const subLabel = subCode ? `${subName || '—'} (${subCode})` : (subName || '—');
-          scopeParts.push(`Sub: ${subLabel}`);
-        }
-        if (sec) scopeParts.push(`Sec: ${sec}`);
-        const scopeHtml = scopeParts.length ? `<div class="small text-muted">${esc(scopeParts.join(' • '))}</div>` : `<div class="small text-muted">—</div>`;
-        const deptHtml = d ? `<div class="mt-2"><span class="pill"><i class="fa-solid fa-building"></i>${esc(d)}</span></div>` : '';
-
-        const title = (r.title || '—').toString();
-        const st = (r.short_title || '').toString().trim();
-        const subtitle = st ? `<div class="small text-muted mt-1"><i class="fa-regular fa-note-sticky me-1"></i>${esc(st)}</div>` : '';
-        const publish = prettyDate(r.publish_at);
-        const expire = prettyDate(r.expire_at);
-
-        return `
-          <tr class="tr-click" data-post="${esc(r.key)}" title="Click to view details">
-            <td>
-              <div class="fw-semibold">${esc(title)}</div>
-              ${subtitle}
-            </td>
-            <td>
-              ${scopeHtml}
-              ${deptHtml}
-            </td>
-            <td class="fr-nowrap">${esc(r.academic_year || '—')}</td>
-            <td>${esc((r.year ?? '') !== '' ? r.year : '—')}</td>
-            <td class="fr-nowrap">${esc(publish)} <span class="small text-muted">→ ${esc(expire)}</span></td>
-            <td class="text-end">
-              <button type="button" class="btn btn-light btn-sm" data-action="view" data-post="${esc(r.key)}">
-                <i class="fa fa-eye"></i>
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-
-      renderPager();
+      if (gridCards){
+        gridCards.className = 'fr-card-grid';
+        gridCards.innerHTML = html;
+      }
     }
 
     /* ===========================
-     * Detail: faculty tabs helpers
+     * Detail modal - unchanged layout
      * =========================== */
-
-    // ✅ CHANGED: capture name_short_form from API and use it for tabs display
     function collectFacultyFromQuestions(questions){
-      const map = new Map(); // id -> { name, short }
-
+      const map = new Map();
       (questions || []).forEach(q => {
         (Array.isArray(q.faculty) ? q.faculty : []).forEach(f => {
           const id = Number(f?.faculty_id);
           if (!Number.isFinite(id)) return;
-
           const name = (f?.faculty_name ?? '').toString().trim() || ('Faculty #' + id);
-
-          // requested key: name_short_form (fallbacks are harmless)
-          const short =
-            (f?.name_short_form ?? f?.faculty_name_short_form ?? f?.short_name ?? f?.short_form ?? '')
-              .toString().trim();
-
+          const short = (f?.name_short_form ?? f?.faculty_name_short_form ?? f?.short_name ?? f?.short_form ?? '').toString().trim();
           const key = String(id);
           const prev = map.get(key);
-
-          if (!prev){
-            map.set(key, { name, short });
-          } else {
-            // keep best values without breaking
-            const nextName = prev.name || name;
-            const nextShort = (prev.short || short);
-            map.set(key, { name: nextName, short: nextShort });
-          }
+          if (!prev) map.set(key, { name, short });
+          else map.set(key, { name: prev.name || name, short: prev.short || short });
         });
       });
-
       if (!map.has('0')) map.set('0', { name: 'Overall', short: 'Overall' });
-
-      const out = [];
-      out.push({ id: '0', name: (map.get('0')?.name || 'Overall'), short: (map.get('0')?.short || 'Overall') });
-
-      Array.from(map.entries())
-        .filter(([id]) => id !== '0')
-        .sort((a,b)=>{
-          const aa = (a[1]?.name || '').toString();
-          const bb = (b[1]?.name || '').toString();
-          return aa.localeCompare(bb);
-        })
+      const out = [{ id: '0', name: 'Overall', short: 'Overall' }];
+      Array.from(map.entries()).filter(([id]) => id !== '0')
+        .sort((a,b)=>String(a[1]?.name || '').localeCompare(String(b[1]?.name || '')))
         .forEach(([id,obj]) => out.push({ id, name: obj?.name || ('Faculty #' + id), short: obj?.short || '' }));
-
       return out;
     }
 
     function renderFacultyTabs(){
       if (!detailFacultyTabs) return;
-
       const list = Array.isArray(state.availableFaculty) ? state.availableFaculty : [];
-      if (list.length <= 1){
-        detailFacultyTabs.style.display = 'none';
-        return;
-      }
-
+      if (list.length <= 1){ detailFacultyTabs.style.display = 'none'; return; }
       detailFacultyTabs.style.display = '';
       detailFacultyTabs.innerHTML = list.map(f => {
         const active = String(f.id) === String(state.activeFacultyId);
         const isOverall = String(f.id) === '0';
-
         const fullName = String(f.name || '');
-        // ✅ Requested: show ONLY name_short_form on tab button (fallback to full name if missing)
         const displayName = isOverall ? 'Overall' : (String(f.short || '').trim() || fullName || ('Faculty #' + f.id));
-
         return `
-          <button type="button"
-            class="fac-tabbtn ${active ? 'active' : ''}"
-            data-fid="${esc(String(f.id))}"
-            data-fname="${esc(String(f.name || ''))}">
+          <button type="button" class="fac-tabbtn ${active ? 'active' : ''}" data-fid="${esc(String(f.id))}" data-fname="${esc(String(f.name || ''))}">
             <i class="fa-solid ${isOverall ? 'fa-star' : 'fa-user-tie'}"></i>
             <span class="nm" title="${esc(fullName || displayName)}">${esc(displayName)}</span>
-          </button>
-        `;
+          </button>`;
       }).join('');
     }
 
@@ -1123,42 +1381,23 @@ td .fw-semibold{color:var(--ink)}
       return arr.find(x => String(x?.faculty_id) === String(fid)) || null;
     }
 
-    /* ===========================
-     * ✅ Matrix renderer (COUNTS)
-     * =========================== */
     function renderMatrixHtml({ questions, mode, fid, facName }){
       const rowCounts = [];
-
-      // keep for avg-grade computation only (NOT displayed as totals)
       const totalCounts = {'5':0,'4':0,'3':0,'2':0,'1':0};
-
       const rowsHtml = (questions || []).map((q, idx) => {
         const qTitle = (q.question_title || '—').toString();
         const searchable = (qTitle || '').toLowerCase();
-
         let dist = null;
-        if (mode === 'overall'){
-          dist = q.distribution || null; // {counts,total,avg}
-        } else {
+        if (mode === 'overall') dist = q.distribution || null;
+        else {
           const f = facultyRowForQuestion(q, fid);
           dist = (f && f.distribution) ? f.distribution : null;
         }
-
         const counts = dist ? normalizeCountMap(dist.counts || {}) : {'5':0,'4':0,'3':0,'2':0,'1':0};
         const total = dist ? Number(dist.total || 0) : 0;
-
-        // accumulate totals ONLY for avg grade (not for showing totals)
         ['5','4','3','2','1'].forEach(k => totalCounts[k] += Number(counts[k] || 0));
-
-        rowCounts.push({
-          idx: idx+1,
-          question: qTitle,
-          counts,
-          total
-        });
-
+        rowCounts.push({ idx: idx+1, question: qTitle, counts, total });
         const cell = (k) => total ? esc(String(counts[k] ?? 0)) : '—';
-
         return `
           <tr data-qrow="1" data-qsearch="${esc(searchable)}">
             <td class="qtext">${esc((idx+1) + '. ' + qTitle)}</td>
@@ -1167,15 +1406,12 @@ td .fw-semibold{color:var(--ink)}
             <td class="col3">${cell('3')}</td>
             <td class="col2">${cell('2')}</td>
             <td class="col1">${cell('1')}</td>
-          </tr>
-        `;
+          </tr>`;
       }).join('');
 
       const agg = computeAvgGradeFromCounts(totalCounts);
       const avgGrade = agg.avg;
-      const totalRatings = agg.total; // kept for internal compatibility (not displayed/used)
-
-      // ✅ CHANGED (NOW): avg row has ONLY ONE td and spans all columns => `.qtext` becomes full 100%
+      const totalRatings = agg.total;
       const avgRowHtml = `
         <tr class="avgrow">
           <td class="qtext" colspan="6">
@@ -1183,9 +1419,7 @@ td .fw-semibold{color:var(--ink)}
             ${avgGrade !== null ? `<b>${esc(String(avgGrade))}</b> / 5` : '—'}
             <span class="submeta">This is based on all submitted ratings.</span>
           </td>
-        </tr>
-      `;
-
+        </tr>`;
       const html = `
         <div class="matrix-wrap">
           <table class="matrix">
@@ -1199,68 +1433,47 @@ td .fw-semibold{color:var(--ink)}
                 <th class="col1">Not Satisfactory [1]</th>
               </tr>
             </thead>
-            <tbody>
-              ${rowsHtml}
-              ${avgRowHtml}
-            </tbody>
+            <tbody>${rowsHtml}${avgRowHtml}</tbody>
           </table>
-        </div>
-      `;
-
+        </div>`;
       return { html, rowCounts, totalCounts, avgGrade, totalRatings };
     }
 
     function renderDetail(postKey){
       const found = state.postIndex.get(String(postKey));
       if (!found) return;
-
       state.lastDetailPostKey = String(postKey);
-
       const ctx = found.ctx || {};
       const post = found.post || {};
-
       state.lastDetailCtx = ctx;
       state.lastDetailPost = post;
-
       const postName = (post.title || '—').toString();
 
       if (detailTitle) detailTitle.innerHTML = `<i class="fa fa-eye me-2"></i>${esc(postName)}`;
       if (detailPostName) detailPostName.textContent = postName;
       if (detailPublish) detailPublish.textContent = prettyDate(post.publish_at);
-
       if (detailDept) detailDept.textContent = ctx.department_name ?? '—';
       if (detailCourse) detailCourse.textContent = ctx.course_name ?? '—';
       if (detailSem) detailSem.textContent = ctx.semester_name ?? '—';
-      if (detailSub) detailSub.textContent = (ctx.subject_name ?? '—') || '—';
-      if (detailSubCode) detailSubCode.textContent = (ctx.subject_code ?? '—') || '—';
+      if (detailSub) detailSub.textContent = (ctx.is_facility ? 'Facility' : (ctx.subject_name ?? '—')) || '—';
+      if (detailSubCode) detailSubCode.textContent = (ctx.is_facility ? '—' : (ctx.subject_code ?? '—')) || '—';
       if (detailSec) detailSec.textContent = ctx.section_name ?? '—';
-
       if (detailAcadYear) detailAcadYear.textContent = (post.academic_year ?? '—') || '—';
       if (detailYear) detailYear.textContent = (post.year ?? '—') || '—';
 
-      const participated = Number(post.participated_students ?? 0) || 0;
-
-if (detailParticipated) {
-  detailParticipated.textContent = String(participated);
-}
-
-      // ✅ keep modal input in sync with current filter
+      const participated = postParticipated(post);
+      const eligible = postEligible(post);
+      if (detailParticipated) detailParticipated.textContent = `${participated} out of ${eligible} (${pct(participated, eligible)}%)`;
       if (attMin) attMin.value = (state.filters.min_attendance ?? '');
 
       const desc = (post.description ?? '').toString().trim();
       if (detailDescWrap && detailDesc){
-        if (desc){
-          detailDescWrap.style.display = '';
-          detailDesc.innerHTML = desc;
-        } else {
-          detailDescWrap.style.display = 'none';
-          detailDesc.innerHTML = '';
-        }
+        if (desc){ detailDescWrap.style.display = ''; detailDesc.innerHTML = desc; }
+        else { detailDescWrap.style.display = 'none'; detailDesc.innerHTML = ''; }
       }
 
       const questions = Array.isArray(post.questions) ? post.questions : [];
       state.lastDetailQuestions = questions;
-
       if (!questions.length){
         if (detailMatrixTitle) detailMatrixTitle.innerHTML = `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution`;
         if (detailFacultyTabs) detailFacultyTabs.style.display = 'none';
@@ -1269,7 +1482,6 @@ if (detailParticipated) {
       }
 
       state.availableFaculty = collectFacultyFromQuestions(questions);
-
       if (!state.availableFaculty.find(x => String(x.id) === String(state.activeFacultyId))){
         state.activeFacultyId = 0;
         state.activeFacultyName = 'Overall';
@@ -1277,19 +1489,12 @@ if (detailParticipated) {
         const f = state.availableFaculty.find(x => String(x.id) === String(state.activeFacultyId));
         state.activeFacultyName = f?.name || 'Overall';
       }
-
       renderFacultyTabs();
 
       const fid = String(state.activeFacultyId);
-
-      const resetDetailSearch = () => {
-        if (detailSearch) detailSearch.value = '';
-      };
-
+      const resetDetailSearch = () => { if (detailSearch) detailSearch.value = ''; };
       if (fid === '0'){
-        if (detailMatrixTitle) detailMatrixTitle.innerHTML =
-          `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution <span class="pill ms-2"><i class="fa fa-star"></i>Overall</span>`;
-
+        if (detailMatrixTitle) detailMatrixTitle.innerHTML = `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution <span class="pill ms-2"><i class="fa fa-star"></i>Overall</span>`;
         const { html } = renderMatrixHtml({ questions, mode: 'overall', fid: '0', facName: 'Overall' });
         detailQuestions.innerHTML = html;
         resetDetailSearch();
@@ -1297,17 +1502,12 @@ if (detailParticipated) {
       }
 
       const facName = state.activeFacultyName || 'Faculty';
-      if (detailMatrixTitle){
-        detailMatrixTitle.innerHTML =
-          `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution <span class="pill ms-2"><i class="fa fa-user-tie"></i>${esc(facName)}</span>`;
-      }
-
+      if (detailMatrixTitle) detailMatrixTitle.innerHTML = `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution <span class="pill ms-2"><i class="fa fa-user-tie"></i>${esc(facName)}</span>`;
       const { html } = renderMatrixHtml({ questions, mode: 'faculty', fid, facName });
       detailQuestions.innerHTML = html;
       resetDetailSearch();
     }
 
-    // Detail search
     detailSearch?.addEventListener('input', debounce(() => {
       const q = (detailSearch.value || '').toLowerCase().trim();
       const nodes = detailQuestions?.querySelectorAll('tr[data-qrow="1"]') || [];
@@ -1318,458 +1518,219 @@ if (detailParticipated) {
     }, 200));
 
     /* ===========================
-     * Export (CSV/PDF) - COUNTS
+     * Export - same behavior
      * =========================== */
-
     function buildBasicMetaRows(post, ctx){
-      const participated = Number(post?.participated_students ?? 0) || 0;
-const participatedLabel = String(participated);
-
+      const participated = postParticipated(post);
+      const eligible = postEligible(post);
       return [
         ['Feedback Post', safeText(post?.title)],
         ['Department', safeText(ctx?.department_name)],
         ['Course', safeText(ctx?.course_name)],
         ['Semester', safeText(ctx?.semester_name)],
-        ['Subject', safeText(ctx?.subject_name)],
-        ['Subject Code', safeText(ctx?.subject_code)],
+        ['Subject', ctx?.is_facility ? 'Facility' : safeText(ctx?.subject_name)],
+        ['Subject Code', ctx?.is_facility ? '—' : safeText(ctx?.subject_code)],
         ['Section', safeText(ctx?.section_name)],
         ['Academic Year', safeText(post?.academic_year)],
         ['Year', safeText(post?.year)],
         ['Publish', safeText(post?.publish_at)],
-        // ✅ UPDATED: show X out of Y in exports too
-        ['Participated', participatedLabel],
+        ['Participated', `${participated} out of ${eligible} (${pct(participated, eligible)}%)`],
       ];
     }
 
     function exportModalFill(){
       if (!exportTargets) return;
-
       const post = state.lastDetailPost || {};
-      const ctx  = state.lastDetailCtx || {};
-
+      const ctx = state.lastDetailCtx || {};
       if (exportPostTitle) exportPostTitle.textContent = safeText(post.title) || '—';
-      if (exportPostSub) exportPostSub.textContent =
-        `${safeText(ctx.department_name) || '—'} / ${safeText(ctx.course_name) || '—'} / ${safeText(ctx.subject_code) || '—'} / ${safeText(ctx.subject_name) || '—'}`;
+      if (exportPostSub) exportPostSub.textContent = `${safeText(ctx.department_name) || '—'} / ${safeText(ctx.course_name) || '—'} / ${ctx.is_facility ? 'Facility' : (safeText(ctx.subject_code) || '—')} / ${ctx.is_facility ? 'Facility' : (safeText(ctx.subject_name) || '—')}`;
 
       const list = Array.isArray(state.availableFaculty) ? state.availableFaculty : [{id:'0',name:'Overall',short:'Overall'}];
-
       const curActive = String(state.activeFacultyId || '0');
       exportTargets.innerHTML = list.map(f => {
         const isOverall = String(f.id) === '0';
         const checked = isOverall || (!isOverall && String(f.id) === curActive);
-
         const fullName = String(f.name || '');
-        // keep export label aligned (uses short if present, else fallback)
         const displayName = isOverall ? 'Overall' : (String(f.short || '').trim() || fullName || ('Faculty #' + f.id));
-
         return `
           <label class="export-pill" title="${esc(fullName || displayName)}">
             <input type="checkbox" class="form-check-input m-0" data-fid="${esc(String(f.id))}" ${checked ? 'checked' : ''}>
             <i class="fa-solid ${isOverall ? 'fa-star' : 'fa-user-tie'}"></i>
             <span>${esc(displayName)}</span>
-          </label>
-        `;
+          </label>`;
       }).join('');
     }
 
     function getSelectedExportTargets(){
       const nodes = exportTargets?.querySelectorAll('input[type="checkbox"][data-fid]') || [];
       const selected = [];
-      nodes.forEach(ch => {
-        if (!ch.checked) return;
-        selected.push(String(ch.getAttribute('data-fid')));
-      });
+      nodes.forEach(ch => { if (ch.checked) selected.push(String(ch.getAttribute('data-fid'))); });
       const list = Array.isArray(state.availableFaculty) ? state.availableFaculty : [];
       const ordered = [];
       if (selected.includes('0')) ordered.push('0');
-      list.filter(x => String(x.id) !== '0')
-        .forEach(x => { if (selected.includes(String(x.id))) ordered.push(String(x.id)); });
+      list.filter(x => String(x.id) !== '0').forEach(x => { if (selected.includes(String(x.id))) ordered.push(String(x.id)); });
       return ordered;
     }
 
     function buildExportMatrixForTarget(fid){
       const questions = Array.isArray(state.lastDetailQuestions) ? state.lastDetailQuestions : [];
-
       const isOverall = String(fid) === '0';
       const facObj = state.availableFaculty.find(x => String(x.id) === String(fid));
-      const facName = isOverall
-        ? 'Overall'
-        : (facObj?.name || ('Faculty #' + fid));
-
-      const facShort = isOverall
-        ? 'Overall'
-        : (String(facObj?.short || '').trim() || facName);
-
-      const matrix = renderMatrixHtml({
-        questions,
-        mode: isOverall ? 'overall' : 'faculty',
-        fid: String(fid),
-        facName
-      });
-
+      const facName = isOverall ? 'Overall' : (facObj?.name || ('Faculty #' + fid));
+      const facShort = isOverall ? 'Overall' : (String(facObj?.short || '').trim() || facName);
+      const matrix = renderMatrixHtml({ questions, mode: isOverall ? 'overall' : 'faculty', fid: String(fid), facName });
       return { facName, facShort, isOverall, matrix };
     }
 
     function doExportCsv(){
       const selected = getSelectedExportTargets();
-      if (!selected.length){
-        err('Select at least one target (Overall/Faculty)');
-        return;
-      }
-
+      if (!selected.length){ err('Select at least one target (Overall/Faculty)'); return; }
       const post = state.lastDetailPost || {};
-      const ctx  = state.lastDetailCtx || {};
-
+      const ctx = state.lastDetailCtx || {};
       const metaRows = buildBasicMetaRows(post, ctx);
-
       const lines = [];
-
       lines.push([ 'Academic Details', '' ].map(csvEscape).join(','));
-      metaRows.forEach(([k,v]) => {
-        lines.push([k, v ?? '—'].map(csvEscape).join(','));
-      });
-
-      lines.push('');
-      lines.push('');
-
+      metaRows.forEach(([k,v]) => lines.push([k, v ?? '—'].map(csvEscape).join(',')));
+      lines.push(''); lines.push('');
       const ordered = [];
       if (selected.includes('0')) ordered.push('0');
       selected.filter(x => x !== '0').forEach(x => ordered.push(x));
-
-      const tableHeader = [
-        'Q.No',
-        'Question',
-        'Outstanding [5] (Count)',
-        'Excellent [4] (Count)',
-        'Good [3] (Count)',
-        'Fair [2] (Count)',
-        'Not Satisfactory [1] (Count)'
-      ];
-
+      const tableHeader = ['Q.No','Question','Outstanding [5] (Count)','Excellent [4] (Count)','Good [3] (Count)','Fair [2] (Count)','Not Satisfactory [1] (Count)'];
       ordered.forEach((fid, idx) => {
         const { facShort, isOverall, matrix } = buildExportMatrixForTarget(fid);
         const sheetLabel = isOverall ? 'Overall' : `Faculty: ${facShort}`;
-
         lines.push([sheetLabel].map(csvEscape).join(','));
         lines.push(tableHeader.map(csvEscape).join(','));
-
         (matrix.rowCounts || []).forEach(r => {
           const c = normalizeCountMap(r.counts || {});
-          lines.push([
-            String(r.idx),
-            r.question,
-            String(c['5'] ?? 0),
-            String(c['4'] ?? 0),
-            String(c['3'] ?? 0),
-            String(c['2'] ?? 0),
-            String(c['1'] ?? 0),
-          ].map(csvEscape).join(','));
+          lines.push([String(r.idx), r.question, String(c['5'] ?? 0), String(c['4'] ?? 0), String(c['3'] ?? 0), String(c['2'] ?? 0), String(c['1'] ?? 0)].map(csvEscape).join(','));
         });
-
-        // ✅ CHANGED: No totals / no ratings. Keep ONLY Avg Grade.
         const avg = matrix.avgGrade;
-        lines.push([
-          '',
-          `Avg Grade: ${avg !== null ? avg : '—'}/5`,
-          '',
-          '',
-          '',
-          '',
-          '',
-        ].map(csvEscape).join(','));
-
-        if (idx !== ordered.length - 1){
-          lines.push('');
-          lines.push('');
-        }
+        lines.push(['', `Avg Grade: ${avg !== null ? avg : '—'}/5`, '', '', '', '', ''].map(csvEscape).join(','));
+        if (idx !== ordered.length - 1){ lines.push(''); lines.push(''); }
       });
-
-      const fname = `feedback_export_${slugify(post?.title)}_${nowStamp()}.csv`;
-      downloadBlob(fname, 'text/csv;charset=utf-8', lines.join('\n'));
+      downloadBlob(`feedback_export_${slugify(post?.title)}_${nowStamp()}.csv`, 'text/csv;charset=utf-8', lines.join('\n'));
       ok('CSV exported');
     }
 
     function doExportPdf(){
-  const selected = getSelectedExportTargets();
-  if (!selected.length){
-    err('Select at least one target (Overall/Faculty)');
-    return;
-  }
+      const selected = getSelectedExportTargets();
+      if (!selected.length){ err('Select at least one target (Overall/Faculty)'); return; }
+      const post = state.lastDetailPost || {};
+      const ctx = state.lastDetailCtx || {};
+      const title = safeText(post.title) || 'Feedback Result';
+      const metaRows = buildBasicMetaRows(post, ctx);
+      const { jsPDF } = (window.jspdf || {});
+      if (!jsPDF){ err('PDF library not loaded'); return; }
+      const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 32;
+      let headerBottomY = 112;
 
-  const post = state.lastDetailPost || {};
-  const ctx  = state.lastDetailCtx || {};
+      function addHeaderBlock(pageTitle){
+        const contentW = pageW - (margin * 2);
+        const colGap = 24;
+        const colW = (contentW - colGap) / 2;
+        const labelW = 82;
+        const valueGap = 6;
+        const lineH = 10;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        const titleLines = doc.splitTextToSize(String(pageTitle || 'Feedback Result'), contentW);
+        doc.text(titleLines, margin, 36);
+        let y = 36 + (titleLines.length * 14) + 10;
 
-  const title = safeText(post.title) || 'Feedback Result';
-  const metaRows = buildBasicMetaRows(post, ctx);
-
-  const { jsPDF } = (window.jspdf || {});
-  if (!jsPDF){
-    err('PDF library not loaded');
-    return;
-  }
-
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const margin = 32;
-
-  // dynamic header bottom so long text never overlaps table heading
-  let headerBottomY = 112;
-
-  function addHeaderBlock(pageTitle){
-    const contentW = pageW - (margin * 2);
-    const colGap = 24;
-    const colW = (contentW - colGap) / 2;
-    const labelW = 82;
-    const valueGap = 6;
-    const lineH = 10;
-
-    // title wrap
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    const titleLines = doc.splitTextToSize(String(pageTitle || 'Feedback Result'), contentW);
-    doc.text(titleLines, margin, 36);
-
-    let y = 36 + (titleLines.length * 14) + 10;
-
-    function drawMetaCell(label, value, x, topY, width){
-      const safeLabel = String(label || '');
-      const safeValue = String(value ?? '—') || '—';
-      const valueW = Math.max(60, width - labelW - valueGap);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text(`${safeLabel}:`, x, topY);
-
-      doc.setFont('helvetica', 'normal');
-      const valueLines = doc.splitTextToSize(safeValue, valueW);
-      doc.text(valueLines, x + labelW + valueGap, topY);
-
-      return Math.max(1, valueLines.length) * lineH;
-    }
-
-    for (let i = 0; i < metaRows.length; i += 2){
-      const left = metaRows[i] || ['', '—'];
-      const right = metaRows[i + 1] || null;
-
-      const leftHeight = drawMetaCell(left[0], left[1], margin, y, colW);
-
-      let rightHeight = 0;
-      if (right){
-        rightHeight = drawMetaCell(
-          right[0],
-          right[1],
-          margin + colW + colGap,
-          y,
-          colW
-        );
-      }
-
-      y += Math.max(leftHeight, rightHeight, lineH) + 8;
-    }
-
-    headerBottomY = y + 4;
-
-    doc.setDrawColor(200);
-    doc.line(margin, headerBottomY, pageW - margin, headerBottomY);
-  }
-
-  function addMatrixTable(matrix, sheetLabel){
-    const head = [[
-      'Question',
-      'Outstanding [5]',
-      'Excellent [4]',
-      'Good [3]',
-      'Fair [2]',
-      'Not Satisfactory [1]'
-    ]];
-
-    const body = (matrix.rowCounts || []).map(r => {
-      const c = normalizeCountMap(r.counts || {});
-      const q = `${r.idx}. ${r.question}`;
-      return [q, String(c['5']), String(c['4']), String(c['3']), String(c['2']), String(c['1'])];
-    });
-
-    const avg = matrix.avgGrade;
-    body.push([
-      `Avg Grade: ${avg !== null ? avg : '—'}/5`,
-      '',
-      '',
-      '',
-      '',
-      '',
-    ]);
-
-    const sheetLabelY = headerBottomY + 20;
-    const tableStartY = sheetLabelY + 12;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(sheetLabel, margin, sheetLabelY);
-
-    doc.autoTable({
-      startY: tableStartY,
-      head,
-      body,
-      theme: 'grid',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
-      headStyles: { fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 420 },
-        1: { halign:'center' },
-        2: { halign:'center' },
-        3: { halign:'center' },
-        4: { halign:'center' },
-        5: { halign:'center' },
-      },
-      margin: { left: margin, right: margin },
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.row.index === body.length - 1){
-          data.cell.styles.fillColor = [245,245,245];
-          data.cell.styles.fontStyle = 'bold';
+        function drawMetaCell(label, value, x, topY, width){
+          const safeLabel = String(label || '');
+          const safeValue = String(value ?? '—') || '—';
+          const valueW = Math.max(60, width - labelW - valueGap);
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text(`${safeLabel}:`, x, topY);
+          doc.setFont('helvetica', 'normal');
+          const valueLines = doc.splitTextToSize(safeValue, valueW);
+          doc.text(valueLines, x + labelW + valueGap, topY);
+          return Math.max(1, valueLines.length) * lineH;
         }
+        for (let i = 0; i < metaRows.length; i += 2){
+          const left = metaRows[i] || ['', '—'];
+          const right = metaRows[i + 1] || null;
+          const leftHeight = drawMetaCell(left[0], left[1], margin, y, colW);
+          let rightHeight = 0;
+          if (right) rightHeight = drawMetaCell(right[0], right[1], margin + colW + colGap, y, colW);
+          y += Math.max(leftHeight, rightHeight, lineH) + 8;
+        }
+        headerBottomY = y + 4;
+        doc.setDrawColor(200);
+        doc.line(margin, headerBottomY, pageW - margin, headerBottomY);
       }
-    });
-  }
 
-  const ordered = [];
-  if (selected.includes('0')) ordered.push('0');
-  selected.filter(x => x !== '0').forEach(x => ordered.push(x));
+      function addMatrixTable(matrix, sheetLabel){
+        const head = [['Question','Outstanding [5]','Excellent [4]','Good [3]','Fair [2]','Not Satisfactory [1]']];
+        const body = (matrix.rowCounts || []).map(r => {
+          const c = normalizeCountMap(r.counts || {});
+          return [`${r.idx}. ${r.question}`, String(c['5']), String(c['4']), String(c['3']), String(c['2']), String(c['1'])];
+        });
+        const avg = matrix.avgGrade;
+        body.push([`Avg Grade: ${avg !== null ? avg : '—'}/5`, '', '', '', '', '']);
+        const sheetLabelY = headerBottomY + 20;
+        const tableStartY = sheetLabelY + 12;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(sheetLabel, margin, sheetLabelY);
+        doc.autoTable({
+          startY: tableStartY,
+          head,
+          body,
+          theme: 'grid',
+          styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
+          headStyles: { fontStyle: 'bold' },
+          columnStyles: { 0: { cellWidth: 420 }, 1: { halign:'center' }, 2: { halign:'center' }, 3: { halign:'center' }, 4: { halign:'center' }, 5: { halign:'center' } },
+          margin: { left: margin, right: margin },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.row.index === body.length - 1){
+              data.cell.styles.fillColor = [245,245,245];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        });
+      }
 
-  ordered.forEach((fid, idx) => {
-    if (idx > 0) doc.addPage();
-
-    const target = buildExportMatrixForTarget(fid);
-    const sheetLabel = target.isOverall ? 'Overall' : `Faculty: ${target.facShort}`;
-
-    addHeaderBlock(title);
-    addMatrixTable(target.matrix, sheetLabel);
-  });
-
-  const fname = `feedback_export_${slugify(post?.title)}_${nowStamp()}.pdf`;
-  doc.save(fname);
-  ok('PDF exported');
-}
+      const ordered = [];
+      if (selected.includes('0')) ordered.push('0');
+      selected.filter(x => x !== '0').forEach(x => ordered.push(x));
+      ordered.forEach((fid, idx) => {
+        if (idx > 0) doc.addPage();
+        const target = buildExportMatrixForTarget(fid);
+        const sheetLabel = target.isOverall ? 'Overall' : `Faculty: ${target.facShort}`;
+        addHeaderBlock(title);
+        addMatrixTable(target.matrix, sheetLabel);
+      });
+      doc.save(`feedback_export_${slugify(post?.title)}_${nowStamp()}.pdf`);
+      ok('PDF exported');
+    }
 
     btnExport?.addEventListener('click', () => {
-      if (!state.lastDetailPostKey){
-        err('Open a feedback post first');
-        return;
-      }
+      if (!state.lastDetailPostKey){ err('Open a feedback post first'); return; }
       exportModalFill();
       exportModal && exportModal.show();
     });
-
-    btnDoCsv?.addEventListener('click', () => {
-      try{
-        doExportCsv();
-        exportModal && exportModal.hide();
-      }catch(ex){
-        err(ex?.message || 'CSV export failed');
-      }
-    });
-
-    btnDoPdf?.addEventListener('click', () => {
-      try{
-        doExportPdf();
-        exportModal && exportModal.hide();
-      }catch(ex){
-        err(ex?.message || 'PDF export failed');
-      }
-    });
+    btnDoCsv?.addEventListener('click', () => { try{ doExportCsv(); exportModal && exportModal.hide(); }catch(ex){ err(ex?.message || 'CSV export failed'); } });
+    btnDoPdf?.addEventListener('click', () => { try{ doExportPdf(); exportModal && exportModal.hide(); }catch(ex){ err(ex?.message || 'PDF export failed'); } });
 
     async function loadResults(){
-      setLoadingRow();
-
+      setLoadingGrid();
       try{
         const qs = buildParams();
-        const url = API.results(qs);
-
-        const res = await fetchWithTimeout(url, { headers: authHeaders() }, 25000);
-        if (res.status === 401 || res.status === 403) { window.location.href = '/'; return; }
-
+        const res = await fetchWithTimeout(API.results(qs), { headers: authHeaders() }, 25000);
+        if (res.status === 401 || res.status === 403){ window.location.href = '/'; return; }
         const js = await res.json().catch(()=> ({}));
         if (!res.ok || js.success === false) throw new Error(js?.message || 'Failed to load');
-
         state.rawHierarchy = Array.isArray(js.data) ? js.data : [];
-
-        // ✅ FIX: if empty result, keep dropdowns (do not wipe), but still clear posts
         rebuildFromHierarchy();
-
-        renderTable();
-
+        renderGrid();
       }catch(ex){
-        if (tbody) tbody.innerHTML = '';
+        if (gridCards) gridCards.innerHTML = '';
         setEmpty(true);
-        renderPager();
         err(ex?.name === 'AbortError' ? 'Request timed out' : (ex.message || 'Failed'));
       }
     }
-
-    // Pager click
-    document.addEventListener('click', (e) => {
-      const a = e.target.closest('#pager-posts a.page-link[data-page]');
-      if (!a) return;
-      e.preventDefault();
-      const p = parseInt(a.dataset.page, 10);
-      if (!Number.isFinite(p)) return;
-      state.page = p;
-      renderTable();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    // Faculty tabs click (detail modal)
-    document.addEventListener('click', (e) => {
-      const b = e.target.closest('#detailFacultyTabs .fac-tabbtn[data-fid]');
-      if (!b) return;
-
-      const fid = b.dataset.fid;
-      const fname = b.dataset.fname || 'Faculty';
-
-      state.activeFacultyId = Number(fid || 0);
-      state.activeFacultyName = fname;
-
-      detailFacultyTabs?.querySelectorAll('.fac-tabbtn').forEach(x => {
-        x.classList.toggle('active', x === b);
-      });
-
-      if (state.lastDetailPostKey) renderDetail(state.lastDetailPostKey);
-    });
-
-    // Row click / view click
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-action="view"][data-post]');
-      const tr = e.target.closest('tr[data-post]');
-      const postKey = btn?.dataset?.post || tr?.dataset?.post;
-      if (!postKey) return;
-      if (btn) e.preventDefault();
-
-      state.activeFacultyId = 0;
-      state.activeFacultyName = 'Overall';
-
-      // ✅ PIN this post so attendance filter can recover after an empty load
-      state.pinnedDetailPostKey = String(postKey);
-      state.lastDetailPostKey   = String(postKey);
-
-      renderDetail(postKey);
-      if (detailSearch) detailSearch.value = '';
-      detailModal && detailModal.show();
-    });
-
-    // Search, perPage
-    searchInput?.addEventListener('input', debounce(() => {
-      state.q = (searchInput.value || '').trim();
-      state.page = 1;
-      setLoadingRow();
-      clearTimeout(searchRenderTimer);
-      searchRenderTimer = setTimeout(() => renderTable(), 120);
-    }, 250));
-
-    perPageSel?.addEventListener('change', () => {
-      state.perPage = parseInt(perPageSel.value, 10) || 20;
-      state.page = 1;
-      setLoadingRow();
-      renderTable();
-    });
 
     function syncFiltersFromInputs(){
       state.filters.department_id = (fDept?.value || '').trim();
@@ -1783,83 +1744,147 @@ const participatedLabel = String(participated);
 
     function applyTopFilters(){
       syncFiltersFromInputs();
-      state.page = 1;
+      resetView('courses');
       loadResults();
     }
 
-    [fDept, fCourse, fSem, fSub, fSec, fAcad, fYear].forEach(el => {
-      el?.addEventListener('change', () => applyTopFilters());
-    });
+    [fDept, fCourse, fSem, fSub, fSec, fAcad, fYear].forEach(el => el?.addEventListener('change', () => applyTopFilters()));
 
-    btnReset?.addEventListener('click', () => {
-      state.page = 1;
+    function resetAll(){
       state.q = '';
       if (searchInput) searchInput.value = '';
-      if (perPageSel) perPageSel.value = '20';
-      state.perPage = 20;
-
-      state.filters = {
-        department_id: '',
-        course_id: '',
-        semester_id: '',
-        subject_id: '',
-        section_id: '',
-        academic_year: '',
-        year: '',
-        min_attendance: '' // ✅ NEW
-      };
-
-      if (fDept) fDept.value = '';
-      if (fCourse) fCourse.value = '';
-      if (fSem) fSem.value = '';
-      if (fSub) fSub.value = '';
-      if (fSec) fSec.value = '';
-      if (fAcad) fAcad.value = '';
-      if (fYear) fYear.value = '';
-
-      // ✅ NEW
+      state.filters = { department_id:'', course_id:'', semester_id:'', subject_id:'', section_id:'', academic_year:'', year:'', min_attendance:'' };
+      [fDept, fCourse, fSem, fSub, fSec, fAcad, fYear].forEach(el => { if (el) el.value = ''; });
       if (attMin) attMin.value = '';
-
-      syncFiltersFromInputs();
+      resetView('courses');
       loadResults();
+    }
+
+
+    function runSearch(){
+      state.q = (searchInput?.value || '').trim();
+      renderGrid();
+    }
+
+    btnSearch?.addEventListener('click', runSearch);
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        runSearch();
+      }
+    });
+
+    function newestPostFromGroup(group){
+      const posts = uniquePosts(filterPostsByYear(group?.posts || [], state.view.yearKey));
+      posts.sort((a,b) => {
+        const ad = Date.parse(a?.publish_at || a?.updated_at || a?.created_at || '') || 0;
+        const bd = Date.parse(b?.publish_at || b?.updated_at || b?.created_at || '') || 0;
+        if (bd !== ad) return bd - ad;
+        return toNum(b?.feedback_post_id) - toNum(a?.feedback_post_id);
+      });
+      return posts[0] || null;
+    }
+
+    function openPostModal(postKey){
+      if (!postKey) return;
+      state.activeFacultyId = 0;
+      state.activeFacultyName = 'Overall';
+      state.pinnedDetailPostKey = String(postKey);
+      state.lastDetailPostKey = String(postKey);
+      renderDetail(postKey);
+      if (detailSearch) detailSearch.value = '';
+      detailModal && detailModal.show();
+    }
+
+    document.addEventListener('click', (e) => {
+      const nav = e.target.closest('[data-nav-stage]');
+      if (nav){
+        e.preventDefault();
+        const stage = nav.getAttribute('data-nav-stage');
+        if (stage === 'courses') resetView('courses');
+        else if (stage === 'years') state.view = { ...state.view, stage:'years', yearKey:null, semKey:null, sectionKey:null, groupKey:null };
+        else if (stage === 'semesters') state.view = { ...state.view, stage:'semesters', semKey:null, sectionKey:null, groupKey:null };
+        else if (stage === 'sections') state.view = { ...state.view, stage: hasRealSections(getSem()) ? 'sections' : 'groups', sectionKey:null, groupKey:null };
+        else if (stage === 'groups') state.view = { ...state.view, stage:'groups', groupKey:null };
+        renderGrid();
+        return;
+      }
+
+      const drill = e.target.closest('[data-drill][data-key]');
+      if (drill){
+        e.preventDefault();
+        const type = drill.getAttribute('data-drill');
+        const key = drill.getAttribute('data-key');
+        if (type === 'course') state.view = { stage:'years', courseKey:key, yearKey:null, semKey:null, sectionKey:null, groupKey:null };
+        else if (type === 'year') state.view = { ...state.view, stage:'semesters', yearKey:key, semKey:null, sectionKey:null, groupKey:null };
+        else if (type === 'semester'){
+          state.view = { ...state.view, semKey:key, sectionKey:null, groupKey:null };
+          state.view.stage = hasRealSections(getSem()) ? 'sections' : 'groups';
+          if (state.view.stage === 'groups') state.view.sectionKey = ALL_SECTIONS;
+        }
+        else if (type === 'section') {
+          state.view = { ...state.view, stage:'groups', sectionKey:key, groupKey:null };
+          renderGrid();
+          return;
+        }
+        else if (type === 'group') {
+          state.view = { ...state.view, groupKey:key };
+          const group = currentGroup();
+          const post = newestPostFromGroup(group);
+          if (!post){
+            err('No feedback post found for this selection');
+            return;
+          }
+          openPostModal(String(post.__resultKey ?? post.result_key ?? post.feedback_result_key ?? post.feedback_post_id));
+          return;
+        }
+        renderGrid();
+        return;
+      }
+
+      const btn = e.target.closest('[data-action="view"][data-post]');
+      if (btn){
+        e.preventDefault();
+        e.stopPropagation();
+        const postKey = btn.getAttribute('data-post');
+        openPostModal(postKey);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('#detailFacultyTabs .fac-tabbtn[data-fid]');
+      if (!b) return;
+      const fid = b.dataset.fid;
+      const fname = b.dataset.fname || 'Faculty';
+      state.activeFacultyId = Number(fid || 0);
+      state.activeFacultyName = fname;
+      detailFacultyTabs?.querySelectorAll('.fac-tabbtn').forEach(x => x.classList.toggle('active', x === b));
+      if (state.lastDetailPostKey) renderDetail(state.lastDetailPostKey);
     });
 
     async function applyAttendanceFromModal(){
       const val = clampAttendance(attMin ? attMin.value : '');
       state.filters.min_attendance = val;
       if (attMin) attMin.value = val;
-
-      // ✅ Use pinned key so we can recover even after a "0 results" load
       const keepPost = state.pinnedDetailPostKey ? String(state.pinnedDetailPostKey) : null;
-
       await loadResults();
-
       if (keepPost && state.postIndex.has(keepPost)){
-        // ✅ Post exists again under loosened attendance -> re-render details
         state.lastDetailPostKey = keepPost;
         renderDetail(keepPost);
-      } else if (keepPost) {
-        // ✅ Post doesn't match this attendance threshold -> show friendly msg
-        // ❌ DO NOT clear pinnedDetailPostKey (that was the bug)
-        state.lastDetailPostKey = null; // disables export and prevents stale state
-
+      } else if (keepPost){
+        state.lastDetailPostKey = null;
         if (detailFacultyTabs) detailFacultyTabs.style.display = 'none';
-        if (detailMatrixTitle) detailMatrixTitle.innerHTML =
-          `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution`;
-
-        if (detailQuestions) detailQuestions.innerHTML =
-          `<div class="text-center text-muted" style="padding:22px;">No results for this post under current attendance filter.</div>`;
+        if (detailMatrixTitle) detailMatrixTitle.innerHTML = `<i class="fa fa-table me-2"></i>Question-wise Grade Distribution`;
+        if (detailQuestions) detailQuestions.innerHTML = `<div class="text-center text-muted" style="padding:22px;">No results for this post under current attendance filter.</div>`;
       }
     }
 
     btnAttApply?.addEventListener('click', () => { applyAttendanceFromModal(); });
-
     btnAttClear?.addEventListener('click', () => {
       if (attMin) attMin.value = '';
       state.filters.min_attendance = '';
       applyAttendanceFromModal();
     });
-
     attMin?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter'){
         e.preventDefault();
@@ -1867,12 +1892,11 @@ const participatedLabel = String(participated);
       }
     });
 
-    // Init
     (async () => {
       try{
         await loadResults();
         ok('Loaded feedback results');
-      }catch(_){}
+      }catch(_){ }
     })();
   });
 })();
